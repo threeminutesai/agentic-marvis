@@ -1,0 +1,64 @@
+<h2>Which overall layout feels right for the Jarvis app?</h2>
+<p class="subtitle">Consider how voice, chat, and task/project status should share the screen</p>
+
+<div class="options" data-multiselect="false">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>HUD / Iron-Man style</h3>
+      <p>Dark theme, glowing circular voice indicator center stage, minimal chat transcript fades in below, status readouts (active project, task state) along the edges like a heads-up display</p>
+    </div>
+  </div>
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Chat-app style</h3>
+      <p>Familiar chat bubble interface (like ChatGPT/Claude desktop) with a mic button, message history scrolls normally, project/task status shown in a slim top bar or sidebar</p>
+    </div>
+  </div>
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Split panel: conversation + task console</h3>
+      <p>Left side is the chat/voice conversation with Jarvis, right side is a live "task console" panel showing the active Codex/Claude Code session (project, status, last action) — good for when you want to glance at what the CLI is doing</p>
+    </div>
+  </div>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">Preview: Option A (HUD)</div>
+  <div class="mockup-body" style="background:#0a0e14;color:#5ad1e6;text-align:center;padding:40px;border-radius:8px;">
+    <div style="width:120px;height:120px;border-radius:50%;border:3px solid #5ad1e6;margin:0 auto 20px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 30px #5ad1e688;">JARVIS</div>
+    <div style="font-size:12px;opacity:0.7;">PROJECT: jarvis &nbsp;|&nbsp; STATUS: idle</div>
+    <div style="margin-top:20px;font-size:13px;opacity:0.5;">"Standing by, sir."</div>
+  </div>
+</div>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">Preview: Option B (Chat)</div>
+    <div class="mockup-body" style="padding:16px;">
+      <div class="mock-nav">Jarvis &nbsp; | &nbsp; project: jarvis &nbsp; | &nbsp; idle</div>
+      <div style="padding:12px 0;">
+        <div style="background:#2a2a2a;color:#fff;padding:8px 12px;border-radius:8px;margin-bottom:8px;max-width:70%;">How's the build going?</div>
+        <div style="background:#3a5a8a;color:#fff;padding:8px 12px;border-radius:8px;margin-left:auto;max-width:70%;">All tests passing, sir.</div>
+      </div>
+      <input class="mock-input" placeholder="Type or hold mic to speak...">
+    </div>
+  </div>
+  <div class="mockup">
+    <div class="mockup-header">Preview: Option C (Split)</div>
+    <div class="mockup-body" style="padding:0;display:flex;height:220px;">
+      <div style="flex:1;padding:12px;border-right:1px solid #333;">
+        <div style="background:#2a2a2a;color:#fff;padding:6px 10px;border-radius:6px;margin-bottom:6px;font-size:12px;">Refactor the auth module</div>
+        <div style="background:#3a5a8a;color:#fff;padding:6px 10px;border-radius:6px;font-size:12px;">On it.</div>
+      </div>
+      <div style="flex:1;padding:12px;font-size:12px;">
+        <div class="label">Task Console</div>
+        <div>project: jarvis</div>
+        <div>status: <span style="color:#5ad1e6;">running</span></div>
+        <div style="margin-top:8px;opacity:0.6;">claude-code: editing auth.py...</div>
+      </div>
+    </div>
+  </div>
+</div>

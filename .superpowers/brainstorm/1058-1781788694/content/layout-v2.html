@@ -1,0 +1,68 @@
+<h2>Cooler avatar concept: animated "electrical brain"</h2>
+<p class="subtitle">A neural/synaptic core that pulses with electric arcs while idle, and animates more intensely while speaking</p>
+
+<style>
+@keyframes pulse-idle {
+  0%, 100% { box-shadow: 0 0 20px #5ad1e655, inset 0 0 20px #5ad1e633; }
+  50% { box-shadow: 0 0 35px #5ad1e688, inset 0 0 30px #5ad1e655; }
+}
+@keyframes spark {
+  0%, 100% { opacity: 0.3; transform: scale(1) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1.08) rotate(3deg); }
+}
+@keyframes speak-bounce {
+  0%, 100% { transform: scale(1); }
+  25% { transform: scale(1.12); }
+  50% { transform: scale(0.96); }
+  75% { transform: scale(1.15); }
+}
+.brain-core {
+  width: 160px; height: 160px; border-radius: 50%; margin: 0 auto;
+  background: radial-gradient(circle at 30% 30%, #1a3a4a, #0a0e14 70%);
+  border: 2px solid #5ad1e6;
+  position: relative; display: flex; align-items: center; justify-content: center;
+  animation: pulse-idle 3s ease-in-out infinite;
+}
+.brain-core svg { width: 70%; height: 70%; }
+.brain-core.speaking { animation: speak-bounce 0.6s ease-in-out infinite; }
+.brain-core.speaking .vein { animation: spark 0.4s ease-in-out infinite; }
+.vein { stroke: #5ad1e6; stroke-width: 1.5; fill: none; opacity: 0.6; animation: spark 2.5s ease-in-out infinite; }
+.vein:nth-child(2) { animation-delay: 0.3s; }
+.vein:nth-child(3) { animation-delay: 0.6s; }
+.vein:nth-child(4) { animation-delay: 0.9s; }
+</style>
+
+<div class="options">
+  <div class="option" data-choice="idle" onclick="toggleSelect(this)">
+    <div class="letter">1</div>
+    <div class="content">
+      <h3>Idle state</h3>
+      <div class="brain-core" id="brain-idle">
+        <svg viewBox="0 0 100 100">
+          <path class="vein" d="M20,50 Q35,20 50,50 T80,50"/>
+          <path class="vein" d="M15,40 Q40,60 50,30 T85,45"/>
+          <path class="vein" d="M25,65 Q45,40 60,65 T75,35"/>
+          <circle cx="50" cy="50" r="8" fill="#5ad1e6" opacity="0.8"/>
+        </svg>
+      </div>
+      <p style="text-align:center;margin-top:10px;opacity:0.6;font-size:12px;">slow pulse, gentle drift</p>
+    </div>
+  </div>
+  <div class="option" data-choice="speaking" onclick="toggleSelect(this)">
+    <div class="letter">2</div>
+    <div class="content">
+      <h3>Speaking state</h3>
+      <div class="brain-core speaking" id="brain-speak">
+        <svg viewBox="0 0 100 100">
+          <path class="vein" d="M20,50 Q35,20 50,50 T80,50"/>
+          <path class="vein" d="M15,40 Q40,60 50,30 T85,45"/>
+          <path class="vein" d="M25,65 Q45,40 60,65 T75,35"/>
+          <circle cx="50" cy="50" r="8" fill="#5ad1e6" opacity="0.8"/>
+        </svg>
+      </div>
+      <p style="text-align:center;margin-top:10px;opacity:0.6;font-size:12px;">fast pulse + scale bounce synced to TTS amplitude</p>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:20px;">Does this direction work? In the real app, the "speaking" intensity would react live to TTS audio amplitude (louder syllables = bigger spark). Click whichever state you want to weigh in on, or just reply in terminal.</p>

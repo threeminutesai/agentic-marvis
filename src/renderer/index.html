@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Jarvis</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="starfield"></div>
+  <div id="app-screen" class="hidden">
+    <header id="app-header">
+      <span id="brand-mark">JARVIS</span>
+    </header>
+    <div id="app-body">
+      <div id="chat-column">
+        <div id="avatar-mount"></div>
+        <div id="chat-log"></div>
+        <div id="chat-bar">
+          <input id="chat-input" placeholder="Talk to Jarvis...">
+          <button id="audio-input-btn" type="button" title="Record voice input">Mic</button>
+          <button id="send-btn" type="button" title="Send message">Send</button>
+          <button id="mute-toggle-btn">Mute</button>
+          <button id="settings-btn">Settings</button>
+        </div>
+        <div id="project-strip">
+          <button id="select-project-btn" type="button">Select Project</button>
+          <div id="project-path-display">No project selected</div>
+        </div>
+        <div id="continue-section">
+          <button id="continue-btn" type="button">Continue</button>
+        </div>
+      </div>
+      <div id="status-panel"></div>
+    </div>
+  </div>
+  <div id="settings-modal" class="hidden">
+    <p id="setup-banner" class="hidden">Welcome, sir. Please add an API key to get started.</p>
+    <label>AI Provider: <select id="provider-select"><option value="deepseek">DeepSeek</option><option value="gemini">Gemini</option></select></label>
+    <div id="deepseek-api-group" class="provider-api-group">
+      <label>DeepSeek API Key: <input id="deepseek-api-key-input" type="password"></label>
+    </div>
+    <div id="gemini-api-group" class="provider-api-group hidden">
+      <label>Gemini API Key: <input id="gemini-api-key-input" type="password"></label>
+    </div>
+    <label>ElevenLabs API Key (optional, for natural voice): <input id="elevenlabs-api-key-input" type="password"></label>
+    <label>ElevenLabs Voice: <select id="elevenlabs-voice-select"><option value="">Adam (default)</option></select></label>
+    <div id="elevenlabs-voice-manage">
+      <input id="elevenlabs-voice-name-input" type="text" placeholder="Voice name (e.g. Mark - Natural Conversations)">
+      <input id="elevenlabs-voice-id-input" type="text" placeholder="Voice ID (e.g. UgBBYS2sOqTuMpoF3BR0)">
+      <button id="elevenlabs-voice-add-btn" type="button">Add Voice</button>
+      <button id="elevenlabs-voice-remove-btn" type="button">Remove Selected</button>
+    </div>
+    <label><input id="wakeword-enabled-input" type="checkbox"> Enable wake word (always listens for "Jarvis")</label>
+    <label>Personality: <textarea id="personality-input"></textarea></label>
+    <label>Avatar Style: <select id="avatar-select"><option value="rings">Rings/HUD</option><option value="brain">Electrical Brain</option></select></label>
+    <label>Preferred CLI: <select id="preferred-cli-select"><option value="">None (use chat)</option><option value="code">Claude Code</option><option value="codex">Codex</option></select></label>
+    <label>Active Project: <input id="project-input" placeholder="/path/to/project"></label>
+    <button id="project-browse-btn" type="button">Browse Folder</button>
+    <button id="settings-save-btn">Save</button>
+    <p id="setup-status"></p>
+  </div>
+  <script src="avatar/ringsAvatar.js"></script>
+  <script src="avatar/brainAvatar.js"></script>
+  <script src="avatar/avatarController.js"></script>
+  <script src="voice/wakeWordController.js"></script>
+  <script src="voice/sttController.js"></script>
+  <script src="voice/ttsController.js"></script>
+  <script src="statusPanel.js"></script>
+  <script src="renderer.js"></script>
+</body>
+</html>

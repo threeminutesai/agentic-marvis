@@ -1,0 +1,60 @@
+<h2>Authentic JARVIS style: concentric rotating rings + core</h2>
+<p class="subtitle">Inner ring = system stats (slow), middle = processing (medium), outer = alerts/activity (fast) — cyan holographic glow, pulses travel outward</p>
+
+<style>
+.ring-stage {
+  width: 280px; height: 280px; margin: 0 auto; position: relative;
+  display: flex; align-items: center; justify-content: center;
+}
+.ring {
+  position: absolute; border-radius: 50%; border-style: solid;
+  border-color: #4fd6ff transparent #4fd6ff transparent;
+  box-shadow: 0 0 12px #4fd6ff66;
+}
+.ring.outer { width: 260px; height: 260px; border-width: 1.5px; animation: spin 4s linear infinite; opacity: 0.6; }
+.ring.middle { width: 190px; height: 190px; border-width: 2px; border-color: transparent #4fd6ff transparent #4fd6ff; animation: spin-rev 6s linear infinite; opacity: 0.75; }
+.ring.inner { width: 120px; height: 120px; border-width: 2.5px; animation: spin 9s linear infinite; opacity: 0.9; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes spin-rev { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
+.core {
+  width: 50px; height: 50px; border-radius: 50%;
+  background: radial-gradient(circle, #aef3ff 0%, #4fd6ff 60%, #0a3a4a 100%);
+  box-shadow: 0 0 25px #4fd6ffcc, 0 0 60px #4fd6ff55;
+  animation: breathe 2.5s ease-in-out infinite;
+}
+@keyframes breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.15); } }
+.ring-stage.speaking .outer { animation-duration: 1.2s; opacity: 0.9; }
+.ring-stage.speaking .middle { animation-duration: 1.8s; opacity: 1; }
+.ring-stage.speaking .inner { animation-duration: 2.5s; }
+.ring-stage.speaking .core { animation-duration: 0.5s; box-shadow: 0 0 40px #aef3ffdd, 0 0 90px #4fd6ff99; }
+.hud-label { color: #4fd6ff; font-family: monospace; font-size: 11px; letter-spacing: 1px; opacity: 0.7; text-align: center; margin-top: 16px; }
+</style>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">Idle</div>
+    <div class="mockup-body" style="background:#06090d;padding:30px;">
+      <div class="ring-stage">
+        <div class="ring outer"></div>
+        <div class="ring middle"></div>
+        <div class="ring inner"></div>
+        <div class="core"></div>
+      </div>
+      <div class="hud-label">PROJECT: JARVIS &nbsp;//&nbsp; STATUS: STANDBY</div>
+    </div>
+  </div>
+  <div class="mockup">
+    <div class="mockup-header">Speaking</div>
+    <div class="mockup-body" style="background:#06090d;padding:30px;">
+      <div class="ring-stage speaking">
+        <div class="ring outer"></div>
+        <div class="ring middle"></div>
+        <div class="ring inner"></div>
+        <div class="core"></div>
+      </div>
+      <div class="hud-label">PROJECT: JARVIS &nbsp;//&nbsp; STATUS: SPEAKING</div>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:16px;">Closer to the real JARVIS look? Rings would speed up / glow brighter with task complexity and TTS amplitude in the real app.</p>
