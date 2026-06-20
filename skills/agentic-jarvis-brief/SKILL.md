@@ -49,7 +49,8 @@ Do not invent interests. If the profile is sparse, make only conservative infere
    - Keep the weather card compact: put a single readable sentence in `value` such as `30.2C, cloudy. Rain is likely over the next couple of hours.`
    - Use `detail` only for a short supporting note when helpful, such as the location or the near-term rain trend.
    - Source origin for the live weather flow: Photon for geocoding, then met.no Locationforecast for the forecast.
-   - If no live forecast can be fetched, record the limitation instead of fabricating weather.
+   - If the forecast request fails, retry once with the same geocoded coordinates and a clearly unique `User-Agent`.
+   - Only if both attempts fail, record the limitation instead of fabricating weather.
 5. Fill JSON: Map gathered data into the requested format. Preserve existing keys, add timestamps in ISO 8601 if the format allows, and use empty arrays or `null` for unavailable sections rather than inventing facts.
 6. Write or return: If a writable path was provided, update that file. If not, return the JSON in the response.
 
@@ -59,8 +60,8 @@ When the target JSON is an array of cards with `type`, `value`, and `detail` fie
 - Put the user-facing content in `value`.
 - Keep `detail` as an empty string unless the existing format clearly requires otherwise.
 - Use bullet point text in `value` for `News Briefing`.
-- For `Unread Emails`, put the unread count in `value` and the unread summary in `detail`.
-- For `Urgent Emails`, put the urgent count in `value` and the urgent-email summary or titles in `detail`.
+- For `Unread Emails`, put only the unread count in `value` and the unread summary in `detail`.
+- For `Urgent Emails`, put only the urgent count in `value` and the urgent-email summary or titles in `detail`.
 - Remove `Email Content` from the output if the existing format allows it.
 - Keep `Avatar Briefing` as natural spoken prose in `value`, not bullets.
 - Keep `Avatar Briefing.detail` empty.
@@ -107,10 +108,12 @@ Do not mark newsletters, promos, social notifications, routine digests, or low-v
 
 Prefer concise summaries suitable for a dashboard:
 - News items: bullet point content with title/topic, short summary, why it matters, source, URL, published time if available.
-- Urgent email items: summary in `value`, urgent email titles in `detail`, and if needed a short action note.
+- Unread email items: keep only the unread count in `value` and put thread titles or a short summary in `detail`.
+- Urgent email items: keep only the urgent count in `value` and put urgent email titles or a short action note in `detail`.
 - Weather: location, temperature, and a simple condition label with a short near-term rain outlook when available.
 - Weather: write a readable one-line summary in `value` when data is available; if not, use a short fallback like `Weather unavailable` and put the reason in `detail`.
-- Weather should never be a generic unavailable sentence unless the API truly returns no usable data after geocoding.
+- Do not use the unavailable fallback just because one request failed. Retry the forecast fetch once before falling back.
+- Weather should never be a generic unavailable sentence unless the API truly returns no usable data after retrying with valid geocoded coordinates and headers.
 - Avatar briefing: a short voice-friendly briefing derived only from the news content, personalized when useful, with all spoken content in `value` and empty `detail` for card formats.
 
 When a connector or web access is unavailable, clearly record the limitation in the JSON if the format has an errors/status field, and mention it briefly to the user.
