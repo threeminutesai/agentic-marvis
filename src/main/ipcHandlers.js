@@ -283,6 +283,9 @@ function registerIpcHandlers() {
         projectPath: settings.activeProject,
         signal: controller?.signal,
         apiKey: settings.apiKeys?.anthropic,
+        onProgress: operationId
+          ? (text) => _event.sender.send('cli:progress', { operationId, text })
+          : undefined,
       });
     } finally {
       finishOperation(operationId);
@@ -302,7 +305,14 @@ function registerIpcHandlers() {
     }
     console.log(`[IPC] Delegating to Codex: "${task}"`);
     try {
-      const result = await delegateCodexTask({ task, projectPath: settings.activeProject, signal: controller?.signal });
+      const result = await delegateCodexTask({
+        task,
+        projectPath: settings.activeProject,
+        signal: controller?.signal,
+        onProgress: operationId
+          ? (text) => _event.sender.send('cli:progress', { operationId, text })
+          : undefined,
+      });
       console.log('[IPC] Codex delegate returned:', result);
       return result;
     } finally {

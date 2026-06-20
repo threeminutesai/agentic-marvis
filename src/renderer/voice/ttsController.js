@@ -13,9 +13,14 @@ function createTtsController() {
   let rafId = null;
   let currentAudio = null;
   let currentResolve = null;
+  let volume = 1;
 
   function setOnLevel(cb) {
     levelCallback = cb;
+  }
+
+  function setVolume(v) {
+    volume = Math.max(0, Math.min(1, v));
   }
 
   function emitLevel(level) {
@@ -63,6 +68,7 @@ function createTtsController() {
     return new Promise((resolve) => {
       currentResolve = resolve;
       const utterance = new SpeechSynthesisUtterance(text);
+      utterance.volume = volume;
       // Web Speech audio isn't tappable by the Web Audio API, so approximate
       // a voice-like pulse on each word boundary instead of true amplitude.
       utterance.onboundary = () => emitLevel(0.55 + Math.random() * 0.45);
@@ -108,6 +114,7 @@ function createTtsController() {
   function playWithLevelAnalysis(src, fallbackText) {
     return new Promise((resolve) => {
       const audio = new Audio(src);
+      audio.volume = volume;
       currentAudio = audio;
       currentResolve = resolve;
       try {
@@ -152,7 +159,7 @@ function createTtsController() {
     });
   }
 
-  return { speak, setOnLevel, stop };
+  return { speak, setOnLevel, setVolume, stop };
 }
 
 if (typeof module !== 'undefined') module.exports = { createTtsController, isElevenLabsQuotaShortage };

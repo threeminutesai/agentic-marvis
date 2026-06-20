@@ -18,4 +18,9 @@ contextBridge.exposeInMainWorld('jarvis', {
   prepareHtmlPanel: () => ipcRenderer.invoke('html-panel:prepare'),
   readHtmlPanel: (filePath) => ipcRenderer.invoke('html-panel:read', filePath),
   discardHtmlPanel: (filePath) => ipcRenderer.invoke('html-panel:discard', filePath),
+  onCliProgress: (callback) => {
+    const listener = (_event, payload) => callback(payload);
+    ipcRenderer.on('cli:progress', listener);
+    return () => ipcRenderer.removeListener('cli:progress', listener);
+  },
 });

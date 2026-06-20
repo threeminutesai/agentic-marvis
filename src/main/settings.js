@@ -13,6 +13,7 @@ const DEFAULTS = {
     processing: ['Working on it', 'Processing', 'Got it. Checking now', 'On it [user]', 'Give me a moment'],
   },
   wakeWordEnabled: false,
+  voiceVolume: 1,
   personality: 'You are Jarvis: calm, witty, formal, loyal. Address the user respectfully.',
   avatarStyle: 'rings',
   activeProject: '',

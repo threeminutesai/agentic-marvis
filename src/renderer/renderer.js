@@ -735,6 +735,13 @@ async function sendToCli(text, channel, task) {
   setProcessingResponse(true);
   setAvatarState('processing');
   speakProcessingCue();
+  // Placeholder bubble updated in place (no speech) as progress events stream
+  // in from the CLI, then overwritten with the real reply once it resolves.
+  appendChatLine('Jarvis', 'Thinking...');
+  const unsubscribeProgress = window.jarvis.onCliProgress(({ operationId: progressOperationId, text: progressText }) => {
+    if (progressOperationId !== operationId) return;
+    setAvatarHeadline(progressText);
+  });
   let htmlPanel = null;
   try {
     htmlPanel = await window.jarvis.prepareHtmlPanel();
@@ -744,6 +751,7 @@ async function sendToCli(text, channel, task) {
     const result = await channel.delegate(delegatedTask, operationId);
     console.log(`[CLI] Received result from IPC:`, result);
     console.log(`[CLI] Result status: ${result?.status}, summary length: ${result?.summary?.length}`);
+    unsubscribeProgress();
     if (result?.status !== 'success' && htmlPanel?.filePath) {
       window.jarvis.discardHtmlPanel(htmlPanel.filePath).catch(() => {});
     }
@@ -756,19 +764,21 @@ async function sendToCli(text, channel, task) {
     if (formatted.html) showHTML(formatted.html);
     const reply = formatted.reply;
     console.log(`[CLI] Displaying reply: "${reply}"`);
-    appendChatLine('Jarvis', formatted.displayReply);
+    setAvatarHeadline(formatted.displayReply);
     stopProcessingCue();
     stopCachedVoice();
     ttsController.stop();
     await speakReply(reply);
   } catch (err) {
     console.log(`[CLI] Error:`, err);
+    unsubscribeProgress();
     if (htmlPanel?.filePath) window.jarvis.discardHtmlPanel(htmlPanel.filePath).catch(() => {});
     if (activeOperationId === operationId) activeOperationId = null;
     setProcessingResponse(false);
     if (shouldAbortResponse) return;
-    appendChatLine('Jarvis', `I ran into a problem reaching ${channel.label}, sir: ${err.message}`);
+    setAvatarHeadline(`I ran into a problem reaching ${channel.label}, sir: ${err.message}`);
   } finally {
+    unsubscribeProgress();
     if (activeOperationId === operationId) activeOperationId = null;
     setProcessingResponse(false);
     if (!isSpeaking) setAvatarState('idle');
@@ -878,6 +888,10 @@ function populateSettingsForm(settings) {
   document.getElementById('gemini-api-key-input').value = settings.apiKeys.gemini;
   document.getElementById('elevenlabs-api-key-input').value = settings.apiKeys.elevenlabs;
   renderVoiceOptions(settings.elevenLabsVoices || [], settings.elevenLabsVoiceId);
+  const voiceVolume = typeof settings.voiceVolume === 'number' ? settings.voiceVolume : 1;
+  document.getElementById('voice-volume-input').value = voiceVolume;
+  document.getElementById('voice-volume-value').textContent = `${Math.round(voiceVolume * 100)}%`;
+  ttsController.setVolume(voiceVolume);
   document.getElementById('wakeword-enabled-input').checked = settings.wakeWordEnabled;
   document.getElementById('personality-input').value = settings.personality;
   document.getElementById('avatar-select').value = settings.avatarStyle;
@@ -954,6 +968,18 @@ document.getElementById('elevenlabs-voice-remove-btn').addEventListener('click',
   if (!select.value) return;
   select.querySelector(`option[value="${CSS.escape(select.value)}"]`).remove();
   select.value = '';
+});
+
+document.getElementById('voice-volume-input').addEventListener('input', (e) => {
+  const value = parseFloat(e.target.value);
+  document.getElementById('voice-volume-value').textContent = `${Math.round(value * 100)}%`;
+  ttsController.setVolume(value);
+});
+
+document.getElementById('voice-volume-input').addEventListener('change', (e) => {
+  ttsController.setVolume(parseFloat(e.target.value));
+  ttsController.stop();
+  ttsController.speak('This is how I sound, sir.');
 });
 
 document.getElementById('voice-words-toggle-btn').addEventListener('click', () => {
@@ -1100,6 +1126,7 @@ document.getElementById('settings-save-btn').addEventListener('click', async () 
       .slice(1)
       .map((o) => ({ id: o.value, name: o.textContent })),
     wakeWordEnabled: document.getElementById('wakeword-enabled-input').checked,
+    voiceVolume: parseFloat(document.getElementById('voice-volume-input').value),
     personality: document.getElementById('personality-input').value,
     avatarStyle: document.getElementById('avatar-select').value,
     userName: document.getElementById('user-name-input').value.trim(),

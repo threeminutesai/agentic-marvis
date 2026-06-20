@@ -32,7 +32,12 @@ function redactHtmlDiffs(text) {
   return result.join('\n');
 }
 
-function delegateCodexTask({ task, projectPath, spawnImpl = spawn, timeoutMs = TIMEOUT_MS, signal }) {
+function lastMeaningfulLine(text) {
+  const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  return lines.length ? lines[lines.length - 1] : null;
+}
+
+function delegateCodexTask({ task, projectPath, spawnImpl = spawn, timeoutMs = TIMEOUT_MS, signal, onProgress }) {
   return new Promise((resolve) => {
     console.log(`[Codex] Spawning: codex exec --skip-git-repo-check (task piped via stdin)`);
     console.log(`[Codex] Working directory: ${projectPath}`);
@@ -95,6 +100,10 @@ function delegateCodexTask({ task, projectPath, spawnImpl = spawn, timeoutMs = T
       stdoutBuffer += data;
       hasOutput = true;
       if (stdoutBuffer.length > MAX_BUFFER_LENGTH) stdoutBuffer = stdoutBuffer.slice(-MAX_BUFFER_LENGTH);
+      if (onProgress) {
+        const line = lastMeaningfulLine(data);
+        if (line) onProgress(line);
+      }
       if (data.includes('tokens used')) {
         console.log('[Codex] Detected "tokens used" in stdout, waiting for output completion...');
         setTimeout(onDataComplete, 150);

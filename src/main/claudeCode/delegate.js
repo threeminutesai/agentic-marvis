@@ -4,7 +4,25 @@ const TIMEOUT_MS = 120 * 1000;
 const MAX_BUFFER_LENGTH = 5 * 1024 * 1024;
 const MAX_STDERR_LENGTH = 4000;
 
-function delegateTask({ task, projectPath, spawnImpl = spawn, timeoutMs = TIMEOUT_MS, signal, apiKey }) {
+// Maps a stream-json event from `claude -p --output-format stream-json` to a short
+// human-readable status line for the "thinking" chat bubble. Returns null for events
+// that don't have a sensible progress description (e.g. partial text deltas).
+function describeProgressEvent(event) {
+  if (event.type === 'system' && event.subtype === 'init') return 'Starting Claude Code...';
+  if (event.type === 'assistant') {
+    const blocks = event.message?.content || [];
+    const toolUse = blocks.find((block) => block.type === 'tool_use');
+    if (toolUse) return `Running ${toolUse.name}...`;
+    if (blocks.some((block) => block.type === 'text')) return 'Thinking...';
+  }
+  if (event.type === 'user') {
+    const blocks = event.message?.content || [];
+    if (blocks.some((block) => block.type === 'tool_result')) return 'Reading tool results...';
+  }
+  return null;
+}
+
+function delegateTask({ task, projectPath, spawnImpl = spawn, timeoutMs = TIMEOUT_MS, signal, apiKey, onProgress }) {
   return new Promise((resolve) => {
     const env = apiKey ? { ...process.env, ANTHROPIC_API_KEY: apiKey } : process.env;
     const proc = spawnImpl('claude', ['-p', '--output-format', 'stream-json', '--verbose'], {
@@ -62,7 +80,12 @@ function delegateTask({ task, projectPath, spawnImpl = spawn, timeoutMs = TIMEOU
         if (!line.trim()) continue;
         try {
           const event = JSON.parse(line);
-          if (event.type === 'result') finalResult = event;
+          if (event.type === 'result') {
+            finalResult = event;
+          } else if (onProgress) {
+            const description = describeProgressEvent(event);
+            if (description) onProgress(description);
+          }
         } catch {
           // ignore non-JSON lines
         }
