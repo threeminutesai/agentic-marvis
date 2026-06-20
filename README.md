@@ -37,8 +37,6 @@ You can create an ElevenLabs account with this link: https://try.elevenlabs.io/i
 
 Disclosure: this is an affiliate link and may provide affiliate credit to the project owner.
 
-Affiliate restriction: bidding on ElevenLabs branded keywords or variations, including misspellings, on any search engine is not allowed.
-
 ## CLI delegation channels
 
 Jarvis isn't limited to its own chat replies — it can hand a task off to the Claude Code or Codex CLI running against your active project. Set an active project folder in Settings first, then type:
