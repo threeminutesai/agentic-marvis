@@ -56,6 +56,8 @@
     </div>
     <label><input id="wakeword-enabled-input" type="checkbox"> Enable wake word (always listens for "Jarvis")</label>
     <label>Personality: <textarea id="personality-input"></textarea></label>
+    <label>User Profile (background &amp; interests): <textarea id="user-profile-input" placeholder="Robotics educator. Interests focus on technology, especially humanoid robots, drones, and robotics."></textarea></label>
+    <label>Geolocation: <input id="user-profile-geolocation-input" type="text" placeholder="e.g. Bayan Lepas"></label>
     <label>Avatar Style: <select id="avatar-select"><option value="rings">Rings/HUD</option><option value="brain">Electrical Brain</option></select></label>
     <button id="voice-words-toggle-btn" type="button">Voice Words</button>
     <div id="voice-words-panel" class="hidden">
@@ -69,9 +71,12 @@
       <label id="voice-phrase-editor-label">Morning phrases: <textarea id="voice-phrase-editor" placeholder="Good morning [user]&#10;Hi, [user]"></textarea></label>
       <p class="settings-hint">Use one phrase per line. [user] becomes the user name when spoken.</p>
     </div>
+    <label>Voice Briefing Frequency: <select id="briefing-voice-frequency-select"><option value="1h">Every 1 hour</option><option value="6h">Every 6 hours</option><option value="12h">Every 12 hours</option><option value="1d">Once a day</option><option value="never">Never</option></select></label>
     <label>Preferred CLI: <select id="preferred-cli-select"><option value="">None (use chat)</option><option value="code">Claude Code</option><option value="codex">Codex</option></select></label>
+    <label>Anthropic API Key (optional, for Claude Code CLI auth): <input id="anthropic-api-key-input" type="password" placeholder="sk-ant-..."></label>
     <label>Active Project: <input id="project-input" placeholder="/path/to/project"></label>
     <button id="project-browse-btn" type="button">Browse Folder</button>
+    <label>Max HTML Panels to Keep: <input id="max-html-panels-input" type="number" min="1" step="1" placeholder="50"></label>
     <button id="settings-save-btn">Save</button>
     <p id="setup-status"></p>
   </div>
@@ -81,6 +86,7 @@
   <script src="voice/wakeWordController.js"></script>
   <script src="voice/sttController.js"></script>
   <script src="voice/ttsController.js"></script>
+  <script src="voice/briefingSchedule.js"></script>
   <script src="statusPanel.js"></script>
   <script src="renderer.js"></script>
 </body>

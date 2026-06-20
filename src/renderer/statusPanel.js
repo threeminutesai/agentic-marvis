@@ -17,19 +17,61 @@ function hidePanel() {
   appBody.classList.remove('panel-active');
 }
 
+// How long each News Briefing item stays the focus, in ms. Shared with
+// renderer.js so the avatar headline cycle and the stacked card entrances
+// land in sync.
+const NEWS_BRIEFING_ITEM_INTERVAL_MS = 3200;
+
+// News Briefing rows store parallel value[]/detail[] arrays (one short
+// headline + one longer detail per event). Older status files may still
+// have a single string in each field; treat that as a one-item list.
+// Capped at 10 items - if the source data has more, the newest items
+// (the end of the array) replace the oldest rather than truncating to
+// the first 10, since later entries are assumed to be the most current.
+const NEWS_BRIEFING_MAX_ITEMS = 10;
+
+function getNewsBriefingItems(row) {
+  if (!row) return [];
+  const headlines = Array.isArray(row.value) ? row.value : (row.value ? [row.value] : []);
+  const details = Array.isArray(row.detail) ? row.detail : (row.detail ? [row.detail] : []);
+  const images = Array.isArray(row.image) ? row.image : (row.image ? [row.image] : []);
+  const links = Array.isArray(row.link) ? row.link : (row.link ? [row.link] : []);
+  return headlines
+    .map((headline, i) => ({ headline, detail: details[i] || '', image: images[i] || '', link: links[i] || '' }))
+    .filter((item) => item.headline || item.detail)
+    .slice(-NEWS_BRIEFING_MAX_ITEMS);
+}
+
+// Only allow http(s) URLs in src/href attributes - blocks javascript: and
+// other script-bearing schemes from a status JSON that may include
+// untrusted/fetched content.
+function isSafeHttpUrl(value) {
+  if (!value) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 function renderStatusBoard(rows) {
   const topCardTypes = ['Weather', 'Unread Emails', 'Urgent Emails'];
   const firstThree = topCardTypes
     .map((type) => rows.find((row) => row.type === type && row.value))
     .filter(Boolean);
   const emailContent = rows.find((row) => row.type === 'Email Content');
-  const latestNews = rows.find((row) => row.type === 'News Briefing' && (row.value || row.detail));
+  const urgentEmails = rows.find((row) => row.type === 'Urgent Emails');
+  const emailContentDetail = emailContent?.detail || emailContent?.value || urgentEmails?.detail || urgentEmails?.value || '';
+  const newsBriefingRow = rows.find((row) => row.type === 'News Briefing');
+  const newsItems = getNewsBriefingItems(newsBriefingRow);
 
   let html = '';
 
   firstThree.forEach((row) => {
+    const weatherClass = row.type === 'Weather' ? ' status-card-weather' : '';
     html += `
-      <div class="status-card status-card-compact">
+      <div class="status-card status-card-compact${weatherClass}">
         <div class="status-card-type">${escapeHtml(row.type)}</div>
         <div class="status-card-value">${escapeHtml(row.value)}</div>
       </div>
@@ -42,19 +84,39 @@ function renderStatusBoard(rows) {
       <div class="status-card status-card-email-content">
         <div class="status-card-type">Email Content</div>
         <div class="status-card-body">
-          ${escapeHtml(emailContent.detail || '')}
+          ${escapeHtml(emailContentDetail)}
         </div>
       </div>
     `;
   }
 
-  if (latestNews) {
+  if (newsItems.length) {
+    // Items start hidden; renderer.js reveals each one in sync with the
+    // avatar headline/voice cycle (see playNewsBriefingCycle /
+    // playNewsBriefingWithVoice) instead of a fixed CSS animation-delay.
+    const stackHtml = newsItems
+      .map((item, i) => {
+        const thumbHtml = isSafeHttpUrl(item.image)
+          ? `<img class="news-briefing-thumb" src="${escapeHtml(item.image)}" alt="" />`
+          : '';
+        const linkHtml = isSafeHttpUrl(item.link)
+          ? `<a class="news-briefing-link" href="${escapeHtml(item.link)}" target="_blank" rel="noopener noreferrer">details</a>`
+          : '';
+        return `
+          <div class="news-briefing-item" id="news-briefing-item-${i}">
+            ${thumbHtml}
+            <div class="news-briefing-content">
+              <div class="news-briefing-text">${escapeHtml(item.detail || item.headline)}</div>
+              ${linkHtml}
+            </div>
+          </div>
+        `;
+      })
+      .join('');
     html += `
       <div class="status-card status-card-latest-news">
         <div class="status-card-type">Latest News</div>
-        <div class="status-card-body">
-          ${escapeHtml(latestNews.detail || latestNews.value || '')}
-        </div>
+        <div class="status-card-body" id="news-briefing-stack">${stackHtml}</div>
       </div>
     `;
   }
@@ -197,5 +259,9 @@ if (typeof module !== 'undefined') {
     extractTaggedSection,
     renderContentBlock,
     renderResearchSummary,
+    getNewsBriefingItems,
+    isSafeHttpUrl,
+    NEWS_BRIEFING_ITEM_INTERVAL_MS,
+    NEWS_BRIEFING_MAX_ITEMS,
   };
 }

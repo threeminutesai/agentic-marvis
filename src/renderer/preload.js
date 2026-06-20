@@ -14,6 +14,8 @@ contextBridge.exposeInMainWorld('jarvis', {
   delegateCodexTask: (task, operationId) => ipcRenderer.invoke('codex:delegate', { task, operationId }),
   selectFolder: () => ipcRenderer.invoke('dialog:selectFolder'),
   getStatus: () => ipcRenderer.invoke('status:get'),
+  saveUserProfile: (profileText, geolocation) => ipcRenderer.invoke('status:saveUserProfile', { profileText, geolocation }),
   prepareHtmlPanel: () => ipcRenderer.invoke('html-panel:prepare'),
   readHtmlPanel: (filePath) => ipcRenderer.invoke('html-panel:read', filePath),
+  discardHtmlPanel: (filePath) => ipcRenderer.invoke('html-panel:discard', filePath),
 });

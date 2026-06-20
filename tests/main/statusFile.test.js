@@ -45,7 +45,7 @@ test('readStatusRows trims whitespace and skips rows with no type', () => {
   ]));
 
   const rows = readStatusRows(filePath);
-  assert.deepStrictEqual(rows, [{ type: 'Weather', value: '22C', detail: 'Clear.' }]);
+  assert.deepStrictEqual(rows, [{ type: 'Weather', value: '22C', detail: 'Clear.', image: '', link: '' }]);
 });
 
 test('readStatusRows falls back to default template rows on corrupt JSON', () => {

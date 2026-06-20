@@ -2,7 +2,7 @@ const fs = require('node:fs');
 
 const DEFAULTS = {
   provider: 'deepseek',
-  apiKeys: { deepseek: '', gemini: '', elevenlabs: '' },
+  apiKeys: { deepseek: '', gemini: '', elevenlabs: '', anthropic: '' },
   elevenLabsVoiceId: '',
   elevenLabsVoices: [],
   userName: '',
@@ -17,6 +17,9 @@ const DEFAULTS = {
   avatarStyle: 'rings',
   activeProject: '',
   preferredCliChannel: null,
+  briefingVoiceFrequency: '1h',
+  lastBriefingVoiceAt: null,
+  maxHtmlPanels: 50,
 };
 
 function decryptKey(crypto, encoded) {

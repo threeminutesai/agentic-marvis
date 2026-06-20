@@ -154,6 +154,39 @@ test('renderStatusBoard renders compact top cards, email content, and latest new
   delete global.document;
 });
 
+test('renderStatusBoard renders a news thumbnail and "details" link, and drops unsafe URLs', () => {
+  const { mod } = loadStatusPanel('<div id="app-body"><div id="status-panel"></div></div>');
+
+  const html = mod.renderStatusBoard([
+    {
+      type: 'News Briefing',
+      value: ['Safe Item', 'Unsafe Item'],
+      detail: ['Safe detail.', 'Unsafe detail.'],
+      image: ['https://example.com/thumb.jpg', 'javascript:alert(1)'],
+      link: ['https://example.com/article', 'not-a-url'],
+    },
+  ]);
+
+  assert.match(html, /<img class="news-briefing-thumb" src="https:\/\/example\.com\/thumb\.jpg"/);
+  assert.match(html, /<a class="news-briefing-link" href="https:\/\/example\.com\/article"[^>]*>details<\/a>/);
+  assert.doesNotMatch(html, /javascript:alert/);
+  assert.doesNotMatch(html, /not-a-url/);
+
+  delete global.document;
+});
+
+test('isSafeHttpUrl accepts http(s) URLs and rejects everything else', () => {
+  const { mod } = loadStatusPanel('<div id="app-body"><div id="status-panel"></div></div>');
+
+  assert.strictEqual(mod.isSafeHttpUrl('https://example.com/x.jpg'), true);
+  assert.strictEqual(mod.isSafeHttpUrl('http://example.com'), true);
+  assert.strictEqual(mod.isSafeHttpUrl('javascript:alert(1)'), false);
+  assert.strictEqual(mod.isSafeHttpUrl('not-a-url'), false);
+  assert.strictEqual(mod.isSafeHttpUrl(''), false);
+
+  delete global.document;
+});
+
 test('renderStatusBoard accepts numeric status values without crashing', () => {
   const { mod } = loadStatusPanel('<div id="app-body"><div id="status-panel"></div></div>');
 

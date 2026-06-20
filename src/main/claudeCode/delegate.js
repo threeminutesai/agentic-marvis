@@ -4,11 +4,12 @@ const TIMEOUT_MS = 120 * 1000;
 const MAX_BUFFER_LENGTH = 5 * 1024 * 1024;
 const MAX_STDERR_LENGTH = 4000;
 
-function delegateTask({ task, projectPath, spawnImpl = spawn, timeoutMs = TIMEOUT_MS, signal }) {
+function delegateTask({ task, projectPath, spawnImpl = spawn, timeoutMs = TIMEOUT_MS, signal, apiKey }) {
   return new Promise((resolve) => {
+    const env = apiKey ? { ...process.env, ANTHROPIC_API_KEY: apiKey } : process.env;
     const proc = spawnImpl('claude', ['-p', '--output-format', 'stream-json', '--verbose'], {
       cwd: projectPath,
-      env: process.env,
+      env,
       shell: true,
       stdio: ['pipe', 'pipe', 'pipe'],
     });

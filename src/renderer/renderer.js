@@ -319,36 +319,29 @@ async function speakBriefing(text) {
 
 function buildCliTaskWithHtmlContract(task, htmlPanel) {
   if (!htmlPanel?.filePath) return task;
-  const templateSection = htmlPanel.template
-    ? `Fill in this exact template - do not change tag names, class names, or structure, and do not add inline styles or <style>/<script> tags. Only replace the {{PLACEHOLDER}} tokens with content. If a section doesn't apply (e.g. no callout), delete that whole element instead of leaving a placeholder unfilled.
+  const templateSection = htmlPanel.templatePath
+    ? `a style/structure reference template at ${htmlPanel.templatePath} (read it only now, inside this branch) - you don't need to follow it strictly, just keep a similar look and feel (no inline styles or extra <style>/<script> tags beyond what's needed)`
+    : `a standalone HTML fragment (no <script> or <style> tags) with the full display content - title, body, source links, image/placeholder area`;
 
---- TEMPLATE START ---
-${htmlPanel.template}
---- TEMPLATE END ---`
-    : `Write a standalone HTML fragment (no <script> or <style> tags) containing the full display content - title, body, source links, image/placeholder area.`;
+  return `Task: ${task}
 
-  return `OUTPUT FORMAT - read this before doing anything else.
+Step 1 - classify this task before doing anything else: is it genuinely a report, diagram, or slide/presentation - structured content meant to be read on screen (research reports, statistics writeups, multi-section summaries with sources, diagrams, slide decks)?
+- NO for: jokes, quick answers, small talk, short factual answers, simple conversation, anything a 1-2 sentence spoken reply fully covers. Examples: "tell me a joke", "what's the capital of France", "say hi", "what time is it in Tokyo".
+- YES only for genuine on-screen documents. Examples: "give me a report on X", "summarize this week's news with sources", "make a slide deck about Y", "draw a diagram of Z".
 
-Task: ${task}
+Step 2 - respond accordingly. This is the common case - assume NO unless you are confident it's YES.
 
-Your final response must always start with:
-
+IF NO:
+Output ONLY this, then stop. Do not write any file, do not add an [html] line, do not print markdown/bullets/sources/links in the response:
 [voice]
 A short spoken summary, 1-2 sentences, no source URLs, no markdown.
 
-Then decide whether this task needs the HTML side panel:
-- Use the panel for reports or heavy/structured content - online research, news, statistics, multi-point summaries, anything with sources or sections worth reading on screen.
-- Skip the panel for light conversation - jokes, quick answers, small talk, anything that's fully said by the voice line above.
-
-If you use the panel:
-1. ${templateSection}
-2. Write the result to this exact file path: ${htmlPanel.filePath}
-3. Keep the file name exactly as given: ${htmlPanel.fileName}.
-4. Add this line right after [voice]:
-
+IF AND ONLY IF YES:
+[voice]
+A short spoken summary, 1-2 sentences, no source URLs, no markdown.
 [html] ${htmlPanel.filePath}
 
-If you skip the panel, output only the [voice] line and nothing else - do not write the HTML file, and do not print the full answer (markdown, bullet points, sources, links) directly in the response.`;
+Then write ${templateSection} to this exact file path: ${htmlPanel.filePath} (keep the file name exactly as given: ${htmlPanel.fileName}).`;
 }
 
 function extractPlainVoiceSummary(text) {
@@ -363,14 +356,18 @@ function extractPlainVoiceSummary(text) {
 async function formatAssistantResponse(text) {
   const voiceBlock = extractVoiceContentBlock(text);
   if (voiceBlock) {
-    const displayText = voiceBlock.displayText || voiceBlock.voiceText;
-    let html = displayText ? renderContentBlock(displayText) : null;
+    // The right panel is for actual HTML/content blocks only - a voice-only
+    // reply (no [html] file, no [content] block) must never open it, even
+    // though displayText would otherwise fall back to the voice text.
+    let html = null;
     if (voiceBlock.htmlPath) {
       const result = await window.jarvis.readHtmlPanel(voiceBlock.htmlPath);
       if (result.ok) html = result.html;
+    } else if (voiceBlock.displayText) {
+      html = renderContentBlock(voiceBlock.displayText);
     }
     return {
-      reply: voiceBlock.voiceText || extractPlainVoiceSummary(displayText),
+      reply: voiceBlock.voiceText || extractPlainVoiceSummary(voiceBlock.displayText),
       displayReply: voiceBlock.voiceText,
       html,
     };
@@ -441,26 +438,56 @@ function buildSimpleGreeting(rows) {
   return selectRandomPhrase(category);
 }
 
-function buildBriefing(rows) {
+// News Briefing stores parallel value[]/detail[] arrays (one headline +
+// one longer detail per event). Older status files may still have a plain
+// string in either field; normalize both shapes to a flat string list.
+function getRowFieldList(rows, type, field) {
+  const row = rows.find((r) => r.type === type);
+  if (!row) return [];
+  const value = row[field];
+  if (Array.isArray(value)) return value.filter(Boolean);
+  return value ? [value] : [];
+}
+
+// Unread/Urgent Email counts are intentionally excluded from speech - they're
+// still shown on the status cards, just not read aloud.
+function buildIntroFragments(rows) {
   const byType = Object.fromEntries(rows.map((r) => [r.type, r.value]));
   const fragments = [];
   if (byType['Weather']) fragments.push(`it's ${byType['Weather']} out`);
-  if (byType['Unread Emails']) fragments.push(`${byType['Unread Emails']} unread emails`);
-  if (byType['Urgent Emails']) fragments.push(`${byType['Urgent Emails']} urgent`);
-  if (byType['News Briefing']) fragments.push(`today's briefing: ${byType['News Briefing']}`);
-  if (!fragments.length) return `I'm online and ready.`;
-  const joined = fragments.length === 1
+  return fragments;
+}
+
+function joinFragments(fragments) {
+  if (!fragments.length) return '';
+  return fragments.length === 1
     ? fragments[0]
     : `${fragments.slice(0, -1).join(', ')}, and ${fragments[fragments.length - 1]}`;
-  return joined;
+}
+
+// Weather/email fragments only, spoken as one chunk ahead of the News
+// Briefing items, which are spoken individually (see playNewsBriefingWithVoice)
+// so each item's voice line stays in sync with its on-screen reveal.
+function buildIntroBriefing(rows) {
+  return joinFragments(buildIntroFragments(rows));
+}
+
+function buildBriefing(rows) {
+  const fragments = buildIntroFragments(rows);
+  const newsDetails = getRowFieldList(rows, 'News Briefing', 'detail');
+  const newsHeadlines = getRowFieldList(rows, 'News Briefing', 'value');
+  const spokenNews = newsDetails.length ? newsDetails.join('. ') : newsHeadlines.join(', ');
+  if (spokenNews) fragments.push(`today's briefing: ${spokenNews}`);
+  if (!fragments.length) return `I'm online and ready.`;
+  return joinFragments(fragments);
 }
 
 function buildBriefingDisplay(rows, spokenBriefing) {
   const avatarBriefing = rows.find((row) => row.type === 'Avatar Briefing')?.value;
   if (avatarBriefing) return avatarBriefing;
-  const newsBriefing = rows.find((row) => row.type === 'News Briefing')?.value;
-  if (!newsBriefing) return spokenBriefing;
-  return `today's briefing: ${newsBriefing.replace(/,\s+/g, ',\n')}`;
+  const newsHeadlines = getRowFieldList(rows, 'News Briefing', 'value');
+  if (newsHeadlines.length) return newsHeadlines.join('\n');
+  return spokenBriefing;
 }
 
 function buildGreeting(rows) {
@@ -476,6 +503,83 @@ function matchStatusDetailRequest(text, rows) {
     if (typeWords.some((w) => lower.includes(w))) return row;
   }
   return null;
+}
+
+let newsBriefingTimer = null;
+let newsBriefingToken = 0;
+
+// Bumping the token invalidates any in-flight playNewsBriefingCycle /
+// playNewsBriefingWithVoice run so it stops advancing after this is called
+// (e.g. the user sends a new message mid-briefing).
+function stopNewsBriefingCycle() {
+  newsBriefingToken += 1;
+  if (newsBriefingTimer) {
+    clearInterval(newsBriefingTimer);
+    newsBriefingTimer = null;
+  }
+}
+
+function setAvatarHeadline(text) {
+  const chatLog = document.getElementById('chat-log');
+  const lastLine = chatLog.lastElementChild;
+  const textEl = lastLine?.querySelector('.chat-text');
+  if (!textEl) return;
+  textEl.classList.remove('chat-text-flip');
+  void textEl.offsetWidth; // restart the CSS animation
+  textEl.textContent = text;
+  textEl.classList.add('chat-text-flip');
+}
+
+function revealNewsBriefingItem(index) {
+  document.getElementById(`news-briefing-item-${index}`)?.classList.add('revealed');
+}
+
+function revealAllNewsBriefingItems(count) {
+  for (let i = 0; i < count; i++) revealNewsBriefingItem(i);
+}
+
+// Fallback for when the briefing voice isn't due this round: cycles the
+// avatar headline and reveals each Latest News item together on a fixed
+// timer, since there's no audio to sync against. Plays through items once
+// and stops after the last one (see stopNewsBriefingCycle for cancellation).
+function playNewsBriefingCycle(items) {
+  stopNewsBriefingCycle();
+  if (!items.length) return;
+  const myToken = newsBriefingToken;
+
+  let index = 0;
+  const showItem = () => {
+    setAvatarHeadline(items[index].headline);
+    revealNewsBriefingItem(index);
+  };
+  showItem();
+
+  newsBriefingTimer = setInterval(() => {
+    if (newsBriefingToken !== myToken) return;
+    index += 1;
+    if (index >= items.length) {
+      stopNewsBriefingCycle();
+      return;
+    }
+    showItem();
+  }, NEWS_BRIEFING_ITEM_INTERVAL_MS);
+}
+
+// Voice-synced version: shows each headline and reveals its Latest News
+// detail exactly when that item starts speaking, then waits for the audio
+// to finish before moving on - so the display never runs ahead of or behind
+// what's actually being said. Plays through items once and stops.
+async function playNewsBriefingWithVoice(items) {
+  stopNewsBriefingCycle();
+  if (!items.length) return;
+  const myToken = newsBriefingToken;
+
+  for (let i = 0; i < items.length && newsBriefingToken === myToken; i++) {
+    setAvatarHeadline(items[i].headline);
+    revealNewsBriefingItem(i);
+    await speakBriefing(items[i].detail || items[i].headline);
+    if (newsBriefingToken !== myToken) return;
+  }
 }
 
 async function speakGreeting(text) {
@@ -511,44 +615,91 @@ async function speakGreeting(text) {
 }
 
 async function greetUser() {
+  let userProfileWasDefaulted = false;
   try {
     const result = await window.jarvis.getStatus();
     statusRows = result.ok ? result.rows : [];
+    userProfileWasDefaulted = Boolean(result.ok && result.userProfileWasDefaulted);
   } catch (err) {
     console.log(`[Status] Failed to load status sheet: ${err.message}`);
     statusRows = [];
+  }
+  const userProfileRow = statusRows.find((row) => row.type === 'User Profile');
+  const userProfileInput = document.getElementById('user-profile-input');
+  if (userProfileInput) {
+    userProfileInput.value = userProfileRow?.value || '';
+  }
+  const userProfileGeolocationInput = document.getElementById('user-profile-geolocation-input');
+  if (userProfileGeolocationInput) {
+    userProfileGeolocationInput.value = (userProfileRow?.detail || '').replace(/^Geolocation:\s*/i, '');
   }
   // Stage 1: Speak simple greeting only (with caching)
   const simpleGreeting = buildSimpleGreeting(statusRows);
   appendChatLine('Jarvis', simpleGreeting);
   await speakGreeting(simpleGreeting);
+  if (userProfileWasDefaulted) {
+    appendChatLine('Jarvis', "I don't have your profile yet, sir - I've set a default. Update it anytime under Settings > User Profile.");
+  }
 
   // Stage 2: Enter interaction mode and speak briefing
   const appBody = document.getElementById('app-body');
   appBody.classList.add('interaction-mode');
-  if (statusRows.some((row) => row.value)) {
+  const hasAnyRowValue = (row) => (Array.isArray(row.value) ? row.value.length > 0 : Boolean(row.value));
+  if (statusRows.some(hasAnyRowValue)) {
     try {
       showPanel(renderStatusBoard(statusRows));
     } catch (err) {
       console.log(`[Status] Failed to render status board: ${err.message}`);
     }
-    const briefing = buildBriefing(statusRows);
+    const avatarBriefing = statusRows.find((row) => row.type === 'Avatar Briefing')?.value;
+    const briefing = avatarBriefing || buildBriefing(statusRows);
     const briefingDisplay = buildBriefingDisplay(statusRows, briefing);
-    // Replace greeting text with briefing in chat
-    const chatLog = document.getElementById('chat-log');
-    const lastLine = chatLog.lastElementChild;
-    if (lastLine) {
-      const textEl = lastLine.querySelector('.chat-text');
-      if (textEl) {
-        textEl.textContent = briefingDisplay;
+    const newsBriefingRow = statusRows.find((row) => row.type === 'News Briefing');
+    const newsItems = avatarBriefing ? [] : getNewsBriefingItems(newsBriefingRow);
+    const frequency = currentSettings?.briefingVoiceFrequency || '1h';
+    const lastBriefingVoiceAt = currentSettings?.lastBriefingVoiceAt || null;
+    const voiceDue = !isMuted && shouldTriggerBriefingVoice(frequency, lastBriefingVoiceAt);
+
+    if (newsItems.length) {
+      if (voiceDue) {
+        // Speak weather/email fragments as one intro line, then each News
+        // Briefing item individually - its headline/detail reveal exactly
+        // when its own voice line starts, and we wait for that line to
+        // finish before moving to the next (see playNewsBriefingWithVoice).
+        (async () => {
+          const intro = buildIntroBriefing(statusRows);
+          if (intro) await speakBriefing(intro);
+          await playNewsBriefingWithVoice(newsItems);
+        })();
+      } else {
+        // No voice this round - cycle the display on a fixed timer instead.
+        playNewsBriefingCycle(newsItems);
       }
+    } else {
+      // Avatar Briefing branch (legacy): reveal any News Briefing items
+      // immediately since nothing else will drive them, then show the
+      // briefing text in chat.
+      revealAllNewsBriefingItems(getNewsBriefingItems(newsBriefingRow).length);
+      const chatLog = document.getElementById('chat-log');
+      const lastLine = chatLog.lastElementChild;
+      if (lastLine) {
+        const textEl = lastLine.querySelector('.chat-text');
+        if (textEl) {
+          textEl.textContent = briefingDisplay;
+        }
+      }
+      if (voiceDue) speakBriefing(briefing);
     }
+
     // Show Continue button right away; don't make the user wait for voice playback to finish
     const continueSection = document.getElementById('continue-section');
     if (continueSection) {
       continueSection.style.display = 'block';
     }
-    speakBriefing(briefing);
+    if (voiceDue && currentSettings) {
+      currentSettings.lastBriefingVoiceAt = new Date().toISOString();
+      await window.jarvis.saveSettings(currentSettings);
+    }
   }
 }
 
@@ -584,14 +735,18 @@ async function sendToCli(text, channel, task) {
   setProcessingResponse(true);
   setAvatarState('processing');
   speakProcessingCue();
+  let htmlPanel = null;
   try {
-    const htmlPanel = await window.jarvis.prepareHtmlPanel();
+    htmlPanel = await window.jarvis.prepareHtmlPanel();
     const delegatedTask = buildCliTaskWithHtmlContract(task, htmlPanel);
     console.log(`[CLI] Delegating to ${channel.label}: "${task}"`);
     console.log(`[CLI] Calling channel.delegate (this is an IPC call)...`);
     const result = await channel.delegate(delegatedTask, operationId);
     console.log(`[CLI] Received result from IPC:`, result);
     console.log(`[CLI] Result status: ${result?.status}, summary length: ${result?.summary?.length}`);
+    if (result?.status !== 'success' && htmlPanel?.filePath) {
+      window.jarvis.discardHtmlPanel(htmlPanel.filePath).catch(() => {});
+    }
     if (activeOperationId !== operationId && shouldAbortResponse) return;
     activeOperationId = null;
     setProcessingResponse(false);
@@ -608,6 +763,7 @@ async function sendToCli(text, channel, task) {
     await speakReply(reply);
   } catch (err) {
     console.log(`[CLI] Error:`, err);
+    if (htmlPanel?.filePath) window.jarvis.discardHtmlPanel(htmlPanel.filePath).catch(() => {});
     if (activeOperationId === operationId) activeOperationId = null;
     setProcessingResponse(false);
     if (shouldAbortResponse) return;
@@ -729,7 +885,10 @@ function populateSettingsForm(settings) {
   voicePhraseDraft = normalizeVoicePhrases(settings);
   renderVoicePhraseEditor('morning');
   document.getElementById('preferred-cli-select').value = settings.preferredCliChannel || '';
+  document.getElementById('anthropic-api-key-input').value = settings.apiKeys.anthropic || '';
   document.getElementById('project-input').value = settings.activeProject;
+  document.getElementById('briefing-voice-frequency-select').value = settings.briefingVoiceFrequency || '1h';
+  document.getElementById('max-html-panels-input').value = settings.maxHtmlPanels || 50;
 }
 
 function renderVoiceOptions(voices, selectedId) {
@@ -841,6 +1000,7 @@ async function sendTextFromInput() {
   isBusy = true;
   shouldAbortResponse = false;
   updateSendButton();
+  stopNewsBriefingCycle();
   stopCachedVoice();
   ttsController.stop();
   await routeUserMessage(text);
@@ -897,7 +1057,8 @@ document.getElementById('status-panel-dismiss-btn').addEventListener('click', ()
 });
 
 document.getElementById('settings-btn').addEventListener('click', () => {
-  document.getElementById('settings-modal').classList.toggle('hidden');
+  const isHidden = document.getElementById('settings-modal').classList.toggle('hidden');
+  document.getElementById('avatar-mount').classList.toggle('avatar-paused', !isHidden);
 });
 
 document.getElementById('send-btn').addEventListener('click', async (e) => {
@@ -932,6 +1093,7 @@ document.getElementById('settings-save-btn').addEventListener('click', async () 
       deepseek: document.getElementById('deepseek-api-key-input').value,
       gemini: document.getElementById('gemini-api-key-input').value,
       elevenlabs: document.getElementById('elevenlabs-api-key-input').value,
+      anthropic: document.getElementById('anthropic-api-key-input').value,
     },
     elevenLabsVoiceId: document.getElementById('elevenlabs-voice-select').value,
     elevenLabsVoices: Array.from(document.getElementById('elevenlabs-voice-select').options)
@@ -944,8 +1106,17 @@ document.getElementById('settings-save-btn').addEventListener('click', async () 
     voicePhrases: voicePhraseDraft || normalizeVoicePhrases(),
     preferredCliChannel: document.getElementById('preferred-cli-select').value || null,
     activeProject: document.getElementById('project-input').value,
+    briefingVoiceFrequency: document.getElementById('briefing-voice-frequency-select').value,
+    lastBriefingVoiceAt: currentSettings?.lastBriefingVoiceAt || null,
+    maxHtmlPanels: Math.max(1, parseInt(document.getElementById('max-html-panels-input').value, 10) || 50),
   };
   const setupStatus = document.getElementById('setup-status');
+
+  const userProfileResult = await window.jarvis.saveUserProfile(
+    document.getElementById('user-profile-input').value,
+    document.getElementById('user-profile-geolocation-input').value
+  );
+  if (userProfileResult.ok) statusRows = userProfileResult.rows;
 
   const result = await window.jarvis.saveSettings(settings);
   if (!result.ok) {
@@ -973,8 +1144,10 @@ document.getElementById('settings-save-btn').addEventListener('click', async () 
   }
 
   mountAvatar(settings.avatarStyle);
+  setAvatarState(currentAvatarState);
   updateHud(settings);
   document.getElementById('settings-modal').classList.add('hidden');
+  document.getElementById('avatar-mount').classList.remove('avatar-paused');
   await wakeWordController.stop();
   startWakeWordIfConfigured();
 });

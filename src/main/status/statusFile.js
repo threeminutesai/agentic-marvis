@@ -16,6 +16,11 @@ function ensureStatusFile(filePath) {
   fs.writeFileSync(filePath, JSON.stringify(rows, null, 2));
 }
 
+function normalizeField(field) {
+  if (Array.isArray(field)) return field.map((item) => String(item ?? '').trim());
+  return String(field ?? '').trim();
+}
+
 function readStatusRows(filePath) {
   ensureStatusFile(filePath);
   let data;
@@ -28,8 +33,10 @@ function readStatusRows(filePath) {
   return data
     .map((row) => ({
       type: String(row?.type ?? '').trim(),
-      value: String(row?.value ?? '').trim(),
-      detail: String(row?.detail ?? '').trim(),
+      value: normalizeField(row?.value),
+      detail: normalizeField(row?.detail),
+      image: normalizeField(row?.image),
+      link: normalizeField(row?.link),
     }))
     .filter((row) => row.type);
 }

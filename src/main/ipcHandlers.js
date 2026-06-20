@@ -22,6 +22,32 @@ function getStatusFilePath() {
   return path.join(path.resolve(__dirname, '../..'), 'data', 'jarvis-status.json');
 }
 
+const DEFAULT_USER_PROFILE = 'Robotics educator. Interests focus on technology, especially humanoid robots, drones, and robotics.';
+const DEFAULT_USER_PROFILE_DETAIL = 'Geolocation: Bayan Lepas';
+
+function ensureUserProfileRow(filePath, rows) {
+  const existing = rows.find((row) => row.type === 'User Profile');
+  if (existing && existing.value) return { rows, wasDefaulted: false };
+  const profileRow = { type: 'User Profile', value: DEFAULT_USER_PROFILE, detail: existing?.detail || DEFAULT_USER_PROFILE_DETAIL };
+  const updatedRows = existing
+    ? rows.map((row) => (row.type === 'User Profile' ? profileRow : row))
+    : [...rows, profileRow];
+  fs.writeFileSync(filePath, JSON.stringify(updatedRows, null, 2));
+  return { rows: updatedRows, wasDefaulted: true };
+}
+
+function saveUserProfile(filePath, profileText, geolocation) {
+  const rows = readStatusRows(filePath);
+  const value = String(profileText || '').trim();
+  const geo = String(geolocation || '').trim();
+  const detail = geo ? `Geolocation: ${geo}` : '';
+  const updatedRows = rows.some((row) => row.type === 'User Profile')
+    ? rows.map((row) => (row.type === 'User Profile' ? { ...row, value, detail } : row))
+    : [...rows, { type: 'User Profile', value, detail }];
+  fs.writeFileSync(filePath, JSON.stringify(updatedRows, null, 2));
+  return updatedRows;
+}
+
 function getHtmlPanelDir() {
   return path.join(path.resolve(__dirname, '../..'), 'data', 'html-panels');
 }
@@ -32,23 +58,40 @@ function ensureHtmlPanelDir() {
   return dir;
 }
 
-function getHtmlPanelTemplate() {
+function getHtmlPanelTemplatePath() {
   const templatePath = path.join(getHtmlPanelDir(), '_template.html');
-  try {
-    return fs.readFileSync(templatePath, 'utf8');
-  } catch {
-    return '';
-  }
+  return fs.existsSync(templatePath) ? templatePath : null;
+}
+
+function listHtmlPanelIds(dir) {
+  return fs.readdirSync(dir)
+    .map((name) => /^(\d{5})\.html$/i.exec(name)?.[1])
+    .filter(Boolean)
+    .map((id) => Number(id))
+    .sort((a, b) => a - b);
 }
 
 function getNextHtmlPanelPath() {
   const dir = ensureHtmlPanelDir();
-  const existingIds = fs.readdirSync(dir)
-    .map((name) => /^(\d{5})\.html$/i.exec(name)?.[1])
-    .filter(Boolean)
-    .map((id) => Number(id));
+  const existingIds = listHtmlPanelIds(dir);
   const nextId = String((existingIds.length ? Math.max(...existingIds) : 0) + 1).padStart(5, '0');
   return path.join(dir, `${nextId}.html`);
+}
+
+function pruneHtmlPanels(maxCount) {
+  const dir = ensureHtmlPanelDir();
+  const limit = Number(maxCount) > 0 ? Number(maxCount) : 50;
+  const ids = listHtmlPanelIds(dir);
+  const excess = ids.length - limit;
+  if (excess <= 0) return;
+  for (const id of ids.slice(0, excess)) {
+    const fileName = `${String(id).padStart(5, '0')}.html`;
+    try {
+      fs.unlinkSync(path.join(dir, fileName));
+    } catch (err) {
+      console.log(`[HtmlPanel] Failed to prune ${fileName}: ${err.message}`);
+    }
+  }
 }
 
 function readHtmlPanelFile(filePath) {
@@ -235,7 +278,12 @@ function registerIpcHandlers() {
       return { status: 'error', summary: 'No active project is set, sir. Please choose one in settings first.' };
     }
     try {
-      return await delegateTask({ task, projectPath: settings.activeProject, signal: controller?.signal });
+      return await delegateTask({
+        task,
+        projectPath: settings.activeProject,
+        signal: controller?.signal,
+        apiKey: settings.apiKeys?.anthropic,
+      });
     } finally {
       finishOperation(operationId);
     }
@@ -266,26 +314,61 @@ function registerIpcHandlers() {
     const filePath = getStatusFilePath();
     try {
       copyLegacyStatusFileIfNeeded(filePath);
-      return { ok: true, rows: readStatusRows(filePath) };
+      const { rows, wasDefaulted } = ensureUserProfileRow(filePath, readStatusRows(filePath));
+      return { ok: true, rows, userProfileWasDefaulted: wasDefaulted };
     } catch (err) {
       console.log(`[Status] Failed to read status sheet: ${err.message}`);
       return { ok: false, rows: [], error: err.message };
     }
   });
 
+  ipcMain.handle('status:saveUserProfile', (_event, payload) => {
+    const filePath = getStatusFilePath();
+    const profileText = typeof payload === 'string' ? payload : payload?.profileText;
+    const geolocation = typeof payload === 'string' ? '' : payload?.geolocation;
+    try {
+      const rows = saveUserProfile(filePath, profileText, geolocation);
+      return { ok: true, rows };
+    } catch (err) {
+      console.log(`[Status] Failed to save user profile: ${err.message}`);
+      return { ok: false, error: err.message };
+    }
+  });
+
   ipcMain.handle('html-panel:prepare', () => {
     const filePath = getNextHtmlPanelPath();
     fs.writeFileSync(filePath, '', { flag: 'wx' });
+    pruneHtmlPanels(settingsStore.load().maxHtmlPanels);
     return {
       filePath,
       fileName: path.basename(filePath),
-      template: getHtmlPanelTemplate(),
+      templatePath: getHtmlPanelTemplatePath(),
     };
   });
 
   ipcMain.handle('html-panel:read', (_event, filePath) => {
     try {
       return { ok: true, html: readHtmlPanelFile(filePath), filePath };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
+  // Removes the placeholder file created by html-panel:prepare when a
+  // delegated task ends up not writing it (error, cancel, or the CLI
+  // decided no HTML panel was needed) - only if it's still empty, so a
+  // file the CLI actually wrote content to is never touched.
+  ipcMain.handle('html-panel:discard', (_event, filePath) => {
+    try {
+      const dir = ensureHtmlPanelDir();
+      const resolved = path.resolve(filePath || '');
+      if (!resolved.startsWith(path.resolve(dir) + path.sep)) {
+        return { ok: false, error: 'HTML panel file must be inside the Jarvis html-panels folder.' };
+      }
+      if (fs.existsSync(resolved) && fs.statSync(resolved).size === 0) {
+        fs.unlinkSync(resolved);
+      }
+      return { ok: true };
     } catch (err) {
       return { ok: false, error: err.message };
     }

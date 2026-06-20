@@ -18,7 +18,7 @@ test('createSettingsStore returns defaults when no file exists', () => {
   const store = createSettingsStore({ filePath: path.join(dir, 'settings.json'), crypto: fakeCrypto() });
   const settings = store.load();
   assert.strictEqual(settings.provider, 'deepseek');
-  assert.deepStrictEqual(settings.apiKeys, { deepseek: '', gemini: '', elevenlabs: '' });
+  assert.deepStrictEqual(settings.apiKeys, { deepseek: '', gemini: '', elevenlabs: '', anthropic: '' });
   assert.strictEqual(settings.avatarStyle, 'rings');
   assert.strictEqual(settings.userName, '');
   assert.ok(settings.voicePhrases.morning.includes('Good morning [user]'));
@@ -58,7 +58,7 @@ test('createSettingsStore returns defaults when settings file is corrupt', () =>
   const store = createSettingsStore({ filePath, crypto: fakeCrypto() });
   const settings = store.load();
   assert.strictEqual(settings.provider, 'deepseek');
-  assert.deepStrictEqual(settings.apiKeys, { deepseek: '', gemini: '', elevenlabs: '' });
+  assert.deepStrictEqual(settings.apiKeys, { deepseek: '', gemini: '', elevenlabs: '', anthropic: '' });
   assert.strictEqual(settings.avatarStyle, 'rings');
 });
 
