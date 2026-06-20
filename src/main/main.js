@@ -1,6 +1,13 @@
 const { app, BrowserWindow, session } = require('electron');
+const fs = require('node:fs');
+const os = require('node:os');
 const path = require('path');
 const { registerIpcHandlers } = require('./ipcHandlers');
+
+const cacheDir = path.join(os.tmpdir(), 'agentic-jarvis-cache');
+fs.mkdirSync(cacheDir, { recursive: true });
+app.commandLine.appendSwitch('disk-cache-dir', cacheDir);
+app.commandLine.appendSwitch('disable-gpu-shader-disk-cache');
 
 function createWindow() {
   const win = new BrowserWindow({

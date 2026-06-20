@@ -18,6 +18,23 @@ function createProviderFor(providerName, apiKey) {
   return createDeepseekProvider({ apiKey });
 }
 
+function getStatusFilePath() {
+  return path.join(path.resolve(__dirname, '../..'), 'data', 'jarvis-status.json');
+}
+
+function copyLegacyStatusFileIfNeeded(filePath) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  const rootStatusFilePath = path.join(path.resolve(__dirname, '../..'), 'jarvis-status.json');
+  const legacyFilePath = path.join(os.homedir(), '.jarvis-status.json');
+  if (!fs.existsSync(filePath) && fs.existsSync(rootStatusFilePath)) {
+    fs.copyFileSync(rootStatusFilePath, filePath);
+    return;
+  }
+  if (!fs.existsSync(filePath) && fs.existsSync(legacyFilePath)) {
+    fs.copyFileSync(legacyFilePath, filePath);
+  }
+}
+
 function registerIpcHandlers() {
   const settingsStore = createSettingsStore({
     filePath: path.join(os.homedir(), '.jarvis-settings.json'),
@@ -194,8 +211,9 @@ function registerIpcHandlers() {
   });
 
   ipcMain.handle('status:get', () => {
-    const filePath = path.join(os.homedir(), '.jarvis-status.json');
+    const filePath = getStatusFilePath();
     try {
+      copyLegacyStatusFileIfNeeded(filePath);
       return { ok: true, rows: readStatusRows(filePath) };
     } catch (err) {
       console.log(`[Status] Failed to read status sheet: ${err.message}`);

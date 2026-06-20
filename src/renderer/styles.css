@@ -66,6 +66,25 @@ body {
 #app-screen, #settings-modal { position: relative; z-index: 1; }
 #app-screen { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 
+#temporary-notice {
+  position: fixed;
+  top: 56px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  max-width: min(560px, calc(100vw - 40px));
+  padding: 10px 16px;
+  color: var(--amber);
+  background: rgba(18, 13, 8, 0.86);
+  border: 1px solid rgba(255, 184, 79, 0.45);
+  border-radius: 10px;
+  box-shadow: 0 0 24px rgba(255, 184, 79, 0.18);
+  backdrop-filter: blur(12px);
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: center;
+}
+
 /* === Header === */
 #app-header {
   display: flex;
@@ -423,12 +442,14 @@ button:active { transform: scale(0.97); }
   min-height: 0;
   max-height: 100%;
   overflow: hidden;
-  padding-top: 42px;
+  padding: 20px 0;
   position: relative;
+  justify-content: center;
+  gap: 10px;
 }
 
 #app-body.interaction-mode #avatar-mount {
-  padding: 12px 6px 6px;
+  padding: 0 6px;
   max-height: 80px;
   overflow: hidden;
 }
@@ -443,8 +464,11 @@ button:active { transform: scale(0.97); }
   display: flex;
   flex: 0 1 auto;
   min-height: 0;
-  max-height: none;
+  max-height: min(42vh, 360px);
+  overflow: hidden;
+  margin: 0 28px;
   opacity: 1;
+  justify-content: flex-end;
 }
 
 #app-body.interaction-mode #chat-log .chat-line {
@@ -488,7 +512,7 @@ button:active { transform: scale(0.97); }
 #app-body.interaction-mode #status-panel {
   flex: 0 0 70%;
   opacity: 1;
-  overflow-y: auto;
+  overflow: hidden;
   padding: 28px 32px;
 }
 

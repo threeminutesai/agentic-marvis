@@ -6,6 +6,7 @@ const TEMPLATE_TYPES = [
   'Unread Emails',
   'Urgent Emails',
   'News Briefing',
+  'Avatar Briefing',
   'Email Content',
 ];
 

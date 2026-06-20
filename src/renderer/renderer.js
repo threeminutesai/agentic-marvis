@@ -13,6 +13,7 @@ let activeOperationId = null;
 let audioRecorder = null;
 let audioChunks = [];
 let isRecordingAudio = false;
+let temporaryNoticeTimer = null;
 
 function showStartupProblem(message) {
   const setupStatus = document.getElementById('setup-status');
@@ -27,6 +28,22 @@ window.addEventListener('error', (event) => {
 
 window.addEventListener('unhandledrejection', (event) => {
   showStartupProblem(event.reason?.message || String(event.reason || 'Unknown renderer promise error.'));
+});
+
+function showTemporaryNotice(message, timeoutMs = 5000) {
+  const notice = document.getElementById('temporary-notice');
+  if (!notice) return;
+  notice.textContent = message;
+  notice.classList.remove('hidden');
+  if (temporaryNoticeTimer) clearTimeout(temporaryNoticeTimer);
+  temporaryNoticeTimer = setTimeout(() => {
+    notice.classList.add('hidden');
+    temporaryNoticeTimer = null;
+  }, timeoutMs);
+}
+
+window.addEventListener('jarvis:temporaryNotice', (event) => {
+  showTemporaryNotice(event.detail?.message || 'Temporary voice notice.');
 });
 
 const wakeWordController = createWakeWordController();
@@ -260,6 +277,8 @@ function buildBriefing(rows) {
 }
 
 function buildBriefingDisplay(rows, spokenBriefing) {
+  const avatarBriefing = rows.find((row) => row.type === 'Avatar Briefing')?.value;
+  if (avatarBriefing) return avatarBriefing;
   const newsBriefing = rows.find((row) => row.type === 'News Briefing')?.value;
   if (!newsBriefing) return spokenBriefing;
   return `today's briefing: ${newsBriefing.replace(/,\s+/g, ',\n')}`;

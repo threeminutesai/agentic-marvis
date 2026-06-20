@@ -16,7 +16,7 @@ test('ensureStatusFile creates a template JSON file with empty value/detail fiel
   assert.strictEqual(fs.existsSync(filePath), true);
 
   const rows = readStatusRows(filePath);
-  assert.deepStrictEqual(rows.map((r) => r.type), ['Weather', 'Unread Emails', 'Urgent Emails', 'News Briefing', 'Email Content']);
+  assert.deepStrictEqual(rows.map((r) => r.type), ['Weather', 'Unread Emails', 'Urgent Emails', 'News Briefing', 'Avatar Briefing', 'Email Content']);
   for (const row of rows) {
     assert.strictEqual(row.value, '');
     assert.strictEqual(row.detail, '');
@@ -53,7 +53,7 @@ test('readStatusRows falls back to default template rows on corrupt JSON', () =>
   fs.writeFileSync(filePath, 'not valid json {{{');
 
   const rows = readStatusRows(filePath);
-  assert.deepStrictEqual(rows.map((r) => r.type), ['Weather', 'Unread Emails', 'Urgent Emails', 'News Briefing', 'Email Content']);
+  assert.deepStrictEqual(rows.map((r) => r.type), ['Weather', 'Unread Emails', 'Urgent Emails', 'News Briefing', 'Avatar Briefing', 'Email Content']);
   for (const row of rows) {
     assert.strictEqual(row.value, '');
     assert.strictEqual(row.detail, '');

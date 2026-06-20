@@ -31,6 +31,14 @@ Optional, configured in Settings:
 - **Speech-to-text** — uses the browser's built-in speech recognition, no key needed.
 - **Text-to-speech** — every reply is spoken aloud. Uses ElevenLabs if a key is configured (https://elevenlabs.io/), otherwise falls back to the browser's built-in voice. Use the Mute button to silence it — muting immediately interrupts any speech currently playing. Manage ElevenLabs voices in Settings: enter a voice's name and ID (find the ID on a voice's page in the ElevenLabs Voice Library) and click "Add Voice" to save it to the dropdown; pick the active voice from the "ElevenLabs Voice" dropdown, or remove a saved one with "Remove Selected". Defaults to "Adam" if none is selected.
 
+### ElevenLabs Signup
+
+You can create an ElevenLabs account with this link: https://try.elevenlabs.io/inxig6woaojq
+
+Disclosure: this is an affiliate link and may provide affiliate credit to the project owner.
+
+Affiliate restriction: bidding on ElevenLabs branded keywords or variations, including misspellings, on any search engine is not allowed.
+
 ## CLI delegation channels
 
 Jarvis isn't limited to its own chat replies — it can hand a task off to the Claude Code or Codex CLI running against your active project. Set an active project folder in Settings first, then type:

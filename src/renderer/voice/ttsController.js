@@ -1,4 +1,10 @@
 // src/renderer/voice/ttsController.js
+function isElevenLabsQuotaShortage(error) {
+  const text = String(error || '').toLowerCase();
+  return text.includes('exceeds your quota')
+    || (text.includes('credits remaining') && text.includes('required'));
+}
+
 function createTtsController() {
   let levelCallback = null;
   let audioCtx = null;
@@ -82,6 +88,14 @@ function createTtsController() {
     try {
       const result = await window.jarvis.synthesizeSpeech(text);
       if (!result.ok) {
+        if (isElevenLabsQuotaShortage(result.error)) {
+          window.dispatchEvent(new CustomEvent('jarvis:temporaryNotice', {
+            detail: {
+              type: 'warning',
+              message: 'ElevenLabs credits are too low for this voice request. Using system voice for now.',
+            },
+          }));
+        }
         await speakWithWebSpeech(text);
         return;
       }
@@ -140,3 +154,5 @@ function createTtsController() {
 
   return { speak, setOnLevel, stop };
 }
+
+if (typeof module !== 'undefined') module.exports = { createTtsController, isElevenLabsQuotaShortage };
