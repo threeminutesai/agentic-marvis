@@ -20,6 +20,9 @@ test('createSettingsStore returns defaults when no file exists', () => {
   assert.strictEqual(settings.provider, 'deepseek');
   assert.deepStrictEqual(settings.apiKeys, { deepseek: '', gemini: '', elevenlabs: '' });
   assert.strictEqual(settings.avatarStyle, 'rings');
+  assert.strictEqual(settings.userName, '');
+  assert.ok(settings.voicePhrases.morning.includes('Good morning [user]'));
+  assert.ok(settings.voicePhrases.processing.includes('Working on it'));
 });
 
 test('createSettingsStore round-trips saved settings with encrypted API keys per provider', () => {
@@ -130,6 +133,28 @@ test('createSettingsStore round-trips elevenLabsVoices', () => {
 
   const reloaded = createSettingsStore({ filePath, crypto: fakeCrypto() }).load();
   assert.deepStrictEqual(reloaded.elevenLabsVoices, [{ id: 'UgBBYS2sOqTuMpoF3BR0', name: 'Mark - Natural Conversations' }]);
+});
+
+test('createSettingsStore round-trips custom voice words', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'jarvis-settings-'));
+  const filePath = path.join(dir, 'settings.json');
+  const store = createSettingsStore({ filePath, crypto: fakeCrypto() });
+
+  store.save({
+    provider: 'deepseek',
+    apiKeys: { deepseek: '', gemini: '', elevenlabs: '' },
+    userName: 'Zan',
+    voicePhrases: {
+      morning: ['Good morning [user]', 'Hi, [user]'],
+      afternoon: ['Good afternoon [user]'],
+      evening: ['Good evening [user]'],
+      processing: ['Working on it', 'Got it [user]'],
+    },
+  });
+
+  const reloaded = createSettingsStore({ filePath, crypto: fakeCrypto() }).load();
+  assert.strictEqual(reloaded.userName, 'Zan');
+  assert.deepStrictEqual(reloaded.voicePhrases.processing, ['Working on it', 'Got it [user]']);
 });
 
 test('createSettingsStore defaults wakeWordEnabled to false', () => {

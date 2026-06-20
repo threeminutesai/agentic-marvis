@@ -6,13 +6,14 @@ const MAX_STDERR_LENGTH = 4000;
 
 function delegateTask({ task, projectPath, spawnImpl = spawn, timeoutMs = TIMEOUT_MS, signal }) {
   return new Promise((resolve) => {
-    const escapedTask = task.replace(/"/g, '\\"');
-    const proc = spawnImpl('claude', ['-p', `"${escapedTask}"`, '--output-format', 'stream-json', '--verbose'], {
+    const proc = spawnImpl('claude', ['-p', '--output-format', 'stream-json', '--verbose'], {
       cwd: projectPath,
       env: process.env,
       shell: true,
-      stdio: ['ignore', 'pipe', 'pipe'],
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
+    proc.stdin.write(task);
+    proc.stdin.end();
     let buffer = '';
     let finalResult = null;
     let stderrBuffer = '';

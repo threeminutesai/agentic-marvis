@@ -14,6 +14,27 @@ let audioRecorder = null;
 let audioChunks = [];
 let isRecordingAudio = false;
 let temporaryNoticeTimer = null;
+let processingCueAudio = null;
+let cachedVoiceAudio = null;
+let voicePhraseTab = 'morning';
+let voicePhraseDraft = null;
+
+const PROCESSING_CUES = [
+  'Working on it.',
+  'Processing.',
+  'Got it. Checking now.',
+  'On it, sir.',
+  'Give me a moment.',
+  'I am looking into it.',
+  'Understood. Running the request.',
+];
+
+const DEFAULT_VOICE_PHRASES = {
+  morning: ['Good morning [user]', 'Hi [user]', 'Morning [user]'],
+  afternoon: ['Good afternoon [user]', 'Hi [user]', 'Ready for the afternoon run [user]'],
+  evening: ['Good evening [user]', 'Hi [user]', 'Welcome back [user]'],
+  processing: ['Working on it', 'Processing', 'Got it. Checking now', 'On it [user]', 'Give me a moment'],
+};
 
 function showStartupProblem(message) {
   const setupStatus = document.getElementById('setup-status');
@@ -89,6 +110,8 @@ async function pauseActiveOperation() {
   activeOperationId = null;
   setProcessingResponse(false);
   isBusy = false;
+  stopProcessingCue();
+  stopCachedVoice();
   ttsController.stop();
   setAvatarState('idle');
   if (operationId) {
@@ -189,6 +212,193 @@ async function speakReply(text) {
   updateSendButton();
 }
 
+function isPhase3() {
+  return document.getElementById('app-body')?.classList.contains('phase-3');
+}
+
+function normalizeVoicePhrases(settings = currentSettings) {
+  return {
+    ...DEFAULT_VOICE_PHRASES,
+    ...(settings?.voicePhrases || {}),
+  };
+}
+
+function selectRandomPhrase(category) {
+  const phrases = normalizeVoicePhrases()[category] || [];
+  const available = phrases.map((phrase) => phrase.trim()).filter(Boolean);
+  const pool = available.length ? available : (DEFAULT_VOICE_PHRASES[category] || PROCESSING_CUES);
+  const text = pool[Math.floor(Math.random() * pool.length)];
+  return applyVoiceTemplate(text);
+}
+
+function applyVoiceTemplate(text) {
+  const userName = (currentSettings?.userName || '').trim();
+  return String(text || '')
+    .replace(/\[user\]/gi, userName || 'sir')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function stopProcessingCue() {
+  if (processingCueAudio) {
+    processingCueAudio.pause();
+    processingCueAudio.currentTime = 0;
+    processingCueAudio = null;
+  }
+}
+
+function stopCachedVoice() {
+  if (cachedVoiceAudio) {
+    cachedVoiceAudio.pause();
+    cachedVoiceAudio.currentTime = 0;
+    cachedVoiceAudio = null;
+  }
+}
+
+async function playCachedVoice(text, category) {
+  const result = await window.jarvis.synthesizeCachedSpeech({ text, category });
+  if (!result.ok || !result.audioBase64) return false;
+  await new Promise((resolve) => {
+    const audio = new Audio(`data:audio/mpeg;base64,${result.audioBase64}`);
+    cachedVoiceAudio = audio;
+    if (category === 'processing') processingCueAudio = audio;
+    audio.onended = () => {
+      if (processingCueAudio === audio) processingCueAudio = null;
+      if (cachedVoiceAudio === audio) cachedVoiceAudio = null;
+      resolve();
+    };
+    audio.onerror = resolve;
+    audio.play().catch(resolve);
+  });
+  return true;
+}
+
+async function speakProcessingCue() {
+  if (isMuted || !isPhase3()) return;
+  const text = selectRandomPhrase('processing');
+  try {
+    const result = await window.jarvis.synthesizeCachedSpeech({ text, category: 'processing' });
+    if (result.ok && result.audioBase64 && !isMuted && isProcessingResponse) {
+      await new Promise((resolve) => {
+        const audio = new Audio(`data:audio/mpeg;base64,${result.audioBase64}`);
+        processingCueAudio = audio;
+        audio.onended = () => {
+          if (processingCueAudio === audio) processingCueAudio = null;
+          resolve();
+        };
+        audio.onerror = resolve;
+        audio.play().catch(resolve);
+      });
+      return;
+    }
+  } catch (err) {
+    console.log('[TTS Processing Cue Error]', err.message);
+  }
+
+  if (!isMuted && isProcessingResponse) {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.95;
+    window.speechSynthesis.speak(utterance);
+  }
+}
+
+async function speakBriefing(text) {
+  if (isMuted) return;
+  isSpeaking = true;
+  updateSendButton();
+  setAvatarState('speaking');
+  try {
+    const played = await playCachedVoice(text, 'briefings');
+    if (!played) await ttsController.speak(text);
+  } finally {
+    setAvatarState('idle');
+    isSpeaking = false;
+    updateSendButton();
+  }
+}
+
+function buildCliTaskWithHtmlContract(task, htmlPanel) {
+  if (!htmlPanel?.filePath) return task;
+  const templateSection = htmlPanel.template
+    ? `Fill in this exact template - do not change tag names, class names, or structure, and do not add inline styles or <style>/<script> tags. Only replace the {{PLACEHOLDER}} tokens with content. If a section doesn't apply (e.g. no callout), delete that whole element instead of leaving a placeholder unfilled.
+
+--- TEMPLATE START ---
+${htmlPanel.template}
+--- TEMPLATE END ---`
+    : `Write a standalone HTML fragment (no <script> or <style> tags) containing the full display content - title, body, source links, image/placeholder area.`;
+
+  return `OUTPUT FORMAT - read this before doing anything else.
+
+Task: ${task}
+
+Your final response must always start with:
+
+[voice]
+A short spoken summary, 1-2 sentences, no source URLs, no markdown.
+
+Then decide whether this task needs the HTML side panel:
+- Use the panel for reports or heavy/structured content - online research, news, statistics, multi-point summaries, anything with sources or sections worth reading on screen.
+- Skip the panel for light conversation - jokes, quick answers, small talk, anything that's fully said by the voice line above.
+
+If you use the panel:
+1. ${templateSection}
+2. Write the result to this exact file path: ${htmlPanel.filePath}
+3. Keep the file name exactly as given: ${htmlPanel.fileName}.
+4. Add this line right after [voice]:
+
+[html] ${htmlPanel.filePath}
+
+If you skip the panel, output only the [voice] line and nothing else - do not write the HTML file, and do not print the full answer (markdown, bullet points, sources, links) directly in the response.`;
+}
+
+function extractPlainVoiceSummary(text) {
+  const cleaned = String(text || '')
+    .replace(/^Source:.*$/gim, '')
+    .replace(/\[[^\]]+\]\(https?:\/\/[^)]+\)/g, '')
+    .replace(/https?:\/\/\S+/g, '')
+    .trim();
+  return cleaned.split(/\r?\n\s*\r?\n/)[0]?.trim() || cleaned || 'I found the summary, sir.';
+}
+
+async function formatAssistantResponse(text) {
+  const voiceBlock = extractVoiceContentBlock(text);
+  if (voiceBlock) {
+    const displayText = voiceBlock.displayText || voiceBlock.voiceText;
+    let html = displayText ? renderContentBlock(displayText) : null;
+    if (voiceBlock.htmlPath) {
+      const result = await window.jarvis.readHtmlPanel(voiceBlock.htmlPath);
+      if (result.ok) html = result.html;
+    }
+    return {
+      reply: voiceBlock.voiceText || extractPlainVoiceSummary(displayText),
+      displayReply: voiceBlock.voiceText,
+      html,
+    };
+  }
+
+  const extracted = extractHtmlBlock(text);
+  if (extracted) {
+    return {
+      reply: [extracted.before, extracted.after].filter(Boolean).join(' ') || "Here's the report, sir.",
+      displayReply: [extracted.before, extracted.after].filter(Boolean).join(' ') || "Here's the report, sir.",
+      html: extracted.html,
+    };
+  }
+
+  // CLI ignored the [voice]/[html] contract and returned raw content directly.
+  // Route long-form output to the panel instead of dumping it into the chat bubble.
+  const plainSummary = extractPlainVoiceSummary(text);
+  if (text && text.trim().length > plainSummary.length + 40) {
+    return {
+      reply: plainSummary,
+      displayReply: plainSummary,
+      html: renderContentBlock(text),
+    };
+  }
+
+  return { reply: plainSummary, displayReply: text, html: null };
+}
+
 async function init() {
   try {
     currentSettings = await window.jarvis.getSettings();
@@ -222,44 +432,13 @@ function showAppScreen({ keepSettingsOpen = false } = {}) {
 }
 
 function buildSimpleGreeting(rows) {
-  const generalGreetings = [
-    'Hello, sir.',
-    'Welcome back, sir.',
-    'At your service, sir.',
-    'Online and ready, sir.',
-    'Systems are fully operational.',
-    'Welcome home, sir.'
-  ];
-  const morningGreetings = [
-    'Good morning, sir.',
-    'Morning, sir.',
-    'Rise and shine, sir.',
-    'Systems are awake and ready, sir.',
-    'A fresh morning, sir.'
-  ];
-  const afternoonGreetings = [
-    'Good afternoon, sir.',
-    'Afternoon, sir.',
-    'Ready for the afternoon run, sir.',
-    'All systems standing by this afternoon, sir.',
-    'Back online for the afternoon, sir.'
-  ];
-  const eveningGreetings = [
-    'Good evening, sir.',
-    'Evening, sir.',
-    'The evening systems are online, sir.',
-    'Standing by for the night shift, sir.',
-    'Welcome back this evening, sir.'
-  ];
-
   const hour = new Date().getHours();
-  const timeGreetings = hour < 12
-    ? morningGreetings
+  const category = hour < 12
+    ? 'morning'
     : hour < 18
-      ? afternoonGreetings
-      : eveningGreetings;
-  const greetings = [...timeGreetings, ...generalGreetings];
-  return greetings[Math.floor(Math.random() * greetings.length)];
+      ? 'afternoon'
+      : 'evening';
+  return selectRandomPhrase(category);
 }
 
 function buildBriefing(rows) {
@@ -319,7 +498,6 @@ async function speakGreeting(text) {
         setTimeout(resolve, 2000);
       });
     } else {
-      // Fallback to Web Speech
       await ttsController.speak(text);
     }
   } catch (err) {
@@ -370,7 +548,7 @@ async function greetUser() {
     if (continueSection) {
       continueSection.style.display = 'block';
     }
-    speakReply(briefing);
+    speakBriefing(briefing);
   }
 }
 
@@ -405,10 +583,13 @@ async function sendToCli(text, channel, task) {
   activeOperationId = operationId;
   setProcessingResponse(true);
   setAvatarState('processing');
+  speakProcessingCue();
   try {
+    const htmlPanel = await window.jarvis.prepareHtmlPanel();
+    const delegatedTask = buildCliTaskWithHtmlContract(task, htmlPanel);
     console.log(`[CLI] Delegating to ${channel.label}: "${task}"`);
     console.log(`[CLI] Calling channel.delegate (this is an IPC call)...`);
-    const result = await channel.delegate(task, operationId);
+    const result = await channel.delegate(delegatedTask, operationId);
     console.log(`[CLI] Received result from IPC:`, result);
     console.log(`[CLI] Result status: ${result?.status}, summary length: ${result?.summary?.length}`);
     if (activeOperationId !== operationId && shouldAbortResponse) return;
@@ -416,16 +597,14 @@ async function sendToCli(text, channel, task) {
     setProcessingResponse(false);
     if (shouldAbortResponse || result?.status === 'cancelled') return;
     const summary = result.summary || `${channel.label} finished, sir.`;
-    const extracted = extractHtmlBlock(summary);
-    let reply;
-    if (extracted) {
-      reply = [extracted.before, extracted.after].filter(Boolean).join(' ') || "Here's the report, sir.";
-      showHTML(extracted.html);
-    } else {
-      reply = summary;
-    }
+    const formatted = await formatAssistantResponse(summary);
+    if (formatted.html) showHTML(formatted.html);
+    const reply = formatted.reply;
     console.log(`[CLI] Displaying reply: "${reply}"`);
-    appendChatLine('Jarvis', reply);
+    appendChatLine('Jarvis', formatted.displayReply);
+    stopProcessingCue();
+    stopCachedVoice();
+    ttsController.stop();
     await speakReply(reply);
   } catch (err) {
     console.log(`[CLI] Error:`, err);
@@ -470,14 +649,20 @@ async function sendToJarvis(text) {
   activeOperationId = operationId;
   setProcessingResponse(true);
   setAvatarState('processing');
+  speakProcessingCue();
   try {
     const { reply, cancelled } = await window.jarvis.sendMessage(text, operationId);
     if (activeOperationId !== operationId && shouldAbortResponse) return;
     activeOperationId = null;
     setProcessingResponse(false);
     if (shouldAbortResponse || cancelled) return;
-    appendChatLine('Jarvis', reply);
-    await speakReply(reply);
+    const formatted = await formatAssistantResponse(reply);
+    if (formatted.html) showHTML(formatted.html);
+    appendChatLine('Jarvis', formatted.displayReply);
+    stopProcessingCue();
+    stopCachedVoice();
+    ttsController.stop();
+    await speakReply(formatted.reply);
   } catch (err) {
     if (activeOperationId === operationId) activeOperationId = null;
     setProcessingResponse(false);
@@ -540,6 +725,9 @@ function populateSettingsForm(settings) {
   document.getElementById('wakeword-enabled-input').checked = settings.wakeWordEnabled;
   document.getElementById('personality-input').value = settings.personality;
   document.getElementById('avatar-select').value = settings.avatarStyle;
+  document.getElementById('user-name-input').value = settings.userName || '';
+  voicePhraseDraft = normalizeVoicePhrases(settings);
+  renderVoicePhraseEditor('morning');
   document.getElementById('preferred-cli-select').value = settings.preferredCliChannel || '';
   document.getElementById('project-input').value = settings.activeProject;
 }
@@ -554,6 +742,28 @@ function renderVoiceOptions(voices, selectedId) {
     select.appendChild(option);
   }
   select.value = selectedId || '';
+}
+
+function renderVoicePhraseEditor(tab) {
+  voicePhraseTab = tab;
+  if (!voicePhraseDraft) voicePhraseDraft = normalizeVoicePhrases();
+  document.querySelectorAll('.voice-phrase-tab').forEach((button) => {
+    button.classList.toggle('active', button.dataset.phraseTab === tab);
+  });
+  const label = document.getElementById('voice-phrase-editor-label');
+  const editor = document.getElementById('voice-phrase-editor');
+  if (label) label.firstChild.textContent = `${tab[0].toUpperCase()}${tab.slice(1)} phrases: `;
+  if (editor) editor.value = (voicePhraseDraft[tab] || []).join('\n');
+}
+
+function saveCurrentVoicePhraseEditor() {
+  if (!voicePhraseDraft) voicePhraseDraft = normalizeVoicePhrases();
+  const editor = document.getElementById('voice-phrase-editor');
+  if (!editor) return;
+  voicePhraseDraft[voicePhraseTab] = editor.value
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
 }
 
 document.getElementById('elevenlabs-voice-add-btn').addEventListener('click', () => {
@@ -585,6 +795,17 @@ document.getElementById('elevenlabs-voice-remove-btn').addEventListener('click',
   if (!select.value) return;
   select.querySelector(`option[value="${CSS.escape(select.value)}"]`).remove();
   select.value = '';
+});
+
+document.getElementById('voice-words-toggle-btn').addEventListener('click', () => {
+  document.getElementById('voice-words-panel').classList.toggle('hidden');
+});
+
+document.querySelectorAll('.voice-phrase-tab').forEach((button) => {
+  button.addEventListener('click', () => {
+    saveCurrentVoicePhraseEditor();
+    renderVoicePhraseEditor(button.dataset.phraseTab);
+  });
 });
 
 async function routeUserMessage(text) {
@@ -620,6 +841,7 @@ async function sendTextFromInput() {
   isBusy = true;
   shouldAbortResponse = false;
   updateSendButton();
+  stopCachedVoice();
   ttsController.stop();
   await routeUserMessage(text);
   isBusy = false;
@@ -657,15 +879,21 @@ document.getElementById('project-browse-btn').addEventListener('click', async ()
 
 document.getElementById('continue-btn').addEventListener('click', () => {
   // Transition to Phase 3: Full-chat with avatar background
+  stopCachedVoice();
   ttsController.stop();
   isSpeaking = false;
   updateSendButton();
   const appBody = document.getElementById('app-body');
   appBody.classList.add('phase-3');
+  hidePanel();
   const continueSection = document.getElementById('continue-section');
   if (continueSection) {
     continueSection.style.display = 'none';
   }
+});
+
+document.getElementById('status-panel-dismiss-btn').addEventListener('click', () => {
+  hidePanel();
 });
 
 document.getElementById('settings-btn').addEventListener('click', () => {
@@ -690,10 +918,14 @@ document.getElementById('audio-input-btn').addEventListener('click', toggleAudio
 document.getElementById('mute-toggle-btn').addEventListener('click', (e) => {
   isMuted = !isMuted;
   e.target.textContent = isMuted ? 'Unmute' : 'Mute';
-  if (isMuted) ttsController.stop();
+  if (isMuted) {
+    stopCachedVoice();
+    ttsController.stop();
+  }
 });
 
 document.getElementById('settings-save-btn').addEventListener('click', async () => {
+  saveCurrentVoicePhraseEditor();
   const settings = {
     provider: document.getElementById('provider-select').value,
     apiKeys: {
@@ -708,6 +940,8 @@ document.getElementById('settings-save-btn').addEventListener('click', async () 
     wakeWordEnabled: document.getElementById('wakeword-enabled-input').checked,
     personality: document.getElementById('personality-input').value,
     avatarStyle: document.getElementById('avatar-select').value,
+    userName: document.getElementById('user-name-input').value.trim(),
+    voicePhrases: voicePhraseDraft || normalizeVoicePhrases(),
     preferredCliChannel: document.getElementById('preferred-cli-select').value || null,
     activeProject: document.getElementById('project-input').value,
   };

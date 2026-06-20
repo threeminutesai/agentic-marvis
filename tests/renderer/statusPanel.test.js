@@ -80,6 +80,51 @@ test('extractHtmlBlock returns null for an unclosed fence', () => {
   delete global.document;
 });
 
+test('extractVoiceContentBlock separates spoken summary from display content', () => {
+  const { mod } = loadStatusPanel('<div id="app-body"><div id="status-panel"></div></div>');
+
+  const result = mod.extractVoiceContentBlock('[voice] Here is the short spoken summary.\n\n[content]\n- **Markets:** Stocks moved higher. ([apnews.com](https://apnews.com/example))\n\n[html] C:\\tmp\\00001.html');
+
+  assert.strictEqual(result.voiceText, 'Here is the short spoken summary.');
+  assert.match(result.displayText, /Markets/);
+  assert.strictEqual(result.htmlPath, 'C:\\tmp\\00001.html');
+
+  delete global.document;
+});
+
+test('renderContentBlock keeps image marker content in the display card', () => {
+  const { mod } = loadStatusPanel('<div id="app-body"><div id="status-panel"></div></div>');
+
+  const html = mod.renderContentBlock('[image] U.S. Stocks Rise\nStocks ended the week higher.\nhttps://example.com/story');
+
+  assert.match(html, /U\.S\. Stocks Rise/);
+  assert.match(html, /Stocks ended the week higher/);
+  assert.match(html, /https:\/\/example\.com\/story/);
+
+  delete global.document;
+});
+
+test('renderResearchSummary renders markdown source bullets as cards', () => {
+  const { mod } = loadStatusPanel('<div id="app-body"><div id="status-panel"></div></div>');
+
+  const html = mod.renderResearchSummary(`
+[snapshot/article img][title]
+[contents]
+[link]
+- **White House:** Trump unveiled a new Air Force One. ([apnews.com](https://apnews.com/article/example))
+Source basis: AP current top stories.
+`);
+
+  assert.match(html, /research-card/);
+  assert.match(html, /White House/);
+  assert.match(html, /Trump unveiled/);
+  assert.match(html, /https:\/\/apnews\.com\/article\/example/);
+  assert.match(html, /Source basis/);
+  assert.doesNotMatch(html, /snapshot\/article img/);
+
+  delete global.document;
+});
+
 test('renderStatusBoard renders compact top cards, email content, and latest news below it', () => {
   const { mod } = loadStatusPanel('<div id="app-body"><div id="status-panel"></div></div>');
 

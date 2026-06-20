@@ -22,6 +22,46 @@ function getStatusFilePath() {
   return path.join(path.resolve(__dirname, '../..'), 'data', 'jarvis-status.json');
 }
 
+function getHtmlPanelDir() {
+  return path.join(path.resolve(__dirname, '../..'), 'data', 'html-panels');
+}
+
+function ensureHtmlPanelDir() {
+  const dir = getHtmlPanelDir();
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+function getHtmlPanelTemplate() {
+  const templatePath = path.join(getHtmlPanelDir(), '_template.html');
+  try {
+    return fs.readFileSync(templatePath, 'utf8');
+  } catch {
+    return '';
+  }
+}
+
+function getNextHtmlPanelPath() {
+  const dir = ensureHtmlPanelDir();
+  const existingIds = fs.readdirSync(dir)
+    .map((name) => /^(\d{5})\.html$/i.exec(name)?.[1])
+    .filter(Boolean)
+    .map((id) => Number(id));
+  const nextId = String((existingIds.length ? Math.max(...existingIds) : 0) + 1).padStart(5, '0');
+  return path.join(dir, `${nextId}.html`);
+}
+
+function readHtmlPanelFile(filePath) {
+  const dir = ensureHtmlPanelDir();
+  const resolved = path.resolve(filePath || '');
+  if (!resolved.startsWith(path.resolve(dir) + path.sep)) {
+    throw new Error('HTML panel file must be inside the Jarvis html-panels folder.');
+  }
+  const html = fs.readFileSync(resolved, 'utf8');
+  if (!html.trim()) throw new Error('HTML panel file is empty.');
+  return html;
+}
+
 function copyLegacyStatusFileIfNeeded(filePath) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   const rootStatusFilePath = path.join(path.resolve(__dirname, '../..'), 'jarvis-status.json');
@@ -154,6 +194,18 @@ function registerIpcHandlers() {
     });
   });
 
+  ipcMain.handle('tts:synthesize-cached', async (_event, { text, category }) => {
+    const settings = settingsStore.load();
+    return synthesizeGreetingWithCache({
+      text,
+      settings,
+      homeDir: os.homedir(),
+      fsImpl: fs,
+      createProvider: createElevenLabsProvider,
+      category: category || 'general',
+    });
+  });
+
   ipcMain.handle('stt:transcribe', async (_event, { audioBase64, mimeType }) => {
     const settings = settingsStore.load();
     const apiKey = settings.apiKeys?.elevenlabs;
@@ -218,6 +270,24 @@ function registerIpcHandlers() {
     } catch (err) {
       console.log(`[Status] Failed to read status sheet: ${err.message}`);
       return { ok: false, rows: [], error: err.message };
+    }
+  });
+
+  ipcMain.handle('html-panel:prepare', () => {
+    const filePath = getNextHtmlPanelPath();
+    fs.writeFileSync(filePath, '', { flag: 'wx' });
+    return {
+      filePath,
+      fileName: path.basename(filePath),
+      template: getHtmlPanelTemplate(),
+    };
+  });
+
+  ipcMain.handle('html-panel:read', (_event, filePath) => {
+    try {
+      return { ok: true, html: readHtmlPanelFile(filePath), filePath };
+    } catch (err) {
+      return { ok: false, error: err.message };
     }
   });
 

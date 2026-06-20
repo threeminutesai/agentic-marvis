@@ -31,7 +31,10 @@
           <button id="continue-btn" type="button">Continue</button>
         </div>
       </div>
-      <div id="status-panel"></div>
+      <div id="status-panel-wrap">
+        <button id="status-panel-dismiss-btn" type="button" title="Close panel" aria-label="Close panel">&times;</button>
+        <div id="status-panel"></div>
+      </div>
     </div>
   </div>
   <div id="settings-modal" class="hidden">
@@ -54,6 +57,18 @@
     <label><input id="wakeword-enabled-input" type="checkbox"> Enable wake word (always listens for "Jarvis")</label>
     <label>Personality: <textarea id="personality-input"></textarea></label>
     <label>Avatar Style: <select id="avatar-select"><option value="rings">Rings/HUD</option><option value="brain">Electrical Brain</option></select></label>
+    <button id="voice-words-toggle-btn" type="button">Voice Words</button>
+    <div id="voice-words-panel" class="hidden">
+      <label>User Name: <input id="user-name-input" type="text" placeholder="Zan"></label>
+      <div id="voice-phrase-tabs">
+        <button type="button" class="voice-phrase-tab active" data-phrase-tab="morning">Morning</button>
+        <button type="button" class="voice-phrase-tab" data-phrase-tab="afternoon">Afternoon</button>
+        <button type="button" class="voice-phrase-tab" data-phrase-tab="evening">Evening</button>
+        <button type="button" class="voice-phrase-tab" data-phrase-tab="processing">Processing</button>
+      </div>
+      <label id="voice-phrase-editor-label">Morning phrases: <textarea id="voice-phrase-editor" placeholder="Good morning [user]&#10;Hi, [user]"></textarea></label>
+      <p class="settings-hint">Use one phrase per line. [user] becomes the user name when spoken.</p>
+    </div>
     <label>Preferred CLI: <select id="preferred-cli-select"><option value="">None (use chat)</option><option value="code">Claude Code</option><option value="codex">Codex</option></select></label>
     <label>Active Project: <input id="project-input" placeholder="/path/to/project"></label>
     <button id="project-browse-btn" type="button">Browse Folder</button>

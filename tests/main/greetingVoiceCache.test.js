@@ -4,7 +4,9 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const {
+  getCachedVoicePath,
   getGreetingVoicePath,
+  hashVoiceText,
   slugifyGreeting,
   synthesizeGreetingWithCache,
 } = require('../../src/main/voice/greetingVoiceCache');
@@ -18,6 +20,12 @@ test('slugifyGreeting creates stable readable greeting cache names', () => {
   assert.strictEqual(slugifyGreeting('   !!!   '), 'greeting');
 });
 
+test('hashVoiceText creates stable five-digit numeric cache IDs', () => {
+  const id = hashVoiceText('Good morning Zan');
+  assert.match(id, /^\d{5}$/);
+  assert.strictEqual(hashVoiceText('Good morning Zan'), id);
+});
+
 test('getGreetingVoicePath scopes saved greetings by selected voice', () => {
   const homeDir = 'C:\\Users\\Test';
   const voicePath = getGreetingVoicePath({
@@ -26,7 +34,18 @@ test('getGreetingVoicePath scopes saved greetings by selected voice', () => {
     text: 'Welcome back, sir.',
   });
 
-  assert.ok(voicePath.endsWith(path.join('.jarvis-voices', 'greetings', 'voice-123', 'welcome-back-sir.base64')));
+  assert.ok(voicePath.endsWith(path.join('.jarvis-voices', 'greetings', 'voice-123', `${hashVoiceText('Welcome back, sir.')}.base64`)));
+});
+
+test('getCachedVoicePath scopes saved audio by category and numeric cache ID', () => {
+  const voicePath = getCachedVoicePath({
+    homeDir: 'C:\\Users\\Test',
+    voiceId: '',
+    category: 'processing',
+    text: 'Working on it',
+  });
+
+  assert.ok(voicePath.endsWith(path.join('.jarvis-voices', 'processing', 'default', `${hashVoiceText('Working on it')}.base64`)));
 });
 
 test('synthesizeGreetingWithCache saves first greeting audio and reuses it next time', async () => {
@@ -94,7 +113,7 @@ test('synthesizeGreetingWithCache uses provider default voice when no custom voi
   assert.strictEqual(result.ok, true);
   assert.strictEqual(result.reused, false);
   assert.strictEqual(capturedVoiceId, undefined);
-  assert.ok(result.voicePath.endsWith(path.join('.jarvis-voices', 'greetings', 'default', 'good-evening-sir.base64')));
+  assert.ok(result.voicePath.endsWith(path.join('.jarvis-voices', 'greetings', 'default', `${hashVoiceText('Good evening, sir.')}.base64`)));
 });
 
 test('synthesizeGreetingWithCache falls back without an ElevenLabs key', async () => {

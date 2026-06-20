@@ -2,6 +2,16 @@ const path = require('node:path');
 
 const DEFAULT_VOICE_CACHE_KEY = 'default';
 
+function hashVoiceText(text) {
+  const value = String(text || '');
+  let hash = 2166136261;
+  for (let i = 0; i < value.length; i++) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return String(Math.abs(hash >>> 0) % 100000).padStart(5, '0');
+}
+
 function slugifyGreeting(text) {
   const slug = String(text || '')
     .toLowerCase()
@@ -11,15 +21,20 @@ function slugifyGreeting(text) {
   return slug || 'greeting';
 }
 
-function getGreetingVoicePath({ homeDir, voiceId, text }) {
+function getCachedVoicePath({ homeDir, voiceId, text, category = 'greetings' }) {
   const voiceCacheKey = voiceId || DEFAULT_VOICE_CACHE_KEY;
+  const categoryKey = String(category || 'general').replace(/[^a-z0-9_-]/gi, '-');
   return path.join(
     homeDir,
     '.jarvis-voices',
-    'greetings',
+    categoryKey,
     voiceCacheKey,
-    `${slugifyGreeting(text)}.base64`
+    `${hashVoiceText(text)}.base64`
   );
+}
+
+function getGreetingVoicePath({ homeDir, voiceId, text }) {
+  return getCachedVoicePath({ homeDir, voiceId, text, category: 'greetings' });
 }
 
 function readSavedGreeting({ fsImpl, voicePath }) {
@@ -34,9 +49,10 @@ async function synthesizeGreetingWithCache({
   homeDir,
   fsImpl,
   createProvider,
+  category = 'greetings',
 }) {
   const voiceId = settings.elevenLabsVoiceId || '';
-  const voicePath = getGreetingVoicePath({ homeDir, voiceId, text });
+  const voicePath = getCachedVoicePath({ homeDir, voiceId, text, category });
 
   try {
     const savedAudio = readSavedGreeting({ fsImpl, voicePath });
@@ -71,7 +87,9 @@ async function synthesizeGreetingWithCache({
 }
 
 module.exports = {
+  getCachedVoicePath,
   getGreetingVoicePath,
+  hashVoiceText,
   slugifyGreeting,
   synthesizeGreetingWithCache,
 };

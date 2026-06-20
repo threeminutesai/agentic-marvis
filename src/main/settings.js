@@ -5,6 +5,13 @@ const DEFAULTS = {
   apiKeys: { deepseek: '', gemini: '', elevenlabs: '' },
   elevenLabsVoiceId: '',
   elevenLabsVoices: [],
+  userName: '',
+  voicePhrases: {
+    morning: ['Good morning [user]', 'Hi [user]', 'Morning [user]'],
+    afternoon: ['Good afternoon [user]', 'Hi [user]', 'Ready for the afternoon run [user]'],
+    evening: ['Good evening [user]', 'Hi [user]', 'Welcome back [user]'],
+    processing: ['Working on it', 'Processing', 'Got it. Checking now', 'On it [user]', 'Give me a moment'],
+  },
   wakeWordEnabled: false,
   personality: 'You are Jarvis: calm, witty, formal, loyal. Address the user respectfully.',
   avatarStyle: 'rings',

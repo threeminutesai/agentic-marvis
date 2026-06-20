@@ -4,10 +4,15 @@ const assert = require('node:assert');
 const { EventEmitter } = require('node:events');
 const { delegateTask } = require('../../src/main/claudeCode/delegate');
 
+function fakeStdin() {
+  return { write: () => {}, end: () => {} };
+}
+
 function fakeChildProcess(stdoutLines, exitCode = 0) {
   const proc = new EventEmitter();
   proc.stdout = new EventEmitter();
   proc.stderr = new EventEmitter();
+  proc.stdin = fakeStdin();
   setImmediate(() => {
     for (const line of stdoutLines) proc.stdout.emit('data', Buffer.from(line + '\n'));
     proc.emit('close', exitCode);
@@ -15,24 +20,28 @@ function fakeChildProcess(stdoutLines, exitCode = 0) {
   return proc;
 }
 
-test('delegateTask spawns claude -p with the task and project cwd', async () => {
-  let capturedCmd, capturedArgs, capturedOptions;
+test('delegateTask spawns claude -p with the task piped via stdin and project cwd', async () => {
+  let capturedCmd, capturedArgs, capturedOptions, capturedStdin;
   const fakeSpawn = (cmd, args, options) => {
     capturedCmd = cmd; capturedArgs = args; capturedOptions = options;
-    return fakeChildProcess([
+    const proc = fakeChildProcess([
       JSON.stringify({ type: 'result', subtype: 'success', result: 'Refactored auth.py successfully.' }),
     ]);
+    capturedStdin = [];
+    proc.stdin.write = (chunk) => capturedStdin.push(chunk);
+    return proc;
   };
 
   const result = await delegateTask({
-    task: 'Refactor auth.py',
+    task: 'Refactor auth.py\n\nMulti-line task body.',
     projectPath: '/tmp/myproject',
     spawnImpl: fakeSpawn,
   });
 
   assert.strictEqual(capturedCmd, 'claude');
-  assert.deepStrictEqual(capturedArgs, ['-p', '"Refactor auth.py"', '--output-format', 'stream-json', '--verbose']);
+  assert.deepStrictEqual(capturedArgs, ['-p', '--output-format', 'stream-json', '--verbose']);
   assert.strictEqual(capturedOptions.cwd, '/tmp/myproject');
+  assert.strictEqual(capturedStdin.join(''), 'Refactor auth.py\n\nMulti-line task body.');
   assert.strictEqual(result.status, 'success');
   assert.strictEqual(result.summary, 'Refactored auth.py successfully.');
 });
@@ -42,6 +51,7 @@ test('delegateTask reports a clear error when claude CLI is missing', async () =
     const proc = new EventEmitter();
     proc.stdout = new EventEmitter();
     proc.stderr = new EventEmitter();
+    proc.stdin = fakeStdin();
     setImmediate(() => proc.emit('error', new Error('spawn claude ENOENT')));
     return proc;
   };
@@ -76,6 +86,7 @@ test('delegateTask surfaces stderr output when no result event is emitted', asyn
     const proc = new EventEmitter();
     proc.stdout = new EventEmitter();
     proc.stderr = new EventEmitter();
+    proc.stdin = fakeStdin();
     setImmediate(() => {
       proc.stderr.emit('data', Buffer.from('some error detail'));
       proc.emit('close', 1);
@@ -95,6 +106,7 @@ test('delegateTask times out and kills the process when it hangs', async () => {
     const proc = new EventEmitter();
     proc.stdout = new EventEmitter();
     proc.stderr = new EventEmitter();
+    proc.stdin = fakeStdin();
     proc.kill = () => { killCalled = true; };
     return proc;
   };
@@ -118,6 +130,7 @@ test('delegateTask kills the process when aborted', async () => {
     const proc = new EventEmitter();
     proc.stdout = new EventEmitter();
     proc.stderr = new EventEmitter();
+    proc.stdin = fakeStdin();
     proc.kill = () => { killCalled = true; };
     setImmediate(() => controller.abort());
     return proc;

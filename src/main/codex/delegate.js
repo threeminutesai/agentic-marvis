@@ -3,17 +3,47 @@ const { spawn } = require('node:child_process');
 const TIMEOUT_MS = 120 * 1000;
 const MAX_BUFFER_LENGTH = 5 * 1024 * 1024;
 
+function redactHtmlDiffs(text) {
+  const lines = text.split(/\r?\n/);
+  const result = [];
+  const diffLineRe = /^(index [0-9a-f]+\.\.[0-9a-f]+|--- |\+\+\+ |@@ |[+\- ])/;
+  let inHtmlDiff = false;
+  let suppressedCount = 0;
+  for (const line of lines) {
+    const diffStart = /^diff --git a\/(\S+\.html) b\/\1/.exec(line);
+    if (diffStart) {
+      if (inHtmlDiff) result.push(`  ... [${suppressedCount} lines omitted]`);
+      inHtmlDiff = true;
+      suppressedCount = 0;
+      result.push(`diff --git a/${diffStart[1]} b/${diffStart[1]} [content omitted]`);
+      continue;
+    }
+    if (inHtmlDiff) {
+      if (diffLineRe.test(line)) {
+        suppressedCount++;
+        continue;
+      }
+      inHtmlDiff = false;
+      if (suppressedCount) result.push(`  ... [${suppressedCount} lines omitted]`);
+    }
+    result.push(line);
+  }
+  if (inHtmlDiff && suppressedCount) result.push(`  ... [${suppressedCount} lines omitted]`);
+  return result.join('\n');
+}
+
 function delegateCodexTask({ task, projectPath, spawnImpl = spawn, timeoutMs = TIMEOUT_MS, signal }) {
   return new Promise((resolve) => {
-    console.log(`[Codex] Spawning: codex exec --skip-git-repo-check "${task}"`);
+    console.log(`[Codex] Spawning: codex exec --skip-git-repo-check (task piped via stdin)`);
     console.log(`[Codex] Working directory: ${projectPath}`);
-    const escapedTask = task.replace(/"/g, '\\"');
-    const proc = spawnImpl('codex', ['exec', '--skip-git-repo-check', `"${escapedTask}"`], {
+    const proc = spawnImpl('codex', ['exec', '--skip-git-repo-check', '-c', 'model_reasoning_effort=low', '-'], {
       cwd: projectPath,
       env: process.env,
       shell: true,
-      stdio: ['ignore', 'pipe', 'pipe'],
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
+    proc.stdin.write(task);
+    proc.stdin.end();
     let stdoutBuffer = '';
     let stderrBuffer = '';
     let settled = false;
@@ -61,25 +91,25 @@ function delegateCodexTask({ task, projectPath, spawnImpl = spawn, timeoutMs = T
 
     proc.stdout.on('data', (chunk) => {
       const data = chunk.toString();
-      console.log(`[Codex stdout] ${data}`);
+      console.log(`[Codex stdout] ${redactHtmlDiffs(data)}`);
       stdoutBuffer += data;
       hasOutput = true;
       if (stdoutBuffer.length > MAX_BUFFER_LENGTH) stdoutBuffer = stdoutBuffer.slice(-MAX_BUFFER_LENGTH);
       if (data.includes('tokens used')) {
         console.log('[Codex] Detected "tokens used" in stdout, waiting for output completion...');
-        setTimeout(onDataComplete, 500);
+        setTimeout(onDataComplete, 150);
       }
     });
 
     proc.stderr.on('data', (chunk) => {
       const data = chunk.toString();
-      console.log(`[Codex stderr] ${data}`);
+      console.log(`[Codex stderr] ${redactHtmlDiffs(data)}`);
       stderrBuffer += data;
       hasOutput = true;
       if (stderrBuffer.length > MAX_BUFFER_LENGTH) stderrBuffer = stderrBuffer.slice(-MAX_BUFFER_LENGTH);
       if (data.includes('tokens used')) {
         console.log('[Codex] Detected "tokens used" in stderr, waiting for output completion...');
-        setTimeout(onDataComplete, 500);
+        setTimeout(onDataComplete, 150);
       }
     });
 

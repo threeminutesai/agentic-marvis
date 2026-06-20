@@ -4,10 +4,15 @@ const assert = require('node:assert');
 const { EventEmitter } = require('node:events');
 const { delegateCodexTask } = require('../../src/main/codex/delegate');
 
+function fakeStdin() {
+  return { write: () => {}, end: () => {} };
+}
+
 function fakeChildProcess(stdoutChunks, exitCode = 0) {
   const proc = new EventEmitter();
   proc.stdout = new EventEmitter();
   proc.stderr = new EventEmitter();
+  proc.stdin = fakeStdin();
   setImmediate(() => {
     for (const chunk of stdoutChunks) proc.stdout.emit('data', Buffer.from(chunk));
     proc.emit('close', exitCode);
@@ -15,22 +20,26 @@ function fakeChildProcess(stdoutChunks, exitCode = 0) {
   return proc;
 }
 
-test('delegateCodexTask spawns codex exec with the task and project cwd', async () => {
-  let capturedCmd, capturedArgs, capturedOptions;
+test('delegateCodexTask spawns codex exec with the task piped via stdin and project cwd', async () => {
+  let capturedCmd, capturedArgs, capturedOptions, capturedStdin;
   const fakeSpawn = (cmd, args, options) => {
     capturedCmd = cmd; capturedArgs = args; capturedOptions = options;
-    return fakeChildProcess(['Refactored auth.py successfully.\n']);
+    const proc = fakeChildProcess(['Refactored auth.py successfully.\n']);
+    capturedStdin = [];
+    proc.stdin.write = (chunk) => capturedStdin.push(chunk);
+    return proc;
   };
 
   const result = await delegateCodexTask({
-    task: 'Refactor auth.py',
+    task: 'Refactor auth.py\n\nMulti-line task body.',
     projectPath: '/tmp/myproject',
     spawnImpl: fakeSpawn,
   });
 
   assert.strictEqual(capturedCmd, 'codex');
-  assert.deepStrictEqual(capturedArgs, ['exec', '--skip-git-repo-check', '"Refactor auth.py"']);
+  assert.deepStrictEqual(capturedArgs, ['exec', '--skip-git-repo-check', '-c', 'model_reasoning_effort=low', '-']);
   assert.strictEqual(capturedOptions.cwd, '/tmp/myproject');
+  assert.strictEqual(capturedStdin.join(''), 'Refactor auth.py\n\nMulti-line task body.');
   assert.strictEqual(result.status, 'success');
   assert.strictEqual(result.summary, 'Refactored auth.py successfully.');
 });
@@ -40,6 +49,7 @@ test('delegateCodexTask reports a clear error when codex CLI is missing', async 
     const proc = new EventEmitter();
     proc.stdout = new EventEmitter();
     proc.stderr = new EventEmitter();
+    proc.stdin = fakeStdin();
     setImmediate(() => proc.emit('error', new Error('spawn codex ENOENT')));
     return proc;
   };
@@ -55,6 +65,7 @@ test('delegateCodexTask reports success even with stderr if output exists', asyn
     const proc = new EventEmitter();
     proc.stdout = new EventEmitter();
     proc.stderr = new EventEmitter();
+    proc.stdin = fakeStdin();
     setImmediate(() => {
       proc.stderr.emit('data', Buffer.from('some output detail'));
       proc.emit('close', 1);
@@ -83,6 +94,7 @@ test('delegateCodexTask times out and kills the process when it hangs', async ()
     const proc = new EventEmitter();
     proc.stdout = new EventEmitter();
     proc.stderr = new EventEmitter();
+    proc.stdin = fakeStdin();
     proc.kill = () => { killCalled = true; };
     return proc;
   };
@@ -106,6 +118,7 @@ test('delegateCodexTask kills the process when aborted', async () => {
     const proc = new EventEmitter();
     proc.stdout = new EventEmitter();
     proc.stderr = new EventEmitter();
+    proc.stdin = fakeStdin();
     proc.kill = () => { killCalled = true; };
     setImmediate(() => controller.abort());
     return proc;
