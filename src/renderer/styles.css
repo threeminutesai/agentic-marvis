@@ -319,6 +319,101 @@ button:active { transform: scale(0.97); }
   font-size: 12px;
   line-height: 1.4;
 }
+#music-toggle-btn {
+  min-height: 34px;
+  margin: 4px 0 8px;
+  padding: 0 14px;
+}
+#music-panel {
+  margin: 8px 0 14px;
+  padding: 12px;
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  background: rgba(5, 7, 20, 0.28);
+}
+#music-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 8px 0;
+}
+.music-tab {
+  min-height: 30px;
+  padding: 0 10px;
+  opacity: 0.78;
+}
+.music-tab.active {
+  font-weight: 900;
+  opacity: 1;
+  color: var(--amber);
+  border-color: rgba(255, 184, 79, 0.5);
+  background: rgba(255, 184, 79, 0.12);
+}
+.music-tab-panel.hidden { display: none; }
+#music-track-list,
+#music-playlist-track-checklist {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+  max-height: 180px;
+  overflow-y: auto;
+}
+#music-track-list li,
+#music-playlist-track-checklist li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+#music-schedule-day-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 8px 0;
+}
+.music-schedule-day-tab {
+  min-height: 28px;
+  padding: 0 8px;
+  opacity: 0.78;
+  font-size: 11px;
+}
+.music-schedule-day-tab.active {
+  opacity: 1;
+  color: var(--amber);
+  border-color: rgba(255, 184, 79, 0.5);
+  background: rgba(255, 184, 79, 0.12);
+}
+.music-schedule-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  border: 1px solid var(--glass-border);
+  padding: 6px 8px;
+  border-radius: 6px;
+  margin: 6px 0;
+  color: var(--text-dim);
+}
+.music-schedule-row select {
+  width: auto;
+  display: inline;
+  margin: 0;
+}
+#now-playing-widget {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+#now-playing-track {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 #setup-banner { color: var(--amber); text-shadow: 0 0 10px #ffb84f55; }
 #setup-status { color: var(--text-dim); font-size: 13px; }
 #settings-save-btn { margin-top: 8px; padding: 10px 20px; }
