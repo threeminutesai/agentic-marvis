@@ -18,6 +18,7 @@ let processingCueAudio = null;
 let cachedVoiceAudio = null;
 let voicePhraseTab = 'morning';
 let voicePhraseDraft = null;
+let nowPlayingWidgetTimer = null;
 
 const PROCESSING_CUES = [
   'Working on it.',
@@ -70,6 +71,8 @@ window.addEventListener('jarvis:temporaryNotice', (event) => {
 const wakeWordController = createWakeWordController();
 const sttController = createSttController();
 const ttsController = createTtsController();
+const musicController = createMusicController();
+const musicPanel = createMusicPanel({ musicController });
 ttsController.setOnLevel((level) => {
   if (avatarController) avatarController.setLevel(level);
 });
@@ -206,7 +209,9 @@ async function speakReply(text) {
   isSpeaking = true;
   updateSendButton();
   setAvatarState('speaking');
+  musicController.duck();
   await ttsController.speak(text);
+  musicController.unduck();
   setAvatarState('idle');
   isSpeaking = false;
   updateSendButton();
@@ -276,6 +281,7 @@ async function playCachedVoice(text, category) {
 async function speakProcessingCue() {
   if (isMuted || !isPhase3()) return;
   const text = selectRandomPhrase('processing');
+  musicController.duck();
   try {
     const result = await window.jarvis.synthesizeCachedSpeech({ text, category: 'processing' });
     if (result.ok && result.audioBase64 && !isMuted && isProcessingResponse) {
@@ -300,6 +306,7 @@ async function speakProcessingCue() {
     utterance.rate = 0.95;
     window.speechSynthesis.speak(utterance);
   }
+  musicController.unduck();
 }
 
 async function speakBriefing(text) {
@@ -307,10 +314,12 @@ async function speakBriefing(text) {
   isSpeaking = true;
   updateSendButton();
   setAvatarState('speaking');
+  musicController.duck();
   try {
     const played = await playCachedVoice(text, 'briefings');
     if (!played) await ttsController.speak(text);
   } finally {
+    musicController.unduck();
     setAvatarState('idle');
     isSpeaking = false;
     updateSendButton();
@@ -400,6 +409,11 @@ async function init() {
   try {
     currentSettings = await window.jarvis.getSettings();
     populateSettingsForm(currentSettings);
+    const musicCatalog = await musicPanel.load();
+    musicController.start(musicCatalog);
+    if (nowPlayingWidgetTimer) clearInterval(nowPlayingWidgetTimer);
+    nowPlayingWidgetTimer = setInterval(updateNowPlayingWidget, 5000);
+    updateNowPlayingWidget();
 
     if (!currentSettings.apiKeys?.[currentSettings.provider]) {
       onboarding = true;
@@ -437,6 +451,36 @@ function buildSimpleGreeting(rows) {
       : 'evening';
   return selectRandomPhrase(category);
 }
+
+function updateNowPlayingWidget() {
+  const widget = document.getElementById('now-playing-widget');
+  const trackLabel = document.getElementById('now-playing-track');
+  const toggleBtn = document.getElementById('now-playing-toggle-btn');
+  if (!widget || !trackLabel || !toggleBtn) return;
+  const nowPlaying = musicController.getNowPlaying();
+  if (!nowPlaying) {
+    widget.classList.add('hidden');
+    return;
+  }
+  widget.classList.remove('hidden');
+  trackLabel.textContent = nowPlaying.name;
+  toggleBtn.textContent = nowPlaying.isPaused ? 'Play' : 'Pause';
+}
+
+document.getElementById('now-playing-toggle-btn')?.addEventListener('click', () => {
+  const nowPlaying = musicController.getNowPlaying();
+  if (nowPlaying?.isPaused) {
+    musicController.resume();
+  } else {
+    musicController.pause();
+  }
+  updateNowPlayingWidget();
+});
+
+document.getElementById('now-playing-skip-btn')?.addEventListener('click', () => {
+  musicController.skip();
+  updateNowPlayingWidget();
+});
 
 // News Briefing stores parallel value[]/detail[] arrays (one headline +
 // one longer detail per event). Older status files may still have a plain
@@ -590,6 +634,7 @@ async function speakGreeting(text) {
   isSpeaking = true;
   updateSendButton();
   setAvatarState('speaking');
+  musicController.duck();
 
   try {
     const result = await window.jarvis.synthesizeGreeting(text);
@@ -608,6 +653,7 @@ async function speakGreeting(text) {
     console.log('[TTS Greeting Error]', err);
     await ttsController.speak(text);
   } finally {
+    musicController.unduck();
     setAvatarState('idle');
     isSpeaking = false;
     updateSendButton();
@@ -892,6 +938,10 @@ function populateSettingsForm(settings) {
   document.getElementById('voice-volume-input').value = voiceVolume;
   document.getElementById('voice-volume-value').textContent = `${Math.round(voiceVolume * 100)}%`;
   ttsController.setVolume(voiceVolume);
+  const musicVolume = typeof settings.musicVolume === 'number' ? settings.musicVolume : 0.6;
+  document.getElementById('music-volume-input').value = musicVolume;
+  document.getElementById('music-volume-value').textContent = `${Math.round(musicVolume * 100)}%`;
+  musicController.setVolume(musicVolume);
   document.getElementById('wakeword-enabled-input').checked = settings.wakeWordEnabled;
   document.getElementById('personality-input').value = settings.personality;
   document.getElementById('avatar-select').value = settings.avatarStyle;
@@ -974,6 +1024,12 @@ document.getElementById('voice-volume-input').addEventListener('input', (e) => {
   const value = parseFloat(e.target.value);
   document.getElementById('voice-volume-value').textContent = `${Math.round(value * 100)}%`;
   ttsController.setVolume(value);
+});
+
+document.getElementById('music-volume-input').addEventListener('input', (e) => {
+  const value = parseFloat(e.target.value);
+  document.getElementById('music-volume-value').textContent = `${Math.round(value * 100)}%`;
+  musicController.setVolume(value);
 });
 
 document.getElementById('voice-volume-input').addEventListener('change', (e) => {
@@ -1127,6 +1183,7 @@ document.getElementById('settings-save-btn').addEventListener('click', async () 
       .map((o) => ({ id: o.value, name: o.textContent })),
     wakeWordEnabled: document.getElementById('wakeword-enabled-input').checked,
     voiceVolume: parseFloat(document.getElementById('voice-volume-input').value),
+    musicVolume: parseFloat(document.getElementById('music-volume-input').value),
     personality: document.getElementById('personality-input').value,
     avatarStyle: document.getElementById('avatar-select').value,
     userName: document.getElementById('user-name-input').value.trim(),
