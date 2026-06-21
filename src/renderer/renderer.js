@@ -412,11 +412,16 @@ async function init() {
   try {
     currentSettings = await window.jarvis.getSettings();
     populateSettingsForm(currentSettings);
-    const musicCatalog = await musicPanel.load();
-    musicController.start(musicCatalog);
-    if (nowPlayingWidgetTimer) clearInterval(nowPlayingWidgetTimer);
-    nowPlayingWidgetTimer = setInterval(updateNowPlayingWidget, 5000);
-    updateNowPlayingWidget();
+
+    try {
+      const musicCatalog = await musicPanel.load();
+      musicController.start(musicCatalog);
+      if (nowPlayingWidgetTimer) clearInterval(nowPlayingWidgetTimer);
+      nowPlayingWidgetTimer = setInterval(updateNowPlayingWidget, 5000);
+      updateNowPlayingWidget();
+    } catch (err) {
+      console.log(`[Music] Failed to start scheduled playback: ${err.message}`);
+    }
 
     if (!currentSettings.apiKeys?.[currentSettings.provider]) {
       onboarding = true;
