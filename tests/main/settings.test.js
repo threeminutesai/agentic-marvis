@@ -183,6 +183,31 @@ test('createSettingsStore round-trips wakeWordEnabled', () => {
   assert.strictEqual(reloaded.apiKeys.elevenlabs, 'el-456');
 });
 
+test('createSettingsStore defaults musicVolume to 0.6', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'jarvis-settings-'));
+  const store = createSettingsStore({ filePath: path.join(dir, 'settings.json'), crypto: fakeCrypto() });
+  const settings = store.load();
+  assert.strictEqual(settings.musicVolume, 0.6);
+});
+
+test('createSettingsStore round-trips musicVolume', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'jarvis-settings-'));
+  const filePath = path.join(dir, 'settings.json');
+  const store = createSettingsStore({ filePath, crypto: fakeCrypto() });
+
+  store.save({
+    provider: 'deepseek',
+    apiKeys: { deepseek: '', gemini: '', elevenlabs: '' },
+    musicVolume: 0.35,
+    personality: 'Be witty.',
+    avatarStyle: 'rings',
+    activeProject: '',
+  });
+
+  const reloaded = createSettingsStore({ filePath, crypto: fakeCrypto() }).load();
+  assert.strictEqual(reloaded.musicVolume, 0.35);
+});
+
 test('createSettingsStore ignores a legacy wakeWordKey field from settings.json', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'jarvis-settings-'));
   const filePath = path.join(dir, 'settings.json');

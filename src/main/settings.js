@@ -14,6 +14,7 @@ const DEFAULTS = {
   },
   wakeWordEnabled: false,
   voiceVolume: 1,
+  musicVolume: 0.6,
   personality: 'You are Jarvis: calm, witty, formal, loyal. Address the user respectfully.',
   avatarStyle: 'rings',
   activeProject: '',
