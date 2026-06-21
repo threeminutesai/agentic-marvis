@@ -21,6 +21,11 @@
           <button id="audio-input-btn" type="button" title="Record voice input">Mic</button>
           <button id="send-btn" type="button" title="Send message">Send</button>
           <button id="mute-toggle-btn">Mute</button>
+          <div id="now-playing-widget" class="hidden">
+            <span id="now-playing-track">&mdash;</span>
+            <button id="now-playing-toggle-btn" type="button" title="Play/Pause music">Pause</button>
+            <button id="now-playing-skip-btn" type="button" title="Skip track">Skip</button>
+          </div>
           <button id="settings-btn">Settings</button>
         </div>
         <div id="project-strip">
@@ -55,6 +60,7 @@
       <button id="elevenlabs-voice-remove-btn" type="button">Remove Selected</button>
     </div>
     <label>Voice Volume: <input id="voice-volume-input" type="range" min="0" max="1" step="0.05"> <span id="voice-volume-value">100%</span></label>
+    <label>Music Volume: <input id="music-volume-input" type="range" min="0" max="1" step="0.05"> <span id="music-volume-value">60%</span></label>
     <label><input id="wakeword-enabled-input" type="checkbox"> Enable wake word (always listens for "Jarvis")</label>
     <label>Personality: <textarea id="personality-input"></textarea></label>
     <label>User Profile (background &amp; interests): <textarea id="user-profile-input" placeholder="Robotics educator. Interests focus on technology, especially humanoid robots, drones, and robotics."></textarea></label>
@@ -72,6 +78,32 @@
       <label id="voice-phrase-editor-label">Morning phrases: <textarea id="voice-phrase-editor" placeholder="Good morning [user]&#10;Hi, [user]"></textarea></label>
       <p class="settings-hint">Use one phrase per line. [user] becomes the user name when spoken.</p>
     </div>
+    <button id="music-toggle-btn" type="button">Music</button>
+    <div id="music-panel" class="hidden">
+      <div id="music-tabs">
+        <button type="button" class="music-tab active" data-music-tab="library">Library</button>
+        <button type="button" class="music-tab" data-music-tab="playlists">Playlists</button>
+        <button type="button" class="music-tab" data-music-tab="schedule">Schedule</button>
+      </div>
+
+      <div id="music-library-tab" class="music-tab-panel">
+        <button id="music-import-btn" type="button">Import Files</button>
+        <ul id="music-track-list"></ul>
+      </div>
+
+      <div id="music-playlists-tab" class="music-tab-panel hidden">
+        <input id="music-playlist-name-input" type="text" placeholder="Playlist name (e.g. Focus)">
+        <button id="music-playlist-create-btn" type="button">Create Playlist</button>
+        <label>Edit Playlist: <select id="music-playlist-select"></select></label>
+        <button id="music-playlist-delete-btn" type="button">Delete Selected Playlist</button>
+        <ul id="music-playlist-track-checklist"></ul>
+      </div>
+
+      <div id="music-schedule-tab" class="music-tab-panel hidden">
+        <div id="music-schedule-day-tabs"></div>
+        <div id="music-schedule-rows"></div>
+      </div>
+    </div>
     <label>Voice Briefing Frequency: <select id="briefing-voice-frequency-select"><option value="1h">Every 1 hour</option><option value="6h">Every 6 hours</option><option value="12h">Every 12 hours</option><option value="1d">Once a day</option><option value="never">Never</option></select></label>
     <label>Preferred CLI: <select id="preferred-cli-select"><option value="">None (use chat)</option><option value="code">Claude Code</option><option value="codex">Codex</option></select></label>
     <label>Anthropic API Key (optional, for Claude Code CLI auth): <input id="anthropic-api-key-input" type="password" placeholder="sk-ant-..."></label>
@@ -88,6 +120,9 @@
   <script src="voice/sttController.js"></script>
   <script src="voice/ttsController.js"></script>
   <script src="voice/briefingSchedule.js"></script>
+  <script src="voice/musicSchedule.js"></script>
+  <script src="voice/musicController.js"></script>
+  <script src="music/musicPanel.js"></script>
   <script src="statusPanel.js"></script>
   <script src="renderer.js"></script>
 </body>
