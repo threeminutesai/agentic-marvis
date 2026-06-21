@@ -35,13 +35,26 @@ function createMusicLibraryStore({ filePath, musicDir, fsImpl = fs }) {
     fsImpl.mkdirSync(musicDir, { recursive: true });
     const catalog = load();
     for (const sourcePath of filePaths) {
-      const ext = path.extname(sourcePath).toLowerCase();
-      if (!SUPPORTED_EXTENSIONS.includes(ext)) continue;
-      const id = `trk_${crypto.randomBytes(4).toString('hex')}`;
-      const originalName = path.basename(sourcePath);
-      const fileName = `${id}-${slugifyOriginalName(originalName)}${ext}`;
-      fsImpl.copyFileSync(sourcePath, path.join(musicDir, fileName));
-      catalog.tracks.push({ id, fileName, originalName, addedAt: new Date().toISOString() });
+      try {
+        const ext = path.extname(sourcePath).toLowerCase();
+        if (!SUPPORTED_EXTENSIONS.includes(ext)) continue;
+        const originalName = path.basename(sourcePath);
+        const slug = slugifyOriginalName(originalName);
+
+        let id;
+        let fileName;
+        let destPath;
+        do {
+          id = `trk_${crypto.randomBytes(4).toString('hex')}`;
+          fileName = `${id}-${slug}${ext}`;
+          destPath = path.join(musicDir, fileName);
+        } while (fsImpl.existsSync(destPath));
+
+        fsImpl.copyFileSync(sourcePath, destPath);
+        catalog.tracks.push({ id, fileName, originalName, addedAt: new Date().toISOString() });
+      } catch {
+        // Skip files that can't be copied (missing, unreadable, etc.) and continue importing the rest.
+      }
     }
     save(catalog);
     return catalog;

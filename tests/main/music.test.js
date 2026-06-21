@@ -1,18 +1,28 @@
 const test = require('node:test');
+const { after } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { createMusicLibraryStore, SUPPORTED_EXTENSIONS } = require('../../src/main/music');
 
+const tempRoots = [];
+
 function makeDirs() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'jarvis-music-'));
+  tempRoots.push(root);
   return {
     filePath: path.join(root, 'jarvis-music-library.json'),
     musicDir: path.join(root, 'music'),
     root,
   };
 }
+
+after(() => {
+  for (const root of tempRoots) {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
 
 test('createMusicLibraryStore returns an empty catalog when no file exists', () => {
   const { filePath, musicDir } = makeDirs();
@@ -104,6 +114,20 @@ test('deleteTrack is a no-op (not a throw) when the track id does not exist', ()
   const store = createMusicLibraryStore({ filePath, musicDir });
   const catalog = store.deleteTrack('trk_does_not_exist');
   assert.deepStrictEqual(catalog.tracks, []);
+});
+
+test('importFiles skips a file that cannot be copied and still imports the rest', () => {
+  const { filePath, musicDir, root } = makeDirs();
+  const validPath = path.join(root, 'Valid.mp3');
+  fs.writeFileSync(validPath, 'fake mp3 bytes');
+  const missingPath = path.join(root, 'DoesNotExist.mp3');
+
+  const store = createMusicLibraryStore({ filePath, musicDir });
+  const catalog = store.importFiles([validPath, missingPath]);
+
+  assert.strictEqual(catalog.tracks.length, 1);
+  assert.strictEqual(catalog.tracks[0].originalName, 'Valid.mp3');
+  assert.ok(fs.existsSync(path.join(musicDir, catalog.tracks[0].fileName)));
 });
 
 test('SUPPORTED_EXTENSIONS covers the common audio formats', () => {
