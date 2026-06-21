@@ -283,30 +283,33 @@ async function speakProcessingCue() {
   const text = selectRandomPhrase('processing');
   musicController.duck();
   try {
-    const result = await window.jarvis.synthesizeCachedSpeech({ text, category: 'processing' });
-    if (result.ok && result.audioBase64 && !isMuted && isProcessingResponse) {
-      await new Promise((resolve) => {
-        const audio = new Audio(`data:audio/mpeg;base64,${result.audioBase64}`);
-        processingCueAudio = audio;
-        audio.onended = () => {
-          if (processingCueAudio === audio) processingCueAudio = null;
-          resolve();
-        };
-        audio.onerror = resolve;
-        audio.play().catch(resolve);
-      });
-      return;
+    try {
+      const result = await window.jarvis.synthesizeCachedSpeech({ text, category: 'processing' });
+      if (result.ok && result.audioBase64 && !isMuted && isProcessingResponse) {
+        await new Promise((resolve) => {
+          const audio = new Audio(`data:audio/mpeg;base64,${result.audioBase64}`);
+          processingCueAudio = audio;
+          audio.onended = () => {
+            if (processingCueAudio === audio) processingCueAudio = null;
+            resolve();
+          };
+          audio.onerror = resolve;
+          audio.play().catch(resolve);
+        });
+        return;
+      }
+    } catch (err) {
+      console.log('[TTS Processing Cue Error]', err.message);
     }
-  } catch (err) {
-    console.log('[TTS Processing Cue Error]', err.message);
-  }
 
-  if (!isMuted && isProcessingResponse) {
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.95;
-    window.speechSynthesis.speak(utterance);
+    if (!isMuted && isProcessingResponse) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 0.95;
+      window.speechSynthesis.speak(utterance);
+    }
+  } finally {
+    musicController.unduck();
   }
-  musicController.unduck();
 }
 
 async function speakBriefing(text) {
