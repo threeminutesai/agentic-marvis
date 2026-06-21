@@ -60,13 +60,20 @@ function createMusicController() {
     // A missing/corrupt file on disk fires 'error', not 'ended' - route it
     // through the same advance-to-next-track path rather than stalling.
     audio.addEventListener('error', onTrackEnded);
-    audio.play().catch(() => {});
+    audio.play().catch(() => {
+      if (audio) {
+        audio.removeEventListener('ended', onTrackEnded);
+        audio.removeEventListener('error', onTrackEnded);
+        audio = null;
+      }
+    });
   }
 
   function loadSlot(day, bucket) {
     const slotKey = `${day}:${bucket}`;
     if (slotKey === currentSlotKey) return;
     currentSlotKey = slotKey;
+    if (isPausedByUser) return;
     const playlist = getPlaylistForSlot(catalog, day, bucket);
     queue = buildQueueForPlaylist(playlist);
     queueIndex = 0;
@@ -100,11 +107,12 @@ function createMusicController() {
 
   function resume() {
     isPausedByUser = false;
-    if (audio) {
-      audio.play().catch(() => {});
-    } else if (queue.length) {
-      playCurrentTrack();
-    }
+    const { day, bucket } = getActiveSlot(new Date());
+    const playlist = getPlaylistForSlot(catalog, day, bucket);
+    queue = buildQueueForPlaylist(playlist);
+    queueIndex = 0;
+    currentSlotKey = `${day}:${bucket}`;
+    playCurrentTrack();
   }
 
   function skip() {
