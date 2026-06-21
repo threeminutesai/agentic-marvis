@@ -12,6 +12,8 @@ const { delegateTask } = require('./claudeCode/delegate');
 const { delegateCodexTask } = require('./codex/delegate');
 const { readStatusRows } = require('./status/statusFile');
 const { synthesizeGreetingWithCache } = require('./voice/greetingVoiceCache');
+const { createMusicLibraryStore, SUPPORTED_EXTENSIONS } = require('./music');
+const { pathToFileURL } = require('node:url');
 
 function createProviderFor(providerName, apiKey) {
   if (providerName === 'gemini') return createGeminiProvider({ apiKey });
@@ -123,6 +125,22 @@ function registerIpcHandlers() {
     filePath: path.join(os.homedir(), '.jarvis-settings.json'),
     crypto: safeStorage,
   });
+  const musicDir = path.join(os.homedir(), '.jarvis-music');
+  const musicStore = createMusicLibraryStore({
+    filePath: path.join(os.homedir(), '.jarvis-music-library.json'),
+    musicDir,
+  });
+
+  function withFileUrls(catalog) {
+    return {
+      ...catalog,
+      tracks: catalog.tracks.map((track) => ({
+        ...track,
+        fileUrl: pathToFileURL(path.join(musicDir, track.fileName)).toString(),
+      })),
+    };
+  }
+
   const activeOperations = new Map();
   const cancelledOperations = new Set();
 
@@ -391,6 +409,43 @@ function registerIpcHandlers() {
     });
     if (result.canceled) return null;
     return result.filePaths[0] || null;
+  });
+
+  ipcMain.handle('music:get', () => withFileUrls(musicStore.load()));
+
+  ipcMain.handle('music:save', (_event, catalog) => {
+    try {
+      musicStore.save(catalog);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle('music:importFiles', async () => {
+    const result = await dialog.showOpenDialog({
+      properties: ['openFile', 'multiSelections'],
+      message: 'Select music files to add to your library',
+      filters: [{ name: 'Audio', extensions: SUPPORTED_EXTENSIONS.map((ext) => ext.slice(1)) }],
+    });
+    if (result.canceled || !result.filePaths.length) {
+      return { ok: true, catalog: withFileUrls(musicStore.load()) };
+    }
+    try {
+      const catalog = musicStore.importFiles(result.filePaths);
+      return { ok: true, catalog: withFileUrls(catalog) };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle('music:deleteTrack', (_event, trackId) => {
+    try {
+      const catalog = musicStore.deleteTrack(trackId);
+      return { ok: true, catalog: withFileUrls(catalog) };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
   });
 }
 
