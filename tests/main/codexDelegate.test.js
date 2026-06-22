@@ -79,6 +79,26 @@ test('delegateCodexTask reports success even with stderr if output exists', asyn
   assert.match(result.summary, /some output detail/);
 });
 
+test('delegateCodexTask reports an error and names Codex auth when output indicates a 401', async () => {
+  const fakeSpawn = () => {
+    const proc = new EventEmitter();
+    proc.stdout = new EventEmitter();
+    proc.stderr = new EventEmitter();
+    proc.stdin = fakeStdin();
+    setImmediate(() => {
+      proc.stderr.emit('data', Buffer.from('Failed to authenticate. API Error: 401 Invalid authentication credentials'));
+      proc.emit('close', 1);
+    });
+    return proc;
+  };
+
+  const result = await delegateCodexTask({ task: 'Anything', projectPath: '/tmp/x', spawnImpl: fakeSpawn });
+
+  assert.strictEqual(result.status, 'error');
+  assert.match(result.summary, /codex authentication failed/i);
+  assert.match(result.summary, /401 Invalid authentication credentials/);
+});
+
 test('delegateCodexTask reports error with code when no output and non-zero exit', async () => {
   const fakeSpawn = () => fakeChildProcess([], 1);
 

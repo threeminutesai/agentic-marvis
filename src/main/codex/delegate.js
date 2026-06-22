@@ -37,6 +37,16 @@ function lastMeaningfulLine(text) {
   return lines.length ? lines[lines.length - 1] : null;
 }
 
+// Codex CLI prints its own auth-failure text to stdout/stderr like any other
+// output, so the "any output = success" check below would otherwise treat a
+// 401 as a normal completed response. Codex authenticates itself externally
+// (e.g. `codex login`), not via a Jarvis-managed API key, so this can't
+// point at a specific Settings field - it just needs to be flagged as an
+// error and named as Codex's own auth, rather than silently shown as a reply.
+function isAuthFailureText(text) {
+  return /\b401\b|authenticat/i.test(text);
+}
+
 function delegateCodexTask({ task, projectPath, spawnImpl = spawn, timeoutMs = TIMEOUT_MS, signal, onProgress }) {
   return new Promise((resolve) => {
     console.log(`[Codex] Spawning: codex exec --skip-git-repo-check (task piped via stdin)`);
@@ -126,7 +136,9 @@ function delegateCodexTask({ task, projectPath, spawnImpl = spawn, timeoutMs = T
       const output = stdoutBuffer.trim() || stderrBuffer.trim();
       console.log(`[Codex] Process exited with code ${code}`);
       console.log(`[Codex] Output: ${output.slice(0, 200)}...`);
-      if (output) {
+      if (output && isAuthFailureText(output)) {
+        settle({ status: 'error', summary: `Codex authentication failed, sir - try running "codex login" in a terminal. ${output}` });
+      } else if (output) {
         settle({ status: 'success', summary: output });
       } else if (code === 0) {
         settle({ status: 'success', summary: 'Codex finished, sir.' });
