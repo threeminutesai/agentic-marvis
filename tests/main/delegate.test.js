@@ -46,6 +46,18 @@ test('delegateTask spawns claude -p with the task piped via stdin and project cw
   assert.strictEqual(result.summary, 'Refactored auth.py successfully.');
 });
 
+test('delegateTask treats a "success" subtype as an error when its content is itself an auth failure', async () => {
+  const fakeSpawn = () => fakeChildProcess([
+    JSON.stringify({ type: 'result', subtype: 'success', result: 'Failed to authenticate. API Error: 401 Invalid authentication credentials' }),
+  ]);
+
+  const result = await delegateTask({ task: 'Anything', projectPath: '/tmp/x', spawnImpl: fakeSpawn });
+
+  assert.strictEqual(result.status, 'error');
+  assert.match(result.summary, /anthropic api key/i);
+  assert.match(result.summary, /401 Invalid authentication credentials/);
+});
+
 test('delegateTask reports a clear error when claude CLI is missing', async () => {
   const fakeSpawn = () => {
     const proc = new EventEmitter();

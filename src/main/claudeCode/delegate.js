@@ -4,13 +4,17 @@ const TIMEOUT_MS = 120 * 1000;
 const MAX_BUFFER_LENGTH = 5 * 1024 * 1024;
 const MAX_STDERR_LENGTH = 4000;
 
+function isAuthFailureText(text) {
+  return /\b401\b|authenticat/i.test(text);
+}
+
 // Claude Code CLI only ever authenticates with one credential (the Anthropic
 // API key, passed via ANTHROPIC_API_KEY below) - when its own error text
 // indicates an auth failure, name that credential explicitly instead of
 // surfacing the CLI's generic "401" text with no indication of which key
 // is the problem.
 function withAuthHint(text) {
-  if (!/\b401\b|authenticat/i.test(text)) return text;
+  if (!isAuthFailureText(text)) return text;
   return `Your Anthropic API key appears invalid or missing, sir (used for Claude Code CLI) - ${text}`;
 }
 
@@ -110,7 +114,13 @@ function delegateTask({ task, projectPath, spawnImpl = spawn, timeoutMs = TIMEOU
     // `code` is informational only; the `result` event's `subtype` is the
     // authoritative success/failure signal.
     proc.on('close', (code) => {
-      if (finalResult && finalResult.subtype === 'success') {
+      if (finalResult && finalResult.subtype === 'success' && isAuthFailureText(finalResult.result || '')) {
+        // Claude Code's own session can report a "success" subtype while the
+        // actual response content is itself an upstream auth failure (e.g. a
+        // tool call inside the session hit a 401) - treat that as the error
+        // it actually is rather than displaying it as a normal reply.
+        settle({ status: 'error', summary: withAuthHint(finalResult.result) });
+      } else if (finalResult && finalResult.subtype === 'success') {
         settle({ status: 'success', summary: finalResult.result });
       } else if (finalResult) {
         const summary = finalResult.result
