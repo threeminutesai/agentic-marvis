@@ -1,5 +1,9 @@
 // src/renderer/avatar/ringsAvatar.js
 function mountRingsAvatar(mountEl) {
+  const mountVisualizer = typeof module !== 'undefined'
+    ? require('./musicVisualizerRing').mountMusicVisualizerRing
+    : mountMusicVisualizerRing;
+
   mountEl.innerHTML = `
     <div class="ring-stage">
       <div class="ring outer"></div>
@@ -8,6 +12,7 @@ function mountRingsAvatar(mountEl) {
       <div class="core"></div>
     </div>`;
   const stage = mountEl.querySelector('.ring-stage');
+  const visualizer = mountVisualizer(stage, { radius: 110, barLength: 16 });
   return {
     setState(state) {
       stage.classList.toggle('speaking', state === 'speaking');
@@ -17,8 +22,8 @@ function mountRingsAvatar(mountEl) {
     setLevel(level) {
       stage.style.setProperty('--level', level);
     },
-    setOuterLevel(level) {
-      stage.style.setProperty('--outer-level', level);
+    setOuterLevel(levels) {
+      visualizer.setLevels(levels);
     },
   };
 }

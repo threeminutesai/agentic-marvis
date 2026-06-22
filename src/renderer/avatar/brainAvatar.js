@@ -1,8 +1,11 @@
 // src/renderer/avatar/brainAvatar.js
 function mountBrainAvatar(mountEl) {
+  const mountVisualizer = typeof module !== 'undefined'
+    ? require('./musicVisualizerRing').mountMusicVisualizerRing
+    : mountMusicVisualizerRing;
+
   mountEl.innerHTML = `
     <div class="brain-stage">
-      <div class="brain-outer-ring"></div>
       <div class="brain-core">
         <div class="brain-glow"></div>
         <svg viewBox="0 0 100 100">
@@ -15,6 +18,7 @@ function mountBrainAvatar(mountEl) {
     </div>`;
   const stage = mountEl.querySelector('.brain-stage');
   const core = mountEl.querySelector('.brain-core');
+  const visualizer = mountVisualizer(stage, { radius: 105, barLength: 16 });
   return {
     setState(state) {
       core.classList.toggle('speaking', state === 'speaking');
@@ -24,8 +28,8 @@ function mountBrainAvatar(mountEl) {
     setLevel(level) {
       core.style.setProperty('--level', level);
     },
-    setOuterLevel(level) {
-      stage.style.setProperty('--outer-level', level);
+    setOuterLevel(levels) {
+      visualizer.setLevels(levels);
     },
   };
 }
