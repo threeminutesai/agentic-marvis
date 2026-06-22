@@ -64,6 +64,8 @@ The status board and spoken greeting (Weather, Unread/Urgent Emails, News Briefi
 
 To keep it current, set up a recurring automation (daily or hourly, your preference) that runs the [`agentic-jarvis-brief`](.claude/skills/agentic-jarvis-brief) skill via Claude Code — e.g. a scheduled/cron-triggered Claude Code session invoking that skill against this project. Each run gathers fresh news, unread/urgent email, weather, and writes the result back to `data/jarvis-status.json` for Jarvis to pick up on its next greeting or status check.
 
+News isn't pulled from any fixed feed or API — the skill runs ad-hoc web searches (global headlines first, then topics matching the `User Profile` row's interests) and fetches the chosen articles directly for their thumbnail/link. Weather comes from Open-Meteo (forecast) cross-checked against METAR station data; email comes from a connected Gmail account, when available.
+
 ## Status
 
 Phase 1 (complete): chat, settings, avatar, Claude Code delegation.
