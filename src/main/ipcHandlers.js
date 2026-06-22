@@ -218,7 +218,7 @@ function registerIpcHandlers() {
       return { ok: true, reply };
     } catch (err) {
       if (controller?.signal.aborted) return { ok: false, cancelled: true, reply: '' };
-      return { ok: false, reply: `I'm having trouble reaching my AI provider, sir: ${err.message}` };
+      return { ok: false, reply: `I'm having trouble reaching ${settings.provider}, sir: ${err.message}` };
     } finally {
       finishOperation(operationId);
     }

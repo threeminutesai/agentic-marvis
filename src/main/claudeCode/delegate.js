@@ -4,6 +4,16 @@ const TIMEOUT_MS = 120 * 1000;
 const MAX_BUFFER_LENGTH = 5 * 1024 * 1024;
 const MAX_STDERR_LENGTH = 4000;
 
+// Claude Code CLI only ever authenticates with one credential (the Anthropic
+// API key, passed via ANTHROPIC_API_KEY below) - when its own error text
+// indicates an auth failure, name that credential explicitly instead of
+// surfacing the CLI's generic "401" text with no indication of which key
+// is the problem.
+function withAuthHint(text) {
+  if (!/\b401\b|authenticat/i.test(text)) return text;
+  return `Your Anthropic API key appears invalid or missing, sir (used for Claude Code CLI) - ${text}`;
+}
+
 // Maps a stream-json event from `claude -p --output-format stream-json` to a short
 // human-readable status line for the "thinking" chat bubble. Returns null for events
 // that don't have a sensible progress description (e.g. partial text deltas).
@@ -103,10 +113,13 @@ function delegateTask({ task, projectPath, spawnImpl = spawn, timeoutMs = TIMEOU
       if (finalResult && finalResult.subtype === 'success') {
         settle({ status: 'success', summary: finalResult.result });
       } else if (finalResult) {
-        settle({ status: 'error', summary: finalResult.result || `Claude Code exited with an error (code ${code}).` });
+        const summary = finalResult.result
+          ? withAuthHint(finalResult.result)
+          : `Claude Code exited with an error (code ${code}).`;
+        settle({ status: 'error', summary });
       } else {
         const base = `Claude Code exited unexpectedly (code ${code}).`;
-        const summary = stderrBuffer ? `${base} ${stderrBuffer.trim()}` : base;
+        const summary = withAuthHint(stderrBuffer ? `${base} ${stderrBuffer.trim()}` : base);
         settle({ status: 'error', summary });
       }
     });

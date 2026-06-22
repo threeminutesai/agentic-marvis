@@ -72,6 +72,37 @@ test('delegateTask reports error status from a result event with subtype error',
   assert.deepStrictEqual(result, { status: 'error', summary: 'Something went wrong during the task.' });
 });
 
+test('delegateTask names the Anthropic API key when the result event indicates an auth failure', async () => {
+  const fakeSpawn = () => fakeChildProcess([
+    JSON.stringify({ type: 'result', subtype: 'error', result: 'Failed to authenticate. API Error: 401 Invalid authentication credentials' }),
+  ]);
+
+  const result = await delegateTask({ task: 'Anything', projectPath: '/tmp/x', spawnImpl: fakeSpawn });
+
+  assert.strictEqual(result.status, 'error');
+  assert.match(result.summary, /anthropic api key/i);
+  assert.match(result.summary, /401 Invalid authentication credentials/);
+});
+
+test('delegateTask names the Anthropic API key when stderr indicates an auth failure with no result event', async () => {
+  const fakeSpawn = () => {
+    const proc = new EventEmitter();
+    proc.stdout = new EventEmitter();
+    proc.stderr = new EventEmitter();
+    proc.stdin = fakeStdin();
+    setImmediate(() => {
+      proc.stderr.emit('data', Buffer.from('Error: 401 authentication failed'));
+      proc.emit('close', 1);
+    });
+    return proc;
+  };
+
+  const result = await delegateTask({ task: 'Anything', projectPath: '/tmp/x', spawnImpl: fakeSpawn });
+
+  assert.strictEqual(result.status, 'error');
+  assert.match(result.summary, /anthropic api key/i);
+});
+
 test('delegateTask reports unexpected exit when no result event is emitted', async () => {
   const fakeSpawn = () => fakeChildProcess([], 0);
 
