@@ -330,11 +330,27 @@ async function speakBriefing(text) {
   }
 }
 
-function buildCliTaskWithHtmlContract(task, htmlPanel) {
+function buildCliTaskWithHtmlContract(task, htmlPanel, { forceReport = false } = {}) {
   if (!htmlPanel?.filePath) return task;
   const templateSection = htmlPanel.templatePath
     ? `a style/structure reference template at ${htmlPanel.templatePath} (read it only now, inside this branch) - you don't need to follow it strictly, just keep a similar look and feel (no inline styles or extra <style>/<script> tags beyond what's needed)`
     : `a standalone HTML fragment (no <script> or <style> tags) with the full display content - title, body, source links, image/placeholder area`;
+
+  // forceReport: the user's own phrasing already signaled report intent
+  // (see isReportRequest) - skip the self-classification step entirely so
+  // the CLI doesn't second-guess and silently downgrade to a voice-only
+  // answer despite the user explicitly asking for a report.
+  if (forceReport) {
+    return `Task: ${task}
+
+The user explicitly asked for this as a report - skip any classification step, this IS a genuine on-screen document. Do not just give a short spoken answer.
+
+[voice]
+A short spoken summary, 1-2 sentences, no source URLs, no markdown.
+[html] ${htmlPanel.filePath}
+
+Then write ${templateSection} to this exact file path: ${htmlPanel.filePath} (keep the file name exactly as given: ${htmlPanel.fileName}).`;
+  }
 
   return `Task: ${task}
 
@@ -825,7 +841,7 @@ function parseCliCommand(text) {
   return { channel, task };
 }
 
-async function sendToCli(text, channel, task) {
+async function sendToCli(text, channel, task, { forceReport = false } = {}) {
   appendChatLine('You', text);
   if (!task) {
     const prompt = `What would you like me to ask ${channel.label} to do, sir?`;
@@ -848,7 +864,7 @@ async function sendToCli(text, channel, task) {
   let htmlPanel = null;
   try {
     htmlPanel = await window.jarvis.prepareHtmlPanel();
-    const delegatedTask = buildCliTaskWithHtmlContract(task, htmlPanel);
+    const delegatedTask = buildCliTaskWithHtmlContract(task, htmlPanel, { forceReport });
     console.log(`[CLI] Delegating to ${channel.label}: "${task}"`);
     console.log(`[CLI] Calling channel.delegate (this is an IPC call)...`);
     const result = await channel.delegate(delegatedTask, operationId);
@@ -1135,11 +1151,15 @@ async function routeUserMessage(text) {
   }
   const cliCommand = parseCliCommand(text);
   if (cliCommand) {
-    await sendToCli(text, cliCommand.channel, cliCommand.task);
+    await sendToCli(text, cliCommand.channel, cliCommand.task, { forceReport: isReportRequest(cliCommand.task) });
   } else if (currentSettings.preferredCliChannel) {
     const channel = CLI_CHANNELS[`/${currentSettings.preferredCliChannel}`];
     if (channel) {
-      await sendToCli(text, channel, text);
+      // Even with a sticky CLI channel routing every message here, the CLI's
+      // own self-classification step can still judge a report-phrased
+      // request as a quick factual answer and skip writing the file - force
+      // the report branch whenever the user's own wording asked for one.
+      await sendToCli(text, channel, text, { forceReport: isReportRequest(text) });
     } else {
       await sendToJarvis(text);
     }
@@ -1149,7 +1169,7 @@ async function routeUserMessage(text) {
     // general-purpose "heavy lifting" channel) so it can actually write
     // the HTML file and hand back a clickable panel, which the plain chat
     // providers have no file-write access to produce.
-    await sendToCli(text, CLI_CHANNELS['/code'], text);
+    await sendToCli(text, CLI_CHANNELS['/code'], text, { forceReport: true });
   } else {
     await sendToJarvis(text);
   }
