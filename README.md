@@ -66,11 +66,7 @@ Jarvis waits for the CLI to finish (up to 10 minutes) and reads back its summary
 
 ## Briefing data (Weather, News, Email)
 
-The status board and spoken greeting (Weather, Unread/Urgent Emails, News Briefing) are filled from `data/jarvis-status.json`, but Jarvis does **not** refresh that file on its own — it just reads whatever's there. Without a periodic refresh, the briefing will show stale data indefinitely.
-
-To keep it current, set up a recurring automation (daily or hourly, your preference) that runs the [`agentic-jarvis-brief`](.claude/skills/agentic-jarvis-brief) skill via Claude Code — e.g. a scheduled/cron-triggered Claude Code session invoking that skill against this project. Each run gathers fresh news, unread/urgent email, weather, and writes the result back to `data/jarvis-status.json` for Jarvis to pick up on its next greeting or status check.
-
-News isn't pulled from any fixed feed or API — the skill runs ad-hoc web searches (global headlines first, then topics matching the `User Profile` row's interests) and fetches the chosen articles directly for their thumbnail/link. Weather comes from Open-Meteo (forecast) cross-checked against METAR station data; email comes from a connected Gmail account, when available.
+The status board and spoken greeting (Weather, Unread/Urgent Emails, News Briefing) are filled from `data/jarvis-status.json` (dev) or the equivalent packaged-build location, but Jarvis does **not** refresh that file on its own — it just reads whatever's there. Keeping it current is up to whatever process writes that file (manually, a script, or your own automation); without a periodic refresh the briefing will show stale data indefinitely.
 
 ## Status
 
