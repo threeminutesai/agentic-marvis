@@ -16,11 +16,17 @@ macOS and Ubuntu builds are planned for a future release. Until then, Linux/macO
 
 ## AI Providers
 
-Switchable from the Settings panel:
-- **DeepSeek** (default) — paid, no free tier.
-- **Gemini** — has a free tier (Google AI Studio); get a key at https://aistudio.google.com/apikey.
+Jarvis combines three kinds of AI integration, each doing a different job:
 
-Each provider's key is stored separately (encrypted at rest), so switching the provider dropdown doesn't lose the other key.
+- **Chat bot (DeepSeek or Gemini)** — powers Jarvis's own conversational replies. Pick one from the Settings panel's provider dropdown:
+  - **DeepSeek** (default) — paid, no free tier.
+  - **Gemini** — has a free tier (Google AI Studio); get a key at https://aistudio.google.com/apikey.
+
+  Each provider's key is stored separately (encrypted at rest), so switching the dropdown doesn't lose the other key. More providers may be added in the future.
+
+- **Claude Code / Codex CLI (heavy lifting)** — not a chat provider; these are delegated to for actual work against your project (writing code, running tasks) when a plain chat reply isn't enough. See [CLI delegation channels](#cli-delegation-channels) below. Claude Code authenticates via its own CLI subscription login, not an API key.
+
+- **ElevenLabs (speech)** — powers both directions of voice: text-to-speech for Jarvis's spoken replies, and speech-to-text for transcribing what you say. See [Voice](#voice) below.
 
 ### Quick launch (Windows)
 
@@ -33,8 +39,8 @@ Double-click `run.bat` — installs dependencies on first run if needed, then st
 ## Voice
 
 Optional, configured in Settings:
-- **Wake word** — check "Enable wake word" to have Jarvis always listen in the background for the word "Jarvis," using the browser's built-in speech recognition. No key, signup, or usage limits required. Off by default.
-- **Speech-to-text** — uses the browser's built-in speech recognition, no key needed.
+- **Wake word** — check "Enable wake word" to have Jarvis always listen in the background for the word "Jarvis," using the browser's built-in speech recognition. No key, signup, or usage limits required. Off by default. The follow-up command after wake-word detection is also transcribed via the browser's built-in recognition.
+- **Speech-to-text (Mic button)** — recording your own messages via the Mic button is transcribed by ElevenLabs and requires an ElevenLabs API key configured in Settings; without one it reports that transcription isn't available rather than falling back.
 - **Text-to-speech** — every reply is spoken aloud. Uses ElevenLabs if a key is configured (https://elevenlabs.io/), otherwise falls back to the browser's built-in voice. Use the Mute button to silence it — muting immediately interrupts any speech currently playing. Manage ElevenLabs voices in Settings: enter a voice's name and ID (find the ID on a voice's page in the ElevenLabs Voice Library) and click "Add Voice" to save it to the dropdown; pick the active voice from the "ElevenLabs Voice" dropdown, or remove a saved one with "Remove Selected". Defaults to "Adam" if none is selected.
 
 ### ElevenLabs Signup
