@@ -1,6 +1,7 @@
 const { spawn } = require('node:child_process');
 
-const TIMEOUT_MS = 120 * 1000;
+// README documents "up to 10 minutes" for CLI delegation - keep this in sync.
+const TIMEOUT_MS = 10 * 60 * 1000;
 const MAX_BUFFER_LENGTH = 5 * 1024 * 1024;
 
 function redactHtmlDiffs(text) {
