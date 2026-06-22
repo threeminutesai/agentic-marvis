@@ -2,7 +2,8 @@ node_modules/
 dist/
 out/
 release*/
-.claude/
+.claude/*
+!.claude/skills/
 .superpowers/
 docs/superpowers/
 .DS_Store
