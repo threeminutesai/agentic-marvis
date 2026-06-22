@@ -76,6 +76,14 @@ function createMusicController() {
     try {
       audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
       const compressor = audioCtx.createDynamicsCompressor();
+      // Aggressive compression to normalize track loudness: lower threshold,
+      // higher ratio, faster attack/release so quiet tracks sound audible
+      // and loud tracks don't get clipped.
+      compressor.threshold.value = -30;    // Start compressing earlier
+      compressor.knee.value = 10;          // Smooth transition
+      compressor.ratio.value = 12;         // Heavy compression
+      compressor.attack.value = 0.005;     // Fast attack
+      compressor.release.value = 0.1;      // Fast release for responsiveness
       analyser = audioCtx.createAnalyser();
       analyser.fftSize = ANALYSER_FFT_SIZE;
       // Snappier response than the default 0.8 smoothing, so the bars
@@ -83,7 +91,7 @@ function createMusicController() {
       analyser.smoothingTimeConstant = 0.6;
       analyserData = new Uint8Array(analyser.frequencyBinCount);
       const makeupGain = audioCtx.createGain();
-      makeupGain.gain.value = 1.6;
+      makeupGain.gain.value = 2.2;  // Increased from 1.6 to bring quieter tracks up
       compressor.connect(analyser);
       analyser.connect(makeupGain);
       makeupGain.connect(audioCtx.destination);
