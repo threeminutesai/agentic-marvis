@@ -10,9 +10,45 @@ function createMusicController() {
   let isPausedByUser = false;
   let audioCtx = null;
   let leveler = null;
+  let levelCallback = null;
+  let analyser = null;
+  let analyserData = null;
+  let rafId = null;
 
   function effectiveVolume() {
     return Math.max(0, Math.min(1, baseVolume * duckFactor));
+  }
+
+  function setOnLevel(cb) {
+    levelCallback = cb;
+  }
+
+  function emitLevel(level) {
+    if (levelCallback) levelCallback(level);
+  }
+
+  // Drives the avatar's outer-ring music visualizer. Reads the analyser
+  // continuously rather than only while a track is "playing" - a paused or
+  // silent source naturally reads back near-zero, so this doubles as the
+  // reset-to-idle path without needing separate pause/stop wiring.
+  function startLevelLoop() {
+    if (rafId !== null) return;
+    const tick = () => {
+      if (!analyser || !analyserData) {
+        emitLevel(0);
+      } else {
+        analyser.getByteTimeDomainData(analyserData);
+        let sumSquares = 0;
+        for (let i = 0; i < analyserData.length; i++) {
+          const sample = (analyserData[i] - 128) / 128;
+          sumSquares += sample * sample;
+        }
+        const rms = Math.sqrt(sumSquares / analyserData.length);
+        emitLevel(Math.min(1, rms * 4));
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+    tick();
   }
 
   // Different tracks are mastered at wildly different loudness levels, so
@@ -26,11 +62,16 @@ function createMusicController() {
     try {
       audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
       const compressor = audioCtx.createDynamicsCompressor();
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      analyserData = new Uint8Array(analyser.fftSize);
       const makeupGain = audioCtx.createGain();
       makeupGain.gain.value = 1.6;
-      compressor.connect(makeupGain);
+      compressor.connect(analyser);
+      analyser.connect(makeupGain);
       makeupGain.connect(audioCtx.destination);
       leveler = { compressor, makeupGain };
+      startLevelLoop();
     } catch {
       leveler = null;
     }
@@ -163,7 +204,7 @@ function createMusicController() {
     return track ? { name: track.originalName, isPaused: isPausedByUser } : null;
   }
 
-  return { start, setCatalog, setVolume, duck, unduck, pause, resume, skip, getNowPlaying, applyLeveling: routeThroughLeveler };
+  return { start, setCatalog, setVolume, duck, unduck, pause, resume, skip, getNowPlaying, applyLeveling: routeThroughLeveler, setOnLevel };
 }
 
 if (typeof module !== 'undefined') module.exports = { createMusicController };
