@@ -19,6 +19,9 @@ function createMusicPanel({ musicController } = {}) {
     const volume = volumeInput ? parseFloat(volumeInput.value) : 1;
     const audio = new Audio(track.fileUrl);
     audio.volume = Number.isFinite(volume) ? volume : 1;
+    // Route through the same loudness leveler scheduled playback uses, so
+    // the preview accurately reflects what the user will actually hear.
+    if (musicController?.applyLeveling) musicController.applyLeveling(audio);
     audio.addEventListener('ended', () => {
       if (previewingTrackId === track.id) stopPreview();
       if (button) button.textContent = 'Play';

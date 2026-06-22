@@ -8,9 +8,46 @@ function createMusicController() {
   let audio = null;
   let checkTimer = null;
   let isPausedByUser = false;
+  let audioCtx = null;
+  let leveler = null;
 
   function effectiveVolume() {
     return Math.max(0, Math.min(1, baseVolume * duckFactor));
+  }
+
+  // Different tracks are mastered at wildly different loudness levels, so
+  // even at a fixed Music Volume some sound too quiet and others too loud.
+  // Routes playback through a compressor (narrows the gap between loud and
+  // quiet passages) plus a modest makeup gain (brings quieter tracks back
+  // up to an audible level) so tracks land closer to the same perceived
+  // volume without the user needing to ride the volume slider per track.
+  function ensureLeveler() {
+    if (leveler) return leveler;
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      const compressor = audioCtx.createDynamicsCompressor();
+      const makeupGain = audioCtx.createGain();
+      makeupGain.gain.value = 1.6;
+      compressor.connect(makeupGain);
+      makeupGain.connect(audioCtx.destination);
+      leveler = { compressor, makeupGain };
+    } catch {
+      leveler = null;
+    }
+    return leveler;
+  }
+
+  function routeThroughLeveler(audioEl) {
+    const graph = ensureLeveler();
+    if (!graph) return;
+    try {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const source = audioCtx.createMediaElementSource(audioEl);
+      source.connect(graph.compressor);
+    } catch {
+      // Fall back to the element's own direct output (e.g. if the audio
+      // graph couldn't be set up) - playback still works, just unleveled.
+    }
   }
 
   function setVolume(v) {
@@ -56,6 +93,7 @@ function createMusicController() {
     if (!track || !track.fileUrl || isPausedByUser) return;
     audio = new Audio(track.fileUrl);
     audio.volume = effectiveVolume();
+    routeThroughLeveler(audio);
     audio.addEventListener('ended', onTrackEnded);
     // A missing/corrupt file on disk fires 'error', not 'ended' - route it
     // through the same advance-to-next-track path rather than stalling.
@@ -125,7 +163,7 @@ function createMusicController() {
     return track ? { name: track.originalName, isPaused: isPausedByUser } : null;
   }
 
-  return { start, setCatalog, setVolume, duck, unduck, pause, resume, skip, getNowPlaying };
+  return { start, setCatalog, setVolume, duck, unduck, pause, resume, skip, getNowPlaying, applyLeveling: routeThroughLeveler };
 }
 
 if (typeof module !== 'undefined') module.exports = { createMusicController };
