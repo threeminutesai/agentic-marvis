@@ -8,14 +8,13 @@ function isAuthFailureText(text) {
   return /\b401\b|authenticat/i.test(text);
 }
 
-// Claude Code CLI only ever authenticates with one credential (the Anthropic
-// API key, passed via ANTHROPIC_API_KEY below) - when its own error text
-// indicates an auth failure, name that credential explicitly instead of
-// surfacing the CLI's generic "401" text with no indication of which key
-// is the problem.
+// Claude Code CLI authenticates via its own logged-in session (subscription
+// auth from `claude login`), not an API key passed by this app - when its
+// own error text indicates an auth failure, name that explicitly instead of
+// surfacing the CLI's generic "401" text with no indication of the cause.
 function withAuthHint(text) {
   if (!isAuthFailureText(text)) return text;
-  return `Your Anthropic API key appears invalid or missing, sir (used for Claude Code CLI) - ${text}`;
+  return `Your Claude Code CLI session appears to need re-authentication, sir - try running "claude login" in a terminal. ${text}`;
 }
 
 // Maps a stream-json event from `claude -p --output-format stream-json` to a short
@@ -36,12 +35,13 @@ function describeProgressEvent(event) {
   return null;
 }
 
-function delegateTask({ task, projectPath, spawnImpl = spawn, timeoutMs = TIMEOUT_MS, signal, apiKey, onProgress }) {
+function delegateTask({ task, projectPath, spawnImpl = spawn, timeoutMs = TIMEOUT_MS, signal, onProgress }) {
   return new Promise((resolve) => {
-    const env = apiKey ? { ...process.env, ANTHROPIC_API_KEY: apiKey } : process.env;
+    // No ANTHROPIC_API_KEY is injected here - Claude Code CLI uses its own
+    // logged-in subscription session (`claude login`), not an app-managed key.
     const proc = spawnImpl('claude', ['-p', '--output-format', 'stream-json', '--verbose'], {
       cwd: projectPath,
-      env,
+      env: process.env,
       shell: true,
       stdio: ['pipe', 'pipe', 'pipe'],
     });

@@ -108,7 +108,7 @@
     </div>
     <label>Voice Briefing Frequency: <select id="briefing-voice-frequency-select"><option value="1h">Every 1 hour</option><option value="6h">Every 6 hours</option><option value="12h">Every 12 hours</option><option value="1d">Once a day</option><option value="never">Never</option></select></label>
     <label>Preferred CLI: <select id="preferred-cli-select"><option value="">None (use chat)</option><option value="code">Claude Code</option><option value="codex">Codex</option></select></label>
-    <label>Anthropic API Key (optional, for Claude Code CLI auth): <input id="anthropic-api-key-input" type="password" placeholder="sk-ant-..."></label>
+    <p class="settings-hint">Claude Code CLI uses its own logged-in subscription session ("claude login" in a terminal) - no API key needed here.</p>
     <label>Active Project: <input id="project-input" placeholder="/path/to/project"></label>
     <button id="project-browse-btn" type="button">Browse Folder</button>
     <label>Max HTML Panels to Keep: <input id="max-html-panels-input" type="number" min="1" step="1" placeholder="50"></label>

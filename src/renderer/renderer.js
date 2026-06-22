@@ -981,7 +981,6 @@ function populateSettingsForm(settings) {
   voicePhraseDraft = normalizeVoicePhrases(settings);
   renderVoicePhraseEditor('morning');
   document.getElementById('preferred-cli-select').value = settings.preferredCliChannel || '';
-  document.getElementById('anthropic-api-key-input').value = settings.apiKeys.anthropic || '';
   document.getElementById('project-input').value = settings.activeProject;
   document.getElementById('briefing-voice-frequency-select').value = settings.briefingVoiceFrequency || '1h';
   document.getElementById('max-html-panels-input').value = settings.maxHtmlPanels || 50;
@@ -1233,7 +1232,6 @@ document.getElementById('settings-save-btn').addEventListener('click', async () 
       deepseek: document.getElementById('deepseek-api-key-input').value,
       gemini: document.getElementById('gemini-api-key-input').value,
       elevenlabs: document.getElementById('elevenlabs-api-key-input').value,
-      anthropic: document.getElementById('anthropic-api-key-input').value,
     },
     elevenLabsVoiceId: document.getElementById('elevenlabs-voice-select').value,
     elevenLabsVoices: Array.from(document.getElementById('elevenlabs-voice-select').options)

@@ -300,7 +300,6 @@ function registerIpcHandlers() {
         task,
         projectPath: settings.activeProject,
         signal: controller?.signal,
-        apiKey: settings.apiKeys?.anthropic,
         onProgress: operationId
           ? (text) => _event.sender.send('cli:progress', { operationId, text })
           : undefined,

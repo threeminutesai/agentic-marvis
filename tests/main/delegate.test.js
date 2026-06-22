@@ -54,7 +54,7 @@ test('delegateTask treats a "success" subtype as an error when its content is it
   const result = await delegateTask({ task: 'Anything', projectPath: '/tmp/x', spawnImpl: fakeSpawn });
 
   assert.strictEqual(result.status, 'error');
-  assert.match(result.summary, /anthropic api key/i);
+  assert.match(result.summary, /claude code cli session/i);
   assert.match(result.summary, /401 Invalid authentication credentials/);
 });
 
@@ -84,7 +84,7 @@ test('delegateTask reports error status from a result event with subtype error',
   assert.deepStrictEqual(result, { status: 'error', summary: 'Something went wrong during the task.' });
 });
 
-test('delegateTask names the Anthropic API key when the result event indicates an auth failure', async () => {
+test('delegateTask names the Claude Code CLI session when the result event indicates an auth failure', async () => {
   const fakeSpawn = () => fakeChildProcess([
     JSON.stringify({ type: 'result', subtype: 'error', result: 'Failed to authenticate. API Error: 401 Invalid authentication credentials' }),
   ]);
@@ -92,11 +92,11 @@ test('delegateTask names the Anthropic API key when the result event indicates a
   const result = await delegateTask({ task: 'Anything', projectPath: '/tmp/x', spawnImpl: fakeSpawn });
 
   assert.strictEqual(result.status, 'error');
-  assert.match(result.summary, /anthropic api key/i);
+  assert.match(result.summary, /claude code cli session/i);
   assert.match(result.summary, /401 Invalid authentication credentials/);
 });
 
-test('delegateTask names the Anthropic API key when stderr indicates an auth failure with no result event', async () => {
+test('delegateTask names the Claude Code CLI session when stderr indicates an auth failure with no result event', async () => {
   const fakeSpawn = () => {
     const proc = new EventEmitter();
     proc.stdout = new EventEmitter();
@@ -112,7 +112,7 @@ test('delegateTask names the Anthropic API key when stderr indicates an auth fai
   const result = await delegateTask({ task: 'Anything', projectPath: '/tmp/x', spawnImpl: fakeSpawn });
 
   assert.strictEqual(result.status, 'error');
-  assert.match(result.summary, /anthropic api key/i);
+  assert.match(result.summary, /claude code cli session/i);
 });
 
 test('delegateTask reports unexpected exit when no result event is emitted', async () => {
