@@ -472,12 +472,11 @@ function updateNowPlayingWidget() {
     return;
   }
   widget.classList.remove('hidden');
-  if (trackText.textContent !== nowPlaying.name) {
-    trackText.textContent = nowPlaying.name;
-    // Only scroll when the name is actually wider than its viewport -
-    // short names just sit still rather than jittering in place.
-    trackLabel.classList.toggle('scrolling', trackText.scrollWidth > trackLabel.clientWidth);
-  }
+  if (trackText.textContent !== nowPlaying.name) trackText.textContent = nowPlaying.name;
+  // Recomputed every tick, not just on name change: the very first call can
+  // run before web fonts finish loading, which would otherwise measure a
+  // narrower fallback-font width and permanently miss a real overflow.
+  trackLabel.classList.toggle('scrolling', trackText.scrollWidth > trackLabel.clientWidth);
   toggleBtn.textContent = nowPlaying.isPaused ? 'Play' : 'Pause';
 }
 
