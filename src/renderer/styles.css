@@ -404,15 +404,21 @@ button:active { transform: scale(0.97); }
 #now-playing-widget {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
+  gap: 4px;
+  font-size: 11px;
   color: var(--text-dim);
 }
 #now-playing-track {
-  max-width: 120px;
+  max-width: 72px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+#now-playing-toggle-btn,
+#now-playing-skip-btn {
+  min-height: 26px;
+  padding: 0 8px;
+  font-size: 10px;
 }
 #setup-banner { color: var(--amber); text-shadow: 0 0 10px #ffb84f55; }
 #setup-status { color: var(--text-dim); font-size: 13px; }
