@@ -562,6 +562,25 @@ function matchStatusDetailRequest(text, rows) {
   return null;
 }
 
+// Recognizes standalone mute/unmute commands typed in chat (e.g. "mute",
+// "mute music", "unmute the bot") so they're handled directly rather than
+// sent to the AI model. Only matches when the WHOLE message is the command
+// (not embedded in a longer sentence), to avoid misfiring on normal chat.
+const MUTE_COMMAND_PATTERNS = [
+  { target: 'music', re: /^(mute|unmute)\s+(the\s+)?music$/ },
+  { target: 'voice', re: /^(mute|unmute)\s+(the\s+)?(bot|voice|jarvis)$/ },
+  { target: 'all', re: /^(mute|unmute)$/ },
+];
+
+function parseMuteCommand(text) {
+  const normalized = text.trim().toLowerCase();
+  for (const { target, re } of MUTE_COMMAND_PATTERNS) {
+    const match = normalized.match(re);
+    if (match) return { target, action: match[1] === 'mute' ? 'mute' : 'unmute' };
+  }
+  return null;
+}
+
 let newsBriefingTimer = null;
 let newsBriefingToken = 0;
 
@@ -1062,7 +1081,23 @@ document.querySelectorAll('.voice-phrase-tab').forEach((button) => {
   });
 });
 
+function applyMuteCommand({ target, action }) {
+  const muted = action === 'mute';
+  if (target === 'all' || target === 'voice') setVoiceMuted(muted);
+  if (target === 'all' || target === 'music') setMusicMuted(muted);
+  const label = target === 'all' ? 'Voice and music' : target === 'voice' ? 'Voice' : 'Music';
+  return `${label} ${muted ? 'muted' : 'unmuted'}, sir.`;
+}
+
 async function routeUserMessage(text) {
+  const muteCommand = parseMuteCommand(text);
+  if (muteCommand) {
+    appendChatLine('You', text);
+    const reply = await applyMuteCommand(muteCommand);
+    appendChatLine('Jarvis', reply);
+    await speakReply(reply);
+    return;
+  }
   const detailRow = matchStatusDetailRequest(text, statusRows);
   if (detailRow) {
     appendChatLine('You', text);
@@ -1171,13 +1206,23 @@ document.getElementById('send-btn').addEventListener('click', async (e) => {
 
 document.getElementById('audio-input-btn').addEventListener('click', toggleAudioInput);
 
-document.getElementById('mute-toggle-btn').addEventListener('click', (e) => {
-  isMuted = !isMuted;
-  e.target.textContent = isMuted ? 'Unmute' : 'Mute';
+function setVoiceMuted(muted) {
+  isMuted = muted;
+  document.getElementById('mute-toggle-btn').textContent = isMuted ? 'Unmute' : 'Mute';
   if (isMuted) {
     stopCachedVoice();
     ttsController.stop();
   }
+}
+
+function setMusicMuted(muted) {
+  if (muted) musicController.pause();
+  else musicController.resume();
+  updateNowPlayingWidget();
+}
+
+document.getElementById('mute-toggle-btn').addEventListener('click', () => {
+  setVoiceMuted(!isMuted);
 });
 
 document.getElementById('settings-save-btn').addEventListener('click', async () => {
