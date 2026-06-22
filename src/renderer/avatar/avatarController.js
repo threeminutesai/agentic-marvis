@@ -13,6 +13,9 @@ function createAvatarController({ mountEl, style }) {
     setLevel(level) {
       if (preset.setLevel) preset.setLevel(level);
     },
+    setOuterLevel(level) {
+      if (preset.setOuterLevel) preset.setOuterLevel(level);
+    },
   };
 }
 

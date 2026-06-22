@@ -77,6 +77,9 @@ const musicPanel = createMusicPanel({ musicController });
 ttsController.setOnLevel((level) => {
   if (avatarController) avatarController.setLevel(level);
 });
+musicController.setOnLevel((level) => {
+  if (avatarController) avatarController.setOuterLevel(level);
+});
 
 function updateSendButton() {
   const btn = document.getElementById('send-btn');

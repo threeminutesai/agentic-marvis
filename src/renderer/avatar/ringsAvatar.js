@@ -17,6 +17,9 @@ function mountRingsAvatar(mountEl) {
     setLevel(level) {
       stage.style.setProperty('--level', level);
     },
+    setOuterLevel(level) {
+      stage.style.setProperty('--outer-level', level);
+    },
   };
 }
 

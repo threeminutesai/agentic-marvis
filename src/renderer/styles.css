@@ -470,6 +470,7 @@ button:active { transform: scale(0.97); }
 /* === Rings preset (audio-reactive) === */
 .ring-stage {
   --level: 0;
+  --outer-level: 0;
   width: 200px;
   height: 200px;
   margin: 0 auto;
@@ -481,7 +482,15 @@ button:active { transform: scale(0.97); }
   transition: filter 0.05s linear;
 }
 .ring { position: absolute; border-radius: 50%; border-style: solid; border-color: var(--ion) transparent var(--ion) transparent; box-shadow: 0 0 12px var(--ion-soft); }
-.ring.outer { width: 190px; height: 190px; border-width: 1.5px; animation: spin 11s linear infinite; opacity: 0.6; }
+.ring.outer {
+  width: 190px;
+  height: 190px;
+  border-width: calc(1.5px + var(--outer-level) * 2px);
+  animation: spin 11s linear infinite;
+  opacity: calc(0.6 + var(--outer-level) * 0.4);
+  box-shadow: 0 0 calc(12px + var(--outer-level) * 28px) var(--ion-soft);
+  transition: box-shadow 0.08s linear, border-width 0.08s linear, opacity 0.08s linear;
+}
 .ring.middle { width: 140px; height: 140px; border-width: 2px; border-color: transparent var(--ion) transparent var(--ion); animation: spin-rev 16s linear infinite; opacity: 0.75; }
 .ring.inner { width: 90px; height: 90px; border-width: 2.5px; animation: spin 22s linear infinite; opacity: 0.9; }
 .ring-stage.processing .outer { animation-duration: 0.5s; }
@@ -515,6 +524,29 @@ button:active { transform: scale(0.97); }
 }
 
 /* === Brain preset (audio-reactive) === */
+.brain-stage {
+  --outer-level: 0;
+  width: 190px;
+  height: 190px;
+  margin: 0 auto;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.brain-outer-ring {
+  position: absolute;
+  width: 190px;
+  height: 190px;
+  border-radius: 50%;
+  border-style: solid;
+  border-width: calc(1.5px + var(--outer-level) * 2px);
+  border-color: var(--ion) transparent var(--ion) transparent;
+  box-shadow: 0 0 calc(12px + var(--outer-level) * 28px) var(--ion-soft);
+  opacity: calc(0.5 + var(--outer-level) * 0.4);
+  animation: spin 11s linear infinite;
+  transition: box-shadow 0.08s linear, border-width 0.08s linear, opacity 0.08s linear;
+}
 .brain-core {
   --level: 0;
   width: 140px;
@@ -682,7 +714,7 @@ button:active { transform: scale(0.97); }
 }
 
 #app-body.interaction-mode #avatar-mount .ring-stage,
-#app-body.interaction-mode #avatar-mount .brain-core {
+#app-body.interaction-mode #avatar-mount .brain-stage {
   transform: scale(0.45);
   transform-origin: center center;
 }
@@ -788,7 +820,7 @@ button:active { transform: scale(0.97); }
 }
 
 #app-body.phase-3 #avatar-mount .ring-stage,
-#app-body.phase-3 #avatar-mount .brain-core {
+#app-body.phase-3 #avatar-mount .brain-stage {
   transform: none;
 }
 
