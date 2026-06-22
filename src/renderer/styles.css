@@ -421,7 +421,7 @@ button:active { transform: scale(0.97); }
   white-space: nowrap;
 }
 #now-playing-track.scrolling #now-playing-track-text {
-  animation: now-playing-marquee 6s linear infinite;
+  animation: now-playing-marquee 12s linear infinite;
   padding-left: 100%;
 }
 @keyframes now-playing-marquee {
