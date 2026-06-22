@@ -11,9 +11,53 @@ function slugifyOriginalName(originalName) {
   return slug || 'track';
 }
 
-function createMusicLibraryStore({ filePath, musicDir, fsImpl = fs }) {
+function createMusicLibraryStore({ filePath, musicDir, sampleDir, fsImpl = fs }) {
+  function copyIntoLibrary(sourcePath, originalName) {
+    const ext = path.extname(originalName).toLowerCase();
+    const slug = slugifyOriginalName(originalName);
+    let id;
+    let fileName;
+    let destPath;
+    do {
+      id = `trk_${crypto.randomBytes(4).toString('hex')}`;
+      fileName = `${id}-${slug}${ext}`;
+      destPath = path.join(musicDir, fileName);
+    } while (fsImpl.existsSync(destPath));
+    fsImpl.copyFileSync(sourcePath, destPath);
+    return { id, fileName, originalName, addedAt: new Date().toISOString() };
+  }
+
+  // First-ever run (no catalog file yet): seed the library from the app's
+  // bundled royalty-free sample tracks, if any were provided, so the Music
+  // feature has something to play immediately instead of an empty Library.
+  // Only fires once - once a catalog file exists, this is never called
+  // again, even if the user later deletes every track themselves.
+  function seedFromSamples() {
+    const catalog = createEmptyCatalog();
+    if (!sampleDir || !fsImpl.existsSync(sampleDir)) return catalog;
+    fsImpl.mkdirSync(musicDir, { recursive: true });
+    const sampleFiles = fsImpl.readdirSync(sampleDir)
+      .filter((name) => SUPPORTED_EXTENSIONS.includes(path.extname(name).toLowerCase()));
+    const trackIds = [];
+    for (const fileName of sampleFiles) {
+      try {
+        const track = copyIntoLibrary(path.join(sampleDir, fileName), fileName);
+        catalog.tracks.push(track);
+        trackIds.push(track.id);
+      } catch {
+        // Skip a sample that fails to copy and continue with the rest.
+      }
+    }
+    if (trackIds.length) catalog.playlists.push({ id: 'pl_samples', name: 'Sample Tracks', trackIds });
+    return catalog;
+  }
+
   function load() {
-    if (!fsImpl.existsSync(filePath)) return createEmptyCatalog();
+    if (!fsImpl.existsSync(filePath)) {
+      const seeded = seedFromSamples();
+      save(seeded);
+      return seeded;
+    }
     try {
       const raw = JSON.parse(fsImpl.readFileSync(filePath, 'utf8'));
       return {
@@ -39,19 +83,7 @@ function createMusicLibraryStore({ filePath, musicDir, fsImpl = fs }) {
         const ext = path.extname(sourcePath).toLowerCase();
         if (!SUPPORTED_EXTENSIONS.includes(ext)) continue;
         const originalName = path.basename(sourcePath);
-        const slug = slugifyOriginalName(originalName);
-
-        let id;
-        let fileName;
-        let destPath;
-        do {
-          id = `trk_${crypto.randomBytes(4).toString('hex')}`;
-          fileName = `${id}-${slug}${ext}`;
-          destPath = path.join(musicDir, fileName);
-        } while (fsImpl.existsSync(destPath));
-
-        fsImpl.copyFileSync(sourcePath, destPath);
-        catalog.tracks.push({ id, fileName, originalName, addedAt: new Date().toISOString() });
+        catalog.tracks.push(copyIntoLibrary(sourcePath, originalName));
       } catch {
         // Skip files that can't be copied (missing, unreadable, etc.) and continue importing the rest.
       }

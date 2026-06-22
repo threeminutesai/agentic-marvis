@@ -130,6 +130,62 @@ test('importFiles skips a file that cannot be copied and still imports the rest'
   assert.ok(fs.existsSync(path.join(musicDir, catalog.tracks[0].fileName)));
 });
 
+test('load seeds the library from sampleDir on first run when no catalog file exists yet', () => {
+  const { filePath, musicDir, root } = makeDirs();
+  const sampleDir = path.join(root, 'samples');
+  fs.mkdirSync(sampleDir, { recursive: true });
+  fs.writeFileSync(path.join(sampleDir, 'Intro.mp3'), 'fake mp3 bytes');
+  fs.writeFileSync(path.join(sampleDir, 'Theme.wav'), 'fake wav bytes');
+  fs.writeFileSync(path.join(sampleDir, 'notes.txt'), 'not audio');
+
+  const store = createMusicLibraryStore({ filePath, musicDir, sampleDir });
+  const catalog = store.load();
+
+  assert.strictEqual(catalog.tracks.length, 2);
+  assert.deepStrictEqual(catalog.tracks.map((t) => t.originalName).sort(), ['Intro.mp3', 'Theme.wav']);
+  for (const track of catalog.tracks) {
+    assert.ok(fs.existsSync(path.join(musicDir, track.fileName)));
+  }
+  assert.strictEqual(catalog.playlists.length, 1);
+  assert.strictEqual(catalog.playlists[0].name, 'Sample Tracks');
+  assert.deepStrictEqual(catalog.playlists[0].trackIds.sort(), catalog.tracks.map((t) => t.id).sort());
+});
+
+test('seeding from sampleDir persists, so a second load does not duplicate samples', () => {
+  const { filePath, musicDir, root } = makeDirs();
+  const sampleDir = path.join(root, 'samples');
+  fs.mkdirSync(sampleDir, { recursive: true });
+  fs.writeFileSync(path.join(sampleDir, 'Intro.mp3'), 'fake mp3 bytes');
+
+  const store = createMusicLibraryStore({ filePath, musicDir, sampleDir });
+  store.load();
+  const reloaded = createMusicLibraryStore({ filePath, musicDir, sampleDir }).load();
+
+  assert.strictEqual(reloaded.tracks.length, 1);
+});
+
+test('load does not re-seed once a catalog file already exists, even if the user emptied their library', () => {
+  const { filePath, musicDir, root } = makeDirs();
+  const sampleDir = path.join(root, 'samples');
+  fs.mkdirSync(sampleDir, { recursive: true });
+  fs.writeFileSync(path.join(sampleDir, 'Intro.mp3'), 'fake mp3 bytes');
+
+  const store = createMusicLibraryStore({ filePath, musicDir, sampleDir });
+  store.save({ tracks: [], playlists: [], schedule: {} });
+
+  const catalog = store.load();
+  assert.deepStrictEqual(catalog.tracks, []);
+  assert.deepStrictEqual(catalog.playlists, []);
+});
+
+test('load with a missing or unset sampleDir falls back to an empty catalog without throwing', () => {
+  const { filePath, musicDir, root } = makeDirs();
+  const store = createMusicLibraryStore({ filePath, musicDir, sampleDir: path.join(root, 'does-not-exist') });
+  const catalog = store.load();
+  assert.deepStrictEqual(catalog.tracks, []);
+  assert.deepStrictEqual(catalog.playlists, []);
+});
+
 test('SUPPORTED_EXTENSIONS covers the common audio formats', () => {
   assert.deepStrictEqual(
     [...SUPPORTED_EXTENSIONS].sort(),

@@ -137,6 +137,7 @@ function registerIpcHandlers() {
   const musicStore = createMusicLibraryStore({
     filePath: path.join(os.homedir(), '.jarvis-music-library.json'),
     musicDir,
+    sampleDir: path.join(__dirname, '..', 'assets', 'sample-music'),
   });
 
   function withFileUrls(catalog) {

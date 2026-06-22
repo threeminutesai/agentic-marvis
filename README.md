@@ -49,6 +49,12 @@ You can create an ElevenLabs account with this link: https://try.elevenlabs.io/i
 
 Disclosure: this is an affiliate link and may provide affiliate credit to the project owner.
 
+## Music
+
+Settings → Music lets you import your own tracks, build playlists, and schedule them by day-of-week and time-of-day (e.g. focus music on weekday mornings, something calmer in the evening). Music auto-plays on schedule, ducks under Jarvis's speech, and has its own volume slider plus a loudness leveler so tracks mastered at different volumes don't require manual adjustment per track.
+
+On first launch, the library is seeded with three royalty-free sample tracks (in a "Sample Tracks" playlist, not assigned to any schedule slot) so the feature has something to play immediately — see [Sample Music Attribution](src/assets/sample-music/ATTRIBUTION.md) for credits. Delete them anytime; they're only seeded once, on the very first run.
+
 ## CLI delegation channels
 
 Jarvis isn't limited to its own chat replies — it can hand a task off to the Claude Code or Codex CLI running against your active project. Set an active project folder in Settings first, then type:
