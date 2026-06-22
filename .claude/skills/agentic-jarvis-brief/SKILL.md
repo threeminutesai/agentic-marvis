@@ -9,7 +9,7 @@ description: Gather fresh data and fill in (or refresh) a Jarvis-style status JS
 
 Build a current status JSON for Jarvis-style dashboards or routine briefings: read the target JSON first, preserve its shape, then gather fresh news, Gmail unread email, urgent unread email, and weather before writing the filled JSON back out.
 
-In this project the target file is normally [data/jarvis-status.json](../../../data/jarvis-status.json), read by [src/main/status/statusFile.js](../../../src/main/status/statusFile.js) and rendered by [src/renderer/statusPanel.js](../../../src/renderer/statusPanel.js). If the user names a different path, or pastes a schema/sample inline, use that instead — the row *shape* matters more than the specific file.
+In this project the target file is [data/jarvis-status.json](../../../data/jarvis-status.json) when running from source (`npm start`), read by [src/main/status/statusFile.js](../../../src/main/status/statusFile.js) and rendered by [src/renderer/statusPanel.js](../../../src/renderer/statusPanel.js). A **packaged build** (the distributed `.exe`/AppImage/etc.) reads from a different, OS-specific location instead — see "Locating jarvis-status.json automatically" below; auto-detection only applies when no path/schema was given by the user. If the user names a different path, or pastes a schema/sample inline, use that instead — the row *shape* matters more than the specific file.
 
 When the JSON contains a `User Profile` entry (or a similarly named profile/background/preferences field), use it to personalize the News Briefing selection and wording. Prefer topics matching the user's stated interests, work, goals, and background, while still keeping one or two major global developments when they materially matter — a personalized briefing that ignores the world isn't useful either.
 
@@ -18,11 +18,37 @@ When the JSON contains a `User Profile` entry (or a similarly named profile/back
 Read the target JSON path with the Read tool and preserve its existing field names, nesting, and data types — this skill fills in an existing shape, it does not invent a new one. If neither a path nor a format has been given, ask for one before collecting any data; gathering news/email/weather first and only then discovering the target shape wastes the work.
 
 Accept any of these as the format source:
-- An existing JSON file path to read and preserve (most common in this project: `data/jarvis-status.json`)
+- An existing JSON file path to read and preserve (most common in this project: `data/jarvis-status.json`, but see auto-detection below — a packaged install uses a different path)
 - A pasted JSON schema or sample object
 - A short description of required fields
 
 If no path is given but a format is, ask whether to return JSON in the reply or write it to a new file. If there is no schema at all, fall back to [references/default-status-format.json](references/default-status-format.json), which mirrors this project's card layout (`type` / `value` / `detail`).
+
+## Locating jarvis-status.json automatically (this project)
+
+Only run this when the user hasn't already given an explicit path or pasted a schema. The app's data file lives in different places depending on how it's running, and the wrong guess means updating a file the running app never reads:
+
+- **Dev/source checkout** (`npm start` from this repo): `data/jarvis-status.json`, relative to the project root.
+- **Packaged build, Windows**: `%APPDATA%\agentic-jarvis\jarvis-status.json` (Electron's per-user `userData` dir, keyed off `package.json`'s `"name"` field — `agentic-jarvis`, NOT the `Jarvis` product/display name).
+- **Packaged build, Linux**: `~/.config/agentic-jarvis/jarvis-status.json` (Electron's XDG-standard `userData` dir on Linux; same `agentic-jarvis` app-name key).
+- **Packaged build, macOS** (not yet shipped per the README, but check anyway in case a user builds it themselves): `~/Library/Application Support/agentic-jarvis/jarvis-status.json`.
+
+Check all four candidates in one shell call rather than guessing — this works unmodified on both Windows (Git Bash) and Linux (`$APPDATA` is simply unset/empty on Linux, so that line harmlessly evaluates to false instead of erroring):
+
+```bash
+for p in \
+  "data/jarvis-status.json" \
+  "$APPDATA/agentic-jarvis/jarvis-status.json" \
+  "$HOME/.config/agentic-jarvis/jarvis-status.json" \
+  "$HOME/Library/Application Support/agentic-jarvis/jarvis-status.json"; do
+  [ -f "$p" ] && echo "FOUND: $p"
+done
+```
+
+Then:
+- **Exactly one candidate found** — use it, no need to ask.
+- **Multiple candidates found** (e.g. both a dev checkout and a packaged install exist on the same machine) — ask the user which one to update, or whether to update all of them; don't silently pick one, since updating the wrong file means the briefing the user actually sees never changes.
+- **None found** — this is a genuinely fresh setup. Fall back to the dev-mode default (`data/jarvis-status.json`) and create it there, matching this skill's existing default behavior.
 
 ## Personalization Rules
 
