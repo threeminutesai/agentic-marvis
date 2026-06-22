@@ -13,10 +13,17 @@ When the format contains a `User Profile` entry, or a similarly named profile/ba
 
 ## Required First Step
 
-Read the target JSON path and preserve its existing field names, nesting, and data types. If the user did not provide both the path and the format, ask for them before collecting data.
+The target path depends on how Jarvis is running, because `src/main/ipcHandlers.js` (`getDataDir()`) resolves it differently:
+
+- **Running from source (dev)**: `data/jarvis-status.json` in the project root — read by `src/main/status/statusFile.js`, rendered by `src/renderer/statusPanel.js`.
+- **Running the packaged exe**: the project's `data/` folder is inside the read-only `app.asar` archive and is NOT used. The app instead reads/writes `jarvis-status.json` in Electron's per-user `userData` directory — on Windows that's `%APPDATA%\<productName>\jarvis-status.json` (`productName` is set in `package.json`'s `build` config, e.g. `Jarvis`), so typically `C:\Users\<user>\AppData\Roaming\Jarvis\jarvis-status.json`.
+
+Ask the user (or check) whether they're running from source or the packaged exe before guessing the path — writing to `data/jarvis-status.json` while the packaged app is running has no effect, since that app never reads that file. If unsure, check both locations and prefer whichever one already exists.
+
+Read the target JSON path and preserve its existing field names, nesting, and data types. If no path or format can be determined at all (e.g. neither default file exists and the user names no alternative), ask before collecting data.
 
 Accept any of these as the format source:
-- An existing JSON file path to read and preserve
+- An existing JSON file path to read and preserve (default: `data/jarvis-status.json` for dev, `%APPDATA%\Jarvis\jarvis-status.json` for the packaged exe on Windows)
 - A pasted JSON schema or sample object
 - A short description of required fields
 
