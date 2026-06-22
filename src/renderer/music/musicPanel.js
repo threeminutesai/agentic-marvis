@@ -68,29 +68,11 @@ function createMusicPanel({ musicController } = {}) {
   function renderLibraryTab() {
     const list = document.getElementById('music-track-list');
     if (!list) return;
-    stopPreview();
     list.innerHTML = '';
     for (const track of catalog.tracks) {
       const li = document.createElement('li');
       const name = document.createElement('span');
       name.textContent = track.originalName;
-      const playBtn = document.createElement('button');
-      playBtn.type = 'button';
-      playBtn.textContent = 'Play';
-      playBtn.addEventListener('click', () => {
-        if (previewingTrackId === track.id) {
-          stopPreview();
-          playBtn.textContent = 'Play';
-        } else {
-          document.querySelectorAll('#music-track-list button.previewing').forEach((b) => {
-            b.textContent = 'Play';
-            b.classList.remove('previewing');
-          });
-          playPreview(track, playBtn);
-          playBtn.textContent = 'Stop';
-          playBtn.classList.add('previewing');
-        }
-      });
       const removeBtn = document.createElement('button');
       removeBtn.type = 'button';
       removeBtn.textContent = 'Delete';
@@ -102,10 +84,7 @@ function createMusicPanel({ musicController } = {}) {
           renderAll();
         }
       });
-      const actions = document.createElement('div');
-      actions.className = 'music-track-actions';
-      actions.append(playBtn, removeBtn);
-      li.append(name, actions);
+      li.append(name, removeBtn);
       list.appendChild(li);
     }
   }
@@ -131,6 +110,7 @@ function createMusicPanel({ musicController } = {}) {
     const checklist = document.getElementById('music-playlist-track-checklist');
     const select = document.getElementById('music-playlist-select');
     if (!checklist || !select) return;
+    stopPreview();
     const playlist = catalog.playlists.find((p) => p.id === select.value) || null;
     checklist.innerHTML = '';
     for (const track of catalog.tracks) {
@@ -150,7 +130,24 @@ function createMusicPanel({ musicController } = {}) {
         await persist();
       });
       label.append(checkbox, document.createTextNode(' ' + track.originalName));
-      li.appendChild(label);
+      const playBtn = document.createElement('button');
+      playBtn.type = 'button';
+      playBtn.textContent = 'Play';
+      playBtn.addEventListener('click', () => {
+        if (previewingTrackId === track.id) {
+          stopPreview();
+          playBtn.textContent = 'Play';
+        } else {
+          document.querySelectorAll('#music-playlist-track-checklist button.previewing').forEach((b) => {
+            b.textContent = 'Play';
+            b.classList.remove('previewing');
+          });
+          playPreview(track, playBtn);
+          playBtn.textContent = 'Stop';
+          playBtn.classList.add('previewing');
+        }
+      });
+      li.append(label, playBtn);
       checklist.appendChild(li);
     }
   }
