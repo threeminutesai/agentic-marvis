@@ -25,10 +25,10 @@ const NEWS_BRIEFING_ITEM_INTERVAL_MS = 3200;
 // News Briefing rows store parallel value[]/detail[] arrays (one short
 // headline + one longer detail per event). Older status files may still
 // have a single string in each field; treat that as a one-item list.
-// Capped at 10 items - if the source data has more, the newest items
+// Capped at 15 items - if the source data has more, the newest items
 // (the end of the array) replace the oldest rather than truncating to
-// the first 10, since later entries are assumed to be the most current.
-const NEWS_BRIEFING_MAX_ITEMS = 10;
+// the first 15, since later entries are assumed to be the most current.
+const NEWS_BRIEFING_MAX_ITEMS = 15;
 
 function getNewsBriefingItems(row) {
   if (!row) return [];
