@@ -40,7 +40,15 @@ function delegateTask({ task, projectPath, spawnImpl = spawn, timeoutMs = TIMEOU
   return new Promise((resolve) => {
     // No ANTHROPIC_API_KEY is injected here - Claude Code CLI uses its own
     // logged-in subscription session (`claude login`), not an app-managed key.
-    const proc = spawnImpl('claude', ['-p', '--output-format', 'stream-json', '--verbose'], {
+    // This runs fully headless (-p, stdin closed right after the task is
+    // written) - there's no terminal for the user to approve an interactive
+    // tool-permission prompt in, so it would just hang until the timeout.
+    // Pre-approve only what report/code delegation actually needs (file
+    // read/write and web research), not the broader --dangerously-skip-permissions.
+    const proc = spawnImpl('claude', [
+      '-p', '--output-format', 'stream-json', '--verbose',
+      '--allowedTools', 'Write,Edit,Read,WebSearch,WebFetch',
+    ], {
       cwd: projectPath,
       env: process.env,
       shell: true,

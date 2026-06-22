@@ -39,7 +39,10 @@ test('delegateTask spawns claude -p with the task piped via stdin and project cw
   });
 
   assert.strictEqual(capturedCmd, 'claude');
-  assert.deepStrictEqual(capturedArgs, ['-p', '--output-format', 'stream-json', '--verbose']);
+  assert.deepStrictEqual(capturedArgs, [
+    '-p', '--output-format', 'stream-json', '--verbose',
+    '--allowedTools', 'Write,Edit,Read,WebSearch,WebFetch',
+  ]);
   assert.strictEqual(capturedOptions.cwd, '/tmp/myproject');
   assert.strictEqual(capturedStdin.join(''), 'Refactor auth.py\n\nMulti-line task body.');
   assert.strictEqual(result.status, 'success');
