@@ -1,6 +1,35 @@
 function createMusicPanel({ musicController } = {}) {
   let catalog = { tracks: [], playlists: [], schedule: {} };
   let activeScheduleDay = 'monday';
+  let previewAudio = null;
+  let previewingTrackId = null;
+
+  function stopPreview() {
+    if (previewAudio) {
+      previewAudio.pause();
+      previewAudio = null;
+    }
+    previewingTrackId = null;
+  }
+
+  function playPreview(track, button) {
+    stopPreview();
+    if (!track.fileUrl) return;
+    const volumeInput = document.getElementById('music-volume-input');
+    const volume = volumeInput ? parseFloat(volumeInput.value) : 1;
+    const audio = new Audio(track.fileUrl);
+    audio.volume = Number.isFinite(volume) ? volume : 1;
+    audio.addEventListener('ended', () => {
+      if (previewingTrackId === track.id) stopPreview();
+      if (button) button.textContent = 'Play';
+    });
+    audio.play().catch(() => {
+      if (previewingTrackId === track.id) stopPreview();
+      if (button) button.textContent = 'Play';
+    });
+    previewAudio = audio;
+    previewingTrackId = track.id;
+  }
 
   const DAY_LABELS = {
     sunday: 'Sun', monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed',
@@ -36,11 +65,29 @@ function createMusicPanel({ musicController } = {}) {
   function renderLibraryTab() {
     const list = document.getElementById('music-track-list');
     if (!list) return;
+    stopPreview();
     list.innerHTML = '';
     for (const track of catalog.tracks) {
       const li = document.createElement('li');
       const name = document.createElement('span');
       name.textContent = track.originalName;
+      const playBtn = document.createElement('button');
+      playBtn.type = 'button';
+      playBtn.textContent = 'Play';
+      playBtn.addEventListener('click', () => {
+        if (previewingTrackId === track.id) {
+          stopPreview();
+          playBtn.textContent = 'Play';
+        } else {
+          document.querySelectorAll('#music-track-list button.previewing').forEach((b) => {
+            b.textContent = 'Play';
+            b.classList.remove('previewing');
+          });
+          playPreview(track, playBtn);
+          playBtn.textContent = 'Stop';
+          playBtn.classList.add('previewing');
+        }
+      });
       const removeBtn = document.createElement('button');
       removeBtn.type = 'button';
       removeBtn.textContent = 'Delete';
@@ -52,7 +99,10 @@ function createMusicPanel({ musicController } = {}) {
           renderAll();
         }
       });
-      li.append(name, removeBtn);
+      const actions = document.createElement('div');
+      actions.className = 'music-track-actions';
+      actions.append(playBtn, removeBtn);
+      li.append(name, actions);
       list.appendChild(li);
     }
   }
@@ -149,7 +199,9 @@ function createMusicPanel({ musicController } = {}) {
   }
 
   document.getElementById('music-toggle-btn')?.addEventListener('click', () => {
-    document.getElementById('music-panel')?.classList.toggle('hidden');
+    const panel = document.getElementById('music-panel');
+    const isHidden = panel?.classList.toggle('hidden');
+    if (isHidden) stopPreview();
   });
 
   document.querySelectorAll('.music-tab').forEach((button) => {
