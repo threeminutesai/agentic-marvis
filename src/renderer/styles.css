@@ -412,8 +412,21 @@ button:active { transform: scale(0.97); }
 #now-playing-track {
   max-width: 110px;
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
+  display: inline-block;
+  vertical-align: top;
+}
+#now-playing-track-text {
+  display: inline-block;
+  white-space: nowrap;
+}
+#now-playing-track.scrolling #now-playing-track-text {
+  animation: now-playing-marquee 6s linear infinite;
+  padding-left: 100%;
+}
+@keyframes now-playing-marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-100%); }
 }
 #now-playing-controls {
   display: flex;

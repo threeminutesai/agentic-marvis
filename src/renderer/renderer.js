@@ -463,15 +463,21 @@ function buildSimpleGreeting(rows) {
 function updateNowPlayingWidget() {
   const widget = document.getElementById('now-playing-widget');
   const trackLabel = document.getElementById('now-playing-track');
+  const trackText = document.getElementById('now-playing-track-text');
   const toggleBtn = document.getElementById('now-playing-toggle-btn');
-  if (!widget || !trackLabel || !toggleBtn) return;
+  if (!widget || !trackLabel || !trackText || !toggleBtn) return;
   const nowPlaying = musicController.getNowPlaying();
   if (!nowPlaying) {
     widget.classList.add('hidden');
     return;
   }
   widget.classList.remove('hidden');
-  trackLabel.textContent = nowPlaying.name;
+  if (trackText.textContent !== nowPlaying.name) {
+    trackText.textContent = nowPlaying.name;
+    // Only scroll when the name is actually wider than its viewport -
+    // short names just sit still rather than jittering in place.
+    trackLabel.classList.toggle('scrolling', trackText.scrollWidth > trackLabel.clientWidth);
+  }
   toggleBtn.textContent = nowPlaying.isPaused ? 'Play' : 'Pause';
 }
 
