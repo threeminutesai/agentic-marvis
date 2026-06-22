@@ -1,3 +1,8 @@
+// frequencyBinCount is fftSize / 2 - keep these in sync so each bar maps to
+// exactly one frequency bin with no averaging. 128 bars creates a dense histogram.
+const BAR_COUNT = 128;
+const ANALYSER_FFT_SIZE = BAR_COUNT * 2;
+
 function createMusicController() {
   let catalog = { tracks: [], playlists: [], schedule: {} };
   let baseVolume = 0.6;
@@ -27,24 +32,33 @@ function createMusicController() {
     if (levelCallback) levelCallback(level);
   }
 
-  // Drives the avatar's outer-ring music visualizer. Reads the analyser
-  // continuously rather than only while a track is "playing" - a paused or
-  // silent source naturally reads back near-zero, so this doubles as the
-  // reset-to-idle path without needing separate pause/stop wiring.
+  // Drives the avatar's circular music-bar visualizer: one amplitude band
+  // per bar, read straight off the frequency-domain analyser data (one bin
+  // per bar - BAR_COUNT is chosen to match analyser.fftSize / 2 exactly, no
+  // averaging/grouping needed). Reads continuously rather than only while a
+  // track is "playing" - a paused or silent source naturally reads back
+  // near-zero, so this doubles as the reset-to-idle path without needing
+  // separate pause/stop wiring.
   function startLevelLoop() {
     if (rafId !== null) return;
     const tick = () => {
       if (!analyser || !analyserData) {
-        emitLevel(0);
+        emitLevel(new Array(BAR_COUNT).fill(0));
       } else {
-        analyser.getByteTimeDomainData(analyserData);
-        let sumSquares = 0;
-        for (let i = 0; i < analyserData.length; i++) {
-          const sample = (analyserData[i] - 128) / 128;
-          sumSquares += sample * sample;
+        analyser.getByteFrequencyData(analyserData);
+        // The analyser sits downstream of the <audio> element's own .volume,
+        // which the browser applies before the signal ever reaches the Web
+        // Audio graph - at a quiet Music Volume setting the raw magnitudes
+        // are tiny even for a loud track. Divide out the current volume
+        // (floored, so near-zero volume doesn't blow this up) so the bars
+        // reflect the track's relative loudness rather than the slider
+        // position.
+        const volumeCompensation = 1 / Math.max(effectiveVolume(), 0.15);
+        const levels = new Array(BAR_COUNT);
+        for (let i = 0; i < BAR_COUNT; i++) {
+          levels[i] = Math.min(1, (analyserData[i] / 255) * volumeCompensation * 1.6);
         }
-        const rms = Math.sqrt(sumSquares / analyserData.length);
-        emitLevel(Math.min(1, rms * 4));
+        emitLevel(levels);
       }
       rafId = requestAnimationFrame(tick);
     };
@@ -63,8 +77,11 @@ function createMusicController() {
       audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
       const compressor = audioCtx.createDynamicsCompressor();
       analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 256;
-      analyserData = new Uint8Array(analyser.fftSize);
+      analyser.fftSize = ANALYSER_FFT_SIZE;
+      // Snappier response than the default 0.8 smoothing, so the bars
+      // visibly "dance" with the beat instead of gliding.
+      analyser.smoothingTimeConstant = 0.6;
+      analyserData = new Uint8Array(analyser.frequencyBinCount);
       const makeupGain = audioCtx.createGain();
       makeupGain.gain.value = 1.6;
       compressor.connect(analyser);
