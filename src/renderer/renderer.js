@@ -19,6 +19,7 @@ let cachedVoiceAudio = null;
 let voicePhraseTab = 'morning';
 let voicePhraseDraft = null;
 let nowPlayingWidgetTimer = null;
+let appClockTimer = null;
 
 const PROCESSING_CUES = [
   'Working on it.',
@@ -438,6 +439,12 @@ async function init() {
   }
 }
 
+function updateAppClock() {
+  const clockEl = document.getElementById('app-clock');
+  if (!clockEl) return;
+  clockEl.textContent = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
 function showAppScreen({ keepSettingsOpen = false } = {}) {
   document.getElementById('app-screen').classList.remove('hidden');
   if (!keepSettingsOpen) {
@@ -448,6 +455,9 @@ function showAppScreen({ keepSettingsOpen = false } = {}) {
   updateHud(currentSettings);
   greetUser();
   startWakeWordIfConfigured();
+  updateAppClock();
+  if (appClockTimer) clearInterval(appClockTimer);
+  appClockTimer = setInterval(updateAppClock, 30 * 1000);
 }
 
 function buildSimpleGreeting(rows) {
@@ -511,6 +521,8 @@ function getRowFieldList(rows, type, field) {
 function buildIntroFragments(rows) {
   const byType = Object.fromEntries(rows.map((r) => [r.type, r.value]));
   const fragments = [];
+  const timeStr = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  fragments.push(`the time is ${timeStr}`);
   if (byType['Weather']) fragments.push(`it's ${byType['Weather']} out`);
   return fragments;
 }
@@ -944,10 +956,13 @@ function appendChatLine(role, text) {
   const roleEl = document.createElement('span');
   roleEl.className = 'chat-role';
   roleEl.textContent = role;
+  const timeEl = document.createElement('span');
+  timeEl.className = 'chat-time';
+  timeEl.textContent = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   const textEl = document.createElement('span');
   textEl.className = 'chat-text';
   textEl.textContent = text;
-  line.append(roleEl, textEl);
+  line.append(roleEl, timeEl, textEl);
   log.appendChild(line);
   log.scrollTop = log.scrollHeight;
 }
