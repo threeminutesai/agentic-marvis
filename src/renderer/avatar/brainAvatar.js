@@ -18,7 +18,7 @@ function mountBrainAvatar(mountEl) {
     </div>`;
   const stage = mountEl.querySelector('.brain-stage');
   const core = mountEl.querySelector('.brain-core');
-  const visualizer = mountVisualizer(stage, { radius: 105, barLength: 16 });
+  const visualizer = mountVisualizer(stage, { radius: 100, barLength: 14 });
   return {
     setState(state) {
       core.classList.toggle('speaking', state === 'speaking');

@@ -12,7 +12,7 @@ function mountRingsAvatar(mountEl) {
       <div class="core"></div>
     </div>`;
   const stage = mountEl.querySelector('.ring-stage');
-  const visualizer = mountVisualizer(stage, { radius: 110, barLength: 16 });
+  const visualizer = mountVisualizer(stage, { radius: 98, barLength: 15 });
   return {
     setState(state) {
       stage.classList.toggle('speaking', state === 'speaking');
