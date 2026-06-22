@@ -799,6 +799,19 @@ const CLI_CHANNELS = {
   '/codex': { label: 'Codex', delegate: (task, operationId) => window.jarvis.delegateCodexTask(task, operationId) },
 };
 
+// Recognizes natural-language "generate me a report" phrasing (e.g. "in
+// report, recommend...", "make a report on...", "report on...") that should
+// be delegated to the CLI tool rather than answered as a plain chat reply -
+// only the CLI agents have file-write access to actually produce an HTML
+// report, which the chat AI providers can't do. Deliberately narrow (the
+// word "report" alone isn't enough) to avoid misfiring on unrelated uses
+// like "I need to report a bug" or "did you see that report from yesterday".
+const REPORT_REQUEST_RE = /^(?:in|as)\s+(?:a\s+)?report\b|\b(?:make|generate|create|write|produce|compile|prepare)\s+(?:me\s+)?(?:a|the)\s+report\b|\breport\s+(?:on|about|for)\b/i;
+
+function isReportRequest(text) {
+  return REPORT_REQUEST_RE.test(text.trim());
+}
+
 function parseCliCommand(text) {
   const spaceIndex = text.indexOf(' ');
   const prefix = (spaceIndex === -1 ? text : text.slice(0, spaceIndex)).toLowerCase();
@@ -1130,6 +1143,13 @@ async function routeUserMessage(text) {
     } else {
       await sendToJarvis(text);
     }
+  } else if (isReportRequest(text)) {
+    // No explicit /code prefix and no sticky CLI preference, but the
+    // phrasing clearly asks for a report - route to Claude Code (the
+    // general-purpose "heavy lifting" channel) so it can actually write
+    // the HTML file and hand back a clickable panel, which the plain chat
+    // providers have no file-write access to produce.
+    await sendToCli(text, CLI_CHANNELS['/code'], text);
   } else {
     await sendToJarvis(text);
   }
