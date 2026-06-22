@@ -5,11 +5,32 @@
   "main": "src/main/main.js",
   "scripts": {
     "start": "chcp 65001 >nul & electron .",
-    "test": "node --test \"tests/**/*.test.js\""
+    "test": "node --test \"tests/**/*.test.js\"",
+    "dist:win": "electron-builder --win",
+    "dist:linux": "electron-builder --linux"
   },
   "devDependencies": {
     "electron": "^31.0.0",
+    "electron-builder": "^26.15.3",
     "jsdom": "^24.0.0"
   },
-  "dependencies": {}
+  "dependencies": {},
+  "build": {
+    "appId": "ai.threeminutes.jarvis",
+    "productName": "Jarvis",
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": ["portable"]
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Utility"
+    }
+  }
 }

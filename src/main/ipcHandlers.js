@@ -1,5 +1,5 @@
 // src/main/ipcHandlers.js
-const { ipcMain, dialog, safeStorage } = require('electron');
+const { ipcMain, dialog, safeStorage, app } = require('electron');
 const path = require('node:path');
 const os = require('node:os');
 const fs = require('node:fs');
@@ -20,8 +20,16 @@ function createProviderFor(providerName, apiKey) {
   return createDeepseekProvider({ apiKey });
 }
 
+// In a packaged build, __dirname resolves inside the read-only app.asar
+// archive - data must instead live in Electron's writable per-user data
+// directory. In dev (unpackaged), keep using the project's own data/ folder
+// so existing local workflows and fixtures are unaffected.
+function getDataDir() {
+  return app.isPackaged ? app.getPath('userData') : path.join(path.resolve(__dirname, '../..'), 'data');
+}
+
 function getStatusFilePath() {
-  return path.join(path.resolve(__dirname, '../..'), 'data', 'jarvis-status.json');
+  return path.join(getDataDir(), 'jarvis-status.json');
 }
 
 const DEFAULT_USER_PROFILE = 'Robotics educator. Interests focus on technology, especially humanoid robots, drones, and robotics.';
@@ -51,7 +59,7 @@ function saveUserProfile(filePath, profileText, geolocation) {
 }
 
 function getHtmlPanelDir() {
-  return path.join(path.resolve(__dirname, '../..'), 'data', 'html-panels');
+  return path.join(getDataDir(), 'html-panels');
 }
 
 function ensureHtmlPanelDir() {
