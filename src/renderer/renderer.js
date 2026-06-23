@@ -1332,6 +1332,27 @@ function applyMuteCommand({ target, action }) {
 }
 
 async function routeUserMessage(text) {
+  // /html <path> - open HTML file directly without Claude delegation
+  if (text.toLowerCase().startsWith('/html ')) {
+    const pathMatch = text.slice(6).trim();
+    const path = pathMatch.startsWith('"') && pathMatch.endsWith('"')
+      ? pathMatch.slice(1, -1)
+      : pathMatch;
+    appendChatLine('You', text);
+    try {
+      const result = await window.jarvis.readHtmlPanel(path);
+      if (result?.ok) {
+        showPanel(result.html);
+        appendChatLine('Jarvis', `Displaying ${path}`);
+      } else {
+        appendChatLine('Jarvis', `I couldn't read that file, sir: ${result?.error || 'unknown error'}`);
+      }
+    } catch (err) {
+      appendChatLine('Jarvis', `I couldn't read that file, sir: ${err.message}`);
+    }
+    return;
+  }
+
   if (pendingAttachments.length > 0) {
     // Image attachments can only be read off disk by the CLI delegate
     // channels (Claude Code / Codex) - never the plain chat providers. An
