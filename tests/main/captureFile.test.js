@@ -62,3 +62,26 @@ test('pruneCaptures does nothing when under the cap', () => {
   pruneCaptures(dataDir, 30);
   assert.deepStrictEqual(fs.readdirSync(dir), ['00001.png']);
 });
+
+test('pruneCaptures defaults maxCount to 30 when given 0 or negative value', () => {
+  const dataDir = tempDataDir();
+  const dir = ensureCaptureDir(dataDir);
+  for (let i = 1; i <= 35; i++) {
+    fs.writeFileSync(path.join(dir, `${String(i).padStart(5, '0')}.png`), '');
+  }
+  pruneCaptures(dataDir, 0);
+  const remaining = fs.readdirSync(dir);
+  assert.strictEqual(remaining.length, 30);
+  assert.deepStrictEqual(remaining[0], '00006.png');
+  assert.deepStrictEqual(remaining[29], '00035.png');
+});
+
+test('getNextCapturePath with 5-digit ID overflow produces 100000.png', () => {
+  const dataDir = tempDataDir();
+  const dir = ensureCaptureDir(dataDir);
+  for (let i = 1; i <= 99999; i++) {
+    fs.writeFileSync(path.join(dir, `${String(i).padStart(5, '0')}.png`), '');
+  }
+  const filePath = getNextCapturePath(dataDir);
+  assert.strictEqual(path.basename(filePath), '100000.png');
+});

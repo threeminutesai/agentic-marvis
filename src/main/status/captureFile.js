@@ -1,5 +1,5 @@
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 
 function getCaptureDir(dataDir) {
   return path.join(dataDir, 'captures');
@@ -20,7 +20,12 @@ function listCaptureIds(dir) {
 }
 
 function getNextCapturePath(dataDir) {
-  const dir = ensureCaptureDir(dataDir);
+  let dir;
+  try {
+    dir = ensureCaptureDir(dataDir);
+  } catch (err) {
+    throw new Error(`Failed to ensure capture directory: ${err.message}`);
+  }
   const existingIds = listCaptureIds(dir);
   const nextId = String((existingIds.length ? Math.max(...existingIds) : 0) + 1).padStart(5, '0');
   return path.join(dir, `${nextId}.png`);
