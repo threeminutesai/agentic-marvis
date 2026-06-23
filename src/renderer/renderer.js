@@ -1336,16 +1336,16 @@ async function routeUserMessage(text) {
   // /html <path> - open HTML file directly without Claude delegation
   if (text.toLowerCase().startsWith('/html ')) {
     const pathMatch = text.slice(6).trim();
-    const path = pathMatch.startsWith('"') && pathMatch.endsWith('"')
+    const filePath = pathMatch.startsWith('"') && pathMatch.endsWith('"')
       ? pathMatch.slice(1, -1)
       : pathMatch;
     appendChatLine('You', text);
     try {
-      const result = await window.jarvis.readHtmlPanel(path);
+      const result = await window.jarvis.readExternalHtml(filePath);
       if (result?.ok) {
         showPanel(result.html);
-        currentHtmlPath = path; // Track for joint analysis with screenshots
-        appendChatLine('Jarvis', `Displaying ${path}`);
+        currentHtmlPath = filePath; // Track for joint analysis with screenshots
+        appendChatLine('Jarvis', `Displaying ${filePath}`);
       } else {
         appendChatLine('Jarvis', `I couldn't read that file, sir: ${result?.error || 'unknown error'}`);
       }

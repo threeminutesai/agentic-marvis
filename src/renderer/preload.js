@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld('jarvis', {
   updateProfile: (profileText, geolocation) => ipcRenderer.invoke('profile:update', profileText, geolocation),
   prepareHtmlPanel: () => ipcRenderer.invoke('html-panel:prepare'),
   readHtmlPanel: (filePath) => ipcRenderer.invoke('html-panel:read', filePath),
+  readExternalHtml: (filePath) => ipcRenderer.invoke('html:read-external', filePath),
   discardHtmlPanel: (filePath) => ipcRenderer.invoke('html-panel:discard', filePath),
   captureRegion: (rect) => ipcRenderer.invoke('panel:captureRegion', rect),
   readCapture: (filePath) => ipcRenderer.invoke('capture:read', filePath),

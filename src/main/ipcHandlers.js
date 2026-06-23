@@ -710,6 +710,28 @@ function registerIpcHandlers() {
     }
   });
 
+  // Read external HTML files (not restricted to html-panels folder)
+  ipcMain.handle('html:read-external', (_event, filePath) => {
+    try {
+      const resolved = path.resolve(filePath || '');
+      // Basic security: file must exist and be readable
+      if (!fs.existsSync(resolved)) {
+        return { ok: false, error: 'File not found.' };
+      }
+      const stat = fs.statSync(resolved);
+      if (!stat.isFile()) {
+        return { ok: false, error: 'Path is not a file.' };
+      }
+      const html = fs.readFileSync(resolved, 'utf8');
+      if (!html.trim()) {
+        return { ok: false, error: 'HTML file is empty.' };
+      }
+      return { ok: true, html, filePath };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
   // Captures a region of the main window's rendered pixels (not a DOM
   // screenshot - this rasterizes whatever capturePage() sees, so Chart.js
   // canvases and cross-origin news thumbnails in the status panel come
