@@ -186,6 +186,52 @@ body {
 }
 #chat-input:focus { outline: none; border-color: var(--ion); box-shadow: 0 0 0 3px var(--ion-soft); }
 
+#chat-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+#chat-attachments:empty {
+  display: none;
+}
+
+.attachment-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: rgba(100, 150, 255, 0.15);
+  border: 1px solid rgba(100, 150, 255, 0.4);
+  border-radius: 4px;
+  max-width: 120px;
+}
+
+.attachment-chip img {
+  width: 32px;
+  height: 32px;
+  border-radius: 2px;
+  object-fit: cover;
+}
+
+.attachment-chip-remove {
+  margin-left: 4px;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  padding: 0;
+  font-size: 14px;
+  font-weight: bold;
+  transition: color 0.2s;
+}
+
+.attachment-chip-remove:hover {
+  color: rgba(255, 255, 255, 0.9);
+}
+
 button {
   font-family: 'Orbitron', sans-serif;
   font-size: 11px;
@@ -928,6 +974,32 @@ button:active { transform: scale(0.97); }
   auto-rows: max-content;
 }
 
+#status-panel-capture-btn {
+  position: absolute;
+  top: 10px;
+  right: 50px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #e8edf5;
+  font-size: 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+#status-panel-capture-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+#status-panel-capture-btn:active {
+  background: rgba(255, 255, 255, 0.15);
+}
+
 #status-panel-dismiss-btn {
   display: none;
   position: absolute;
@@ -961,6 +1033,32 @@ button:active { transform: scale(0.97); }
 #app-body.panel-active #status-panel {
   overflow-y: auto;
   padding: 28px 32px;
+}
+
+#capture-select-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  cursor: crosshair;
+  background: none;
+  z-index: 10000;
+}
+
+#capture-select-box {
+  position: absolute;
+  border: 2px solid rgba(100, 150, 255, 0.8);
+  background: rgba(100, 150, 255, 0.1);
+  pointer-events: none;
+  box-shadow: inset 0 0 8px rgba(100, 150, 255, 0.2);
+}
+
+/* Dimmed surroundings while selecting */
+.capture-select-dimmed {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.3);
+  pointer-events: none;
 }
 
 #app-body.interaction-mode {
