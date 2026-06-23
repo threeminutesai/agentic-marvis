@@ -55,6 +55,21 @@ function isSafeHttpUrl(value) {
   }
 }
 
+// Channel resolution for image attachments - see docs/superpowers/specs/
+// 2026-06-23-panel-screenshot-capture-design.md. Only the CLI delegate
+// channels (Claude Code / Codex) can read a file off disk, so any send with
+// a pending attachment is forced through one of these, never the plain
+// chat providers.
+const ATTACHMENT_CLI_PREFIXES = ['/code', '/claude', '/codex'];
+
+function resolveAttachmentChannelKey(text, preferredCliChannel) {
+  const trimmed = String(text || '').trim();
+  const spaceIndex = trimmed.indexOf(' ');
+  const prefix = (spaceIndex === -1 ? trimmed : trimmed.slice(0, spaceIndex)).toLowerCase();
+  if (ATTACHMENT_CLI_PREFIXES.includes(prefix)) return prefix;
+  return `/${preferredCliChannel || 'code'}`;
+}
+
 function renderStatusBoard(rows) {
   const topCardTypes = ['Weather', 'Unread Emails', 'Urgent Emails'];
   const firstThree = topCardTypes
@@ -260,6 +275,7 @@ if (typeof module !== 'undefined') {
     renderResearchSummary,
     getNewsBriefingItems,
     isSafeHttpUrl,
+    resolveAttachmentChannelKey,
     NEWS_BRIEFING_ITEM_INTERVAL_MS,
     NEWS_BRIEFING_MAX_ITEMS,
   };

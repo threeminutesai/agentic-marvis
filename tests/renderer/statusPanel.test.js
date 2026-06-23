@@ -242,3 +242,28 @@ test('renderStatusBoard filters out rows with empty value except Email Content',
 
   delete global.document;
 });
+
+test('resolveAttachmentChannelKey honors an explicit /codex prefix over the preferred setting', () => {
+  const { mod } = loadStatusPanel('<div id="app-body"><div id="status-panel"></div></div>');
+  assert.strictEqual(mod.resolveAttachmentChannelKey('/codex fix the bug', 'code'), '/codex');
+  delete global.document;
+});
+
+test('resolveAttachmentChannelKey honors an explicit /claude prefix', () => {
+  const { mod } = loadStatusPanel('<div id="app-body"><div id="status-panel"></div></div>');
+  assert.strictEqual(mod.resolveAttachmentChannelKey('/claude look at this', 'codex'), '/claude');
+  delete global.document;
+});
+
+test('resolveAttachmentChannelKey falls back to the preferred CLI channel when no prefix is typed', () => {
+  const { mod } = loadStatusPanel('<div id="app-body"><div id="status-panel"></div></div>');
+  assert.strictEqual(mod.resolveAttachmentChannelKey('what is wrong with this chart', 'codex'), '/codex');
+  delete global.document;
+});
+
+test('resolveAttachmentChannelKey defaults to /code when no prefix and no preferred channel is set', () => {
+  const { mod } = loadStatusPanel('<div id="app-body"><div id="status-panel"></div></div>');
+  assert.strictEqual(mod.resolveAttachmentChannelKey('what is wrong with this chart', null), '/code');
+  assert.strictEqual(mod.resolveAttachmentChannelKey('', undefined), '/code');
+  delete global.document;
+});
