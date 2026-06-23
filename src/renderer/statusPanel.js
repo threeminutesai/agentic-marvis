@@ -94,20 +94,19 @@ function renderStatusBoard(rows) {
     // Items start hidden; renderer.js reveals each one in sync with the
     // avatar headline/voice cycle (see playNewsBriefingCycle /
     // playNewsBriefingWithVoice) instead of a fixed CSS animation-delay.
+    // No inline "details" link here - the whole card is clickable (see
+    // renderer.js's news-briefing-stack click handler) and opens a floating
+    // window with the full text and source link instead.
     const stackHtml = newsItems
       .map((item, i) => {
         const thumbHtml = isSafeHttpUrl(item.image)
           ? `<img class="news-briefing-thumb" src="${escapeHtml(item.image)}" alt="" />`
           : '';
-        const linkHtml = isSafeHttpUrl(item.link)
-          ? `<a class="news-briefing-link" href="${escapeHtml(item.link)}" target="_blank" rel="noopener noreferrer">details</a>`
-          : '';
         return `
-          <div class="news-briefing-item" id="news-briefing-item-${i}">
+          <div class="news-briefing-item" id="news-briefing-item-${i}" data-news-index="${i}">
             ${thumbHtml}
             <div class="news-briefing-content">
               <div class="news-briefing-text">${escapeHtml(item.detail || item.headline)}</div>
-              ${linkHtml}
             </div>
           </div>
         `;

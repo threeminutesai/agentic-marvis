@@ -13,17 +13,17 @@ When the format contains a `User Profile` entry, or a similarly named profile/ba
 
 ## Required First Step
 
-The target path depends on how Jarvis is running, because `src/main/ipcHandlers.js` (`getDataDir()`) resolves it differently:
+The target path is always a `data/` folder, resolved by `src/main/ipcHandlers.js` (`getDataDir()`):
 
 - **Running from source (dev)**: `data/jarvis-status.json` in the project root — read by `src/main/status/statusFile.js`, rendered by `src/renderer/statusPanel.js`.
-- **Running the packaged exe**: the project's `data/` folder is inside the read-only `app.asar` archive and is NOT used. The app instead reads/writes `jarvis-status.json` in Electron's per-user `userData` directory — on Windows that's `%APPDATA%\<productName>\jarvis-status.json` (`productName` is set in `package.json`'s `build` config, e.g. `Jarvis`), so typically `C:\Users\<user>\AppData\Roaming\Jarvis\jarvis-status.json`.
+- **Running the packaged exe**: the project's `data/` folder is inside the read-only `app.asar` archive and is NOT used. The portable exe instead reads/writes a `data/jarvis-status.json` folder placed next to the exe itself (e.g. `D:\Jarvis\data\jarvis-status.json` if the exe is at `D:\Jarvis\Jarvis.exe`) - not Electron's `userData` directory. `settings.json` and `html-panels/_template.html` live in that same `data/` folder, alongside `jarvis-status.json`, in both dev and the packaged exe - the app auto-creates all three with sane defaults on first launch (or regenerates any one of them if later found missing/empty), so dev and a packaged exe share the exact same layout.
 
-Ask the user (or check) whether they're running from source or the packaged exe before guessing the path — writing to `data/jarvis-status.json` while the packaged app is running has no effect, since that app never reads that file. If unsure, check both locations and prefer whichever one already exists.
+Ask the user (or check) whether they're running from source or the packaged exe before guessing the path — writing to the project's `data/jarvis-status.json` while a packaged exe elsewhere is running has no effect, since that app reads its own `data/` folder next to its exe. If unsure, ask where the exe is installed, or check both locations and prefer whichever one already exists.
 
 Read the target JSON path and preserve its existing field names, nesting, and data types. If no path or format can be determined at all (e.g. neither default file exists and the user names no alternative), ask before collecting data.
 
 Accept any of these as the format source:
-- An existing JSON file path to read and preserve (default: `data/jarvis-status.json` for dev, `%APPDATA%\Jarvis\jarvis-status.json` for the packaged exe on Windows)
+- An existing JSON file path to read and preserve (default: `data/jarvis-status.json` relative to the project root for dev, or relative to the exe's own folder for a packaged install)
 - A pasted JSON schema or sample object
 - A short description of required fields
 

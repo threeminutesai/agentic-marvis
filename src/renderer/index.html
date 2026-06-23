@@ -22,11 +22,11 @@
           <button id="audio-input-btn" type="button" title="Record voice input">Mic</button>
           <button id="send-btn" type="button" title="Send message">Send</button>
           <button id="mute-toggle-btn">Mute</button>
-          <div id="now-playing-widget" class="hidden">
-            <span id="now-playing-track"><span id="now-playing-track-text">&mdash;</span></span>
-            <div id="now-playing-controls">
-              <button id="now-playing-toggle-btn" type="button" title="Play/Pause music">Pause</button>
-              <button id="now-playing-skip-btn" type="button" title="Skip track">Skip</button>
+          <div id="now-playing-widget" class="now-playing-widget hidden">
+            <span class="now-playing-track"><span class="now-playing-track-text">&mdash;</span></span>
+            <div class="now-playing-controls">
+              <button class="now-playing-toggle-btn" type="button" title="Play/Pause music">Pause</button>
+              <button class="now-playing-skip-btn" type="button" title="Skip track">Skip</button>
             </div>
           </div>
           <button id="settings-btn">Settings</button>
@@ -36,6 +36,13 @@
           <div id="project-path-display">No project selected</div>
         </div>
         <div id="continue-section">
+          <div class="now-playing-widget hidden">
+            <span class="now-playing-track"><span class="now-playing-track-text">&mdash;</span></span>
+            <div class="now-playing-controls">
+              <button class="now-playing-toggle-btn" type="button" title="Play/Pause music">Pause</button>
+              <button class="now-playing-skip-btn" type="button" title="Skip track">Skip</button>
+            </div>
+          </div>
           <button id="continue-btn" type="button">Continue</button>
         </div>
       </div>
@@ -45,6 +52,70 @@
       </div>
     </div>
   </div>
+  <div id="news-detail-modal" class="hidden">
+    <div id="news-detail-backdrop"></div>
+    <div id="news-detail-window" role="dialog" aria-modal="true" aria-labelledby="news-detail-title">
+      <button id="news-detail-close-btn" type="button" title="Close" aria-label="Close">&times;</button>
+      <img id="news-detail-image" class="hidden" src="" alt="">
+      <h3 id="news-detail-title"></h3>
+      <p id="news-detail-text"></p>
+      <a id="news-detail-link" class="hidden" href="#" target="_blank" rel="noopener noreferrer">Read full article &#8599;</a>
+    </div>
+  </div>
+  <div id="welcome-modal" class="hidden" role="dialog" aria-modal="true">
+    <div class="welcome-content">
+      <div id="welcome-step-1" class="welcome-step">
+        <h1>Welcome to Jarvis</h1>
+        <p>Let's get you set up. You'll need an API key from one of these providers to get started:</p>
+        <div class="welcome-provider-choice">
+          <div class="provider-option" data-provider="gemini">
+            <h3>Google Gemini</h3>
+            <p>Free tier available. Get your key at <strong>ai.google.dev</strong></p>
+          </div>
+          <div class="provider-option" data-provider="deepseek">
+            <h3>DeepSeek</h3>
+            <p>Free trial credits. Get your key at <strong>platform.deepseek.com</strong></p>
+          </div>
+        </div>
+        <label>Your chosen provider: <select id="welcome-provider-select"><option value="gemini">Google Gemini</option><option value="deepseek">DeepSeek</option></select></label>
+        <label>API Key: <input id="welcome-api-key-input" type="password" placeholder="Paste your API key"></label>
+        <label><input id="welcome-elevenlabs-checkbox" type="checkbox"> Also set up ElevenLabs for natural voice (optional)</label>
+        <label class="welcome-elevenlabs-group hidden">ElevenLabs API Key: <input id="welcome-elevenlabs-key-input" type="password" placeholder="Get one at elevenlabs.io"></label>
+        <p class="welcome-hint">You can add more providers and configure other settings later in the Settings panel.</p>
+        <button id="welcome-step1-next-btn" type="button">Next</button>
+      </div>
+
+      <div id="welcome-step-2" class="welcome-step hidden">
+        <h2>Tell us about yourself</h2>
+        <p>This helps Jarvis personalize news and recommendations for you:</p>
+        <div class="welcome-profile-choice">
+          <div class="profile-option" data-profile="robotics">
+            <h3>🤖 Robotics Educator</h3>
+            <p>Technology, humanoid robots, drones</p>
+          </div>
+          <div class="profile-option" data-profile="developer">
+            <h3>💻 Software Developer</h3>
+            <p>Programming, software engineering, tech trends</p>
+          </div>
+          <div class="profile-option" data-profile="business">
+            <h3>📊 Business & Finance</h3>
+            <p>Markets, business strategy, economics</p>
+          </div>
+          <div class="profile-option" data-profile="custom">
+            <h3>✏️ Custom Profile</h3>
+            <p>Tell Jarvis what you're interested in</p>
+          </div>
+        </div>
+        <div id="welcome-custom-profile" class="welcome-custom-profile hidden">
+          <label>Your background & interests: <textarea id="welcome-profile-input" placeholder="E.g., Data scientist interested in machine learning and climate tech..."></textarea></label>
+          <label>Geolocation (optional): <input id="welcome-geolocation-input" type="text" placeholder="E.g., San Francisco"></label>
+        </div>
+        <button id="welcome-step2-back-btn" type="button">Back</button>
+        <button id="welcome-step2-finish-btn" type="button">Finish</button>
+      </div>
+    </div>
+  </div>
+
   <div id="settings-modal" class="hidden">
     <p id="setup-banner" class="hidden">Welcome, sir. Please add an API key to get started.</p>
     <label>AI Provider: <select id="provider-select"><option value="deepseek">DeepSeek</option><option value="gemini">Gemini</option></select></label>

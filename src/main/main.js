@@ -26,8 +26,14 @@ app.whenReady().then(() => {
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
     callback(permission === 'media');
   });
-  registerIpcHandlers();
+  try {
+    registerIpcHandlers();
+  } catch (err) {
+    console.error('[Main] Error registering IPC handlers:', err);
+  }
   createWindow();
+}).catch((err) => {
+  console.error('[Main] Error in app.whenReady():', err);
 });
 
 app.on('window-all-closed', () => {

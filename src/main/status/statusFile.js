@@ -1,5 +1,6 @@
 // src/main/status/statusFile.js
 const fs = require('node:fs');
+const path = require('node:path');
 
 const TEMPLATE_TYPES = [
   'Weather',
@@ -10,8 +11,28 @@ const TEMPLATE_TYPES = [
   'Email Content',
 ];
 
+// Regenerates the template when the file is missing OR found empty (empty
+// file, empty/non-array JSON) - a fresh exe placed in a new folder, or a
+// status file emptied out by hand, both end up with a usable default.
+function isEmptyStatusFile(filePath) {
+  let raw;
+  try {
+    raw = fs.readFileSync(filePath, 'utf8').trim();
+  } catch {
+    return true;
+  }
+  if (!raw) return true;
+  try {
+    const parsed = JSON.parse(raw);
+    return !Array.isArray(parsed) || parsed.length === 0;
+  } catch {
+    return true;
+  }
+}
+
 function ensureStatusFile(filePath) {
-  if (fs.existsSync(filePath)) return;
+  if (fs.existsSync(filePath) && !isEmptyStatusFile(filePath)) return;
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
   const rows = TEMPLATE_TYPES.map((type) => ({ type, value: '', detail: '' }));
   fs.writeFileSync(filePath, JSON.stringify(rows, null, 2));
 }

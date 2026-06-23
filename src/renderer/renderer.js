@@ -9,6 +9,7 @@ let isProcessingResponse = false;
 let shouldAbortResponse = false;
 let currentAvatarState = 'idle';
 let statusRows = [];
+let currentNewsBriefingItems = [];
 let activeOperationId = null;
 let audioRecorder = null;
 let audioChunks = [];
@@ -428,10 +429,22 @@ async function formatAssistantResponse(text) {
   return { reply: plainSummary, displayReply: text, html: null };
 }
 
+function isFirstRun(settings) {
+  const keys = settings.apiKeys || {};
+  return !keys.deepseek && !keys.gemini && !keys.elevenlabs;
+}
+
 async function init() {
   try {
     currentSettings = await window.jarvis.getSettings();
     populateSettingsForm(currentSettings);
+
+    if (isFirstRun(currentSettings)) {
+      onboarding = true;
+      document.getElementById('welcome-modal').classList.remove('hidden');
+      setupWelcomeModal();
+      return;
+    }
 
     try {
       const musicCatalog = await musicPanel.load();
@@ -441,14 +454,6 @@ async function init() {
       updateNowPlayingWidget();
     } catch (err) {
       console.log(`[Music] Failed to start scheduled playback: ${err.message}`);
-    }
-
-    if (!currentSettings.apiKeys?.[currentSettings.provider]) {
-      onboarding = true;
-      document.getElementById('setup-banner').classList.remove('hidden');
-      document.getElementById('settings-modal').classList.remove('hidden');
-      showAppScreen({ keepSettingsOpen: true });
-      return;
     }
 
     showAppScreen();
@@ -462,6 +467,123 @@ function updateAppClock() {
   const clockEl = document.getElementById('app-clock');
   if (!clockEl) return;
   clockEl.textContent = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+function setupWelcomeModal() {
+  let selectedProfile = null;
+  const PROFILE_TEMPLATES = {
+    robotics: 'Robotics educator. Interests focus on technology, especially humanoid robots, drones, and robotics.',
+    developer: 'Software developer. Interested in programming languages, software architecture, and emerging tech.',
+    business: 'Business professional. Interested in markets, finance, business strategy, and economics.',
+  };
+
+  // Step 1: API Key Setup
+  const providerSelect = document.getElementById('welcome-provider-select');
+  const elevenLabsCheckbox = document.getElementById('welcome-elevenlabs-checkbox');
+  const elevenLabsGroup = document.querySelector('.welcome-elevenlabs-group');
+  const step1NextBtn = document.getElementById('welcome-step1-next-btn');
+
+  elevenLabsCheckbox.addEventListener('change', () => {
+    if (elevenLabsCheckbox.checked) {
+      elevenLabsGroup.classList.remove('hidden');
+    } else {
+      elevenLabsGroup.classList.add('hidden');
+    }
+  });
+
+  step1NextBtn.addEventListener('click', async () => {
+    const provider = providerSelect.value;
+    const apiKey = document.getElementById('welcome-api-key-input').value.trim();
+
+    if (!apiKey) {
+      showTemporaryNotice('Please enter your API key.');
+      return;
+    }
+
+    const elevenLabsKey = elevenLabsCheckbox.checked
+      ? document.getElementById('welcome-elevenlabs-key-input').value.trim()
+      : '';
+
+    try {
+      currentSettings.apiKeys[provider] = apiKey;
+      if (elevenLabsKey) {
+        currentSettings.apiKeys.elevenlabs = elevenLabsKey;
+        currentSettings.elevenLabsVoiceId = '';
+      }
+      currentSettings.provider = provider;
+
+      document.getElementById('welcome-step-1').classList.add('hidden');
+      document.getElementById('welcome-step-2').classList.remove('hidden');
+    } catch (err) {
+      showTemporaryNotice(`Setup error: ${err.message}`);
+    }
+  });
+
+  // Step 2: Profile Selection
+  const profileOptions = document.querySelectorAll('.profile-option');
+  const customProfileInput = document.getElementById('welcome-custom-profile');
+  const step2BackBtn = document.getElementById('welcome-step2-back-btn');
+  const step2FinishBtn = document.getElementById('welcome-step2-finish-btn');
+
+  profileOptions.forEach((option) => {
+    option.addEventListener('click', () => {
+      profileOptions.forEach((o) => o.classList.remove('selected'));
+      option.classList.add('selected');
+      selectedProfile = option.dataset.profile;
+
+      if (selectedProfile === 'custom') {
+        customProfileInput.classList.remove('hidden');
+      } else {
+        customProfileInput.classList.add('hidden');
+      }
+    });
+  });
+
+  step2BackBtn.addEventListener('click', () => {
+    document.getElementById('welcome-step-2').classList.add('hidden');
+    document.getElementById('welcome-step-1').classList.remove('hidden');
+  });
+
+  step2FinishBtn.addEventListener('click', async () => {
+    if (!selectedProfile) {
+      showTemporaryNotice('Please select a profile.');
+      return;
+    }
+
+    try {
+      let profileText = '';
+      let geolocation = '';
+
+      if (selectedProfile === 'custom') {
+        profileText = document.getElementById('welcome-profile-input').value.trim();
+        geolocation = document.getElementById('welcome-geolocation-input').value.trim();
+      } else {
+        profileText = PROFILE_TEMPLATES[selectedProfile];
+      }
+
+      await window.jarvis.saveSettings(currentSettings);
+      await window.jarvis.updateProfile(profileText, geolocation);
+
+      currentSettings = await window.jarvis.getSettings();
+      populateSettingsForm(currentSettings);
+
+      document.getElementById('welcome-modal').classList.add('hidden');
+
+      try {
+        const musicCatalog = await musicPanel.load();
+        musicController.start(musicCatalog);
+        if (nowPlayingWidgetTimer) clearInterval(nowPlayingWidgetTimer);
+        nowPlayingWidgetTimer = setInterval(updateNowPlayingWidget, 5000);
+        updateNowPlayingWidget();
+      } catch (err) {
+        console.log(`[Music] Failed to start scheduled playback: ${err.message}`);
+      }
+
+      showAppScreen();
+    } catch (err) {
+      showTemporaryNotice(`Setup error: ${err.message}`);
+    }
+  });
 }
 
 function showAppScreen({ keepSettingsOpen = false } = {}) {
@@ -489,39 +611,45 @@ function buildSimpleGreeting(rows) {
   return selectRandomPhrase(category);
 }
 
+// The same now-playing widget is duplicated in two spots - the chat bar
+// (phase-3) and the briefing screen's continue-section, left of Continue -
+// so every lookup here updates/wires all instances by class, not a single id.
 function updateNowPlayingWidget() {
-  const widget = document.getElementById('now-playing-widget');
-  const trackLabel = document.getElementById('now-playing-track');
-  const trackText = document.getElementById('now-playing-track-text');
-  const toggleBtn = document.getElementById('now-playing-toggle-btn');
-  if (!widget || !trackLabel || !trackText || !toggleBtn) return;
+  const widgets = document.querySelectorAll('.now-playing-widget');
+  if (!widgets.length) return;
   const nowPlaying = musicController.getNowPlaying();
-  if (!nowPlaying) {
-    widget.classList.add('hidden');
-    return;
-  }
-  widget.classList.remove('hidden');
-  if (trackText.textContent !== nowPlaying.name) trackText.textContent = nowPlaying.name;
-  // Recomputed every tick, not just on name change: the very first call can
-  // run before web fonts finish loading, which would otherwise measure a
-  // narrower fallback-font width and permanently miss a real overflow.
-  trackLabel.classList.toggle('scrolling', trackText.scrollWidth > trackLabel.clientWidth);
-  toggleBtn.textContent = nowPlaying.isPaused ? 'Play' : 'Pause';
+  widgets.forEach((widget) => {
+    const trackLabel = widget.querySelector('.now-playing-track');
+    const trackText = widget.querySelector('.now-playing-track-text');
+    const toggleBtn = widget.querySelector('.now-playing-toggle-btn');
+    if (!trackLabel || !trackText || !toggleBtn) return;
+    if (!nowPlaying) {
+      widget.classList.add('hidden');
+      return;
+    }
+    widget.classList.remove('hidden');
+    if (trackText.textContent !== nowPlaying.name) trackText.textContent = nowPlaying.name;
+    // Recomputed every tick, not just on name change: the very first call can
+    // run before web fonts finish loading, which would otherwise measure a
+    // narrower fallback-font width and permanently miss a real overflow.
+    trackLabel.classList.toggle('scrolling', trackText.scrollWidth > trackLabel.clientWidth);
+    toggleBtn.textContent = nowPlaying.isPaused ? 'Play' : 'Pause';
+  });
 }
 
-document.getElementById('now-playing-toggle-btn')?.addEventListener('click', () => {
-  const nowPlaying = musicController.getNowPlaying();
-  if (nowPlaying?.isPaused) {
-    musicController.resume();
-  } else {
-    musicController.pause();
+document.addEventListener('click', (e) => {
+  if (e.target.closest('.now-playing-toggle-btn')) {
+    const nowPlaying = musicController.getNowPlaying();
+    if (nowPlaying?.isPaused) {
+      musicController.resume();
+    } else {
+      musicController.pause();
+    }
+    updateNowPlayingWidget();
+  } else if (e.target.closest('.now-playing-skip-btn')) {
+    musicController.skip();
+    updateNowPlayingWidget();
   }
-  updateNowPlayingWidget();
-});
-
-document.getElementById('now-playing-skip-btn')?.addEventListener('click', () => {
-  musicController.skip();
-  updateNowPlayingWidget();
 });
 
 // News Briefing stores parallel value[]/detail[] arrays (one headline +
@@ -638,12 +766,65 @@ function setAvatarHeadline(text) {
 }
 
 function revealNewsBriefingItem(index) {
-  document.getElementById(`news-briefing-item-${index}`)?.classList.add('revealed');
+  const el = document.getElementById(`news-briefing-item-${index}`);
+  if (!el) return;
+  el.classList.add('revealed');
+  // Follow the briefing as items reveal below the fold instead of leaving
+  // #status-panel scrolled to the top while new cards appear off-screen.
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function revealAllNewsBriefingItems(count) {
   for (let i = 0; i < count; i++) revealNewsBriefingItem(i);
 }
+
+function openNewsDetailModal(index) {
+  const item = currentNewsBriefingItems[index];
+  if (!item) return;
+  const modal = document.getElementById('news-detail-modal');
+  const titleEl = document.getElementById('news-detail-title');
+  const textEl = document.getElementById('news-detail-text');
+  const imageEl = document.getElementById('news-detail-image');
+  const linkEl = document.getElementById('news-detail-link');
+  if (!modal || !titleEl || !textEl || !imageEl || !linkEl) return;
+
+  titleEl.textContent = item.headline || '';
+  textEl.textContent = item.detail || item.headline || '';
+
+  if (isSafeHttpUrl(item.image)) {
+    imageEl.src = item.image;
+    imageEl.classList.remove('hidden');
+  } else {
+    imageEl.removeAttribute('src');
+    imageEl.classList.add('hidden');
+  }
+
+  if (isSafeHttpUrl(item.link)) {
+    linkEl.href = item.link;
+    linkEl.classList.remove('hidden');
+  } else {
+    linkEl.removeAttribute('href');
+    linkEl.classList.add('hidden');
+  }
+
+  modal.classList.remove('hidden');
+}
+
+function closeNewsDetailModal() {
+  document.getElementById('news-detail-modal')?.classList.add('hidden');
+}
+
+document.getElementById('status-panel')?.addEventListener('click', (e) => {
+  const item = e.target.closest('.news-briefing-item');
+  if (!item) return;
+  const index = Number(item.dataset.newsIndex);
+  if (!Number.isNaN(index)) openNewsDetailModal(index);
+});
+
+// Close on the close button, or on a click anywhere outside the floating
+// window (the backdrop covers everything except the window itself).
+document.getElementById('news-detail-close-btn')?.addEventListener('click', closeNewsDetailModal);
+document.getElementById('news-detail-backdrop')?.addEventListener('click', closeNewsDetailModal);
 
 // Fallback for when the briefing voice isn't due this round: cycles the
 // avatar headline and reveals each Latest News item together on a fixed
@@ -764,7 +945,12 @@ async function greetUser() {
     const briefing = avatarBriefing || buildBriefing(statusRows);
     const briefingDisplay = buildBriefingDisplay(statusRows, briefing);
     const newsBriefingRow = statusRows.find((row) => row.type === 'News Briefing');
-    const newsItems = avatarBriefing ? [] : getNewsBriefingItems(newsBriefingRow);
+    // Animate/voice-sync per item whenever per-item array data exists, even
+    // if an Avatar Briefing summary is also present (the agentic-jarvis-brief
+    // skill always writes both) - the legacy reveal-all-at-once branch below
+    // is only for older status files with no News Briefing array data.
+    const newsItems = getNewsBriefingItems(newsBriefingRow);
+    currentNewsBriefingItems = newsItems;
     const frequency = currentSettings?.briefingVoiceFrequency || '1h';
     const lastBriefingVoiceAt = currentSettings?.lastBriefingVoiceAt || null;
     const voiceDue = !isMuted && shouldTriggerBriefingVoice(frequency, lastBriefingVoiceAt);
@@ -803,7 +989,7 @@ async function greetUser() {
     // Show Continue button right away; don't make the user wait for voice playback to finish
     const continueSection = document.getElementById('continue-section');
     if (continueSection) {
-      continueSection.style.display = 'block';
+      continueSection.style.display = 'flex';
     }
     if (voiceDue && currentSettings) {
       currentSettings.lastBriefingVoiceAt = new Date().toISOString();

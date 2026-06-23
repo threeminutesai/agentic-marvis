@@ -21,20 +21,19 @@ function slugifyGreeting(text) {
   return slug || 'greeting';
 }
 
-function getCachedVoicePath({ homeDir, voiceId, text, category = 'greetings' }) {
+function getCachedVoicePath({ cacheDir, voiceId, text, category = 'greetings' }) {
   const voiceCacheKey = voiceId || DEFAULT_VOICE_CACHE_KEY;
   const categoryKey = String(category || 'general').replace(/[^a-z0-9_-]/gi, '-');
   return path.join(
-    homeDir,
-    '.jarvis-voices',
+    cacheDir,
     categoryKey,
     voiceCacheKey,
     `${hashVoiceText(text)}.base64`
   );
 }
 
-function getGreetingVoicePath({ homeDir, voiceId, text }) {
-  return getCachedVoicePath({ homeDir, voiceId, text, category: 'greetings' });
+function getGreetingVoicePath({ cacheDir, voiceId, text }) {
+  return getCachedVoicePath({ cacheDir, voiceId, text, category: 'greetings' });
 }
 
 function readSavedGreeting({ fsImpl, voicePath }) {
@@ -46,13 +45,13 @@ function readSavedGreeting({ fsImpl, voicePath }) {
 async function synthesizeGreetingWithCache({
   text,
   settings,
-  homeDir,
+  cacheDir,
   fsImpl,
   createProvider,
   category = 'greetings',
 }) {
   const voiceId = settings.elevenLabsVoiceId || '';
-  const voicePath = getCachedVoicePath({ homeDir, voiceId, text, category });
+  const voicePath = getCachedVoicePath({ cacheDir, voiceId, text, category });
 
   try {
     const savedAudio = readSavedGreeting({ fsImpl, voicePath });

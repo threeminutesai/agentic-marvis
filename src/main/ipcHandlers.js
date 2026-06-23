@@ -10,7 +10,9 @@ const { createElevenLabsProvider } = require('./providers/elevenLabsProvider');
 const { createElevenLabsSttProvider } = require('./providers/elevenLabsSttProvider');
 const { delegateTask } = require('./claudeCode/delegate');
 const { delegateCodexTask } = require('./codex/delegate');
-const { readStatusRows } = require('./status/statusFile');
+const { readStatusRows, ensureStatusFile } = require('./status/statusFile');
+const { DEFAULT_TEMPLATE_HTML } = require('./status/htmlPanelTemplate');
+const { DEFAULT_MUSIC_TRACKS, DEFAULT_MUSIC_SCHEDULE } = require('./music/defaultMusic');
 const { synthesizeGreetingWithCache } = require('./voice/greetingVoiceCache');
 const { createMusicLibraryStore, SUPPORTED_EXTENSIONS } = require('./music');
 const { pathToFileURL } = require('node:url');
@@ -21,15 +23,227 @@ function createProviderFor(providerName, apiKey) {
 }
 
 // In a packaged build, __dirname resolves inside the read-only app.asar
-// archive - data must instead live in Electron's writable per-user data
-// directory. In dev (unpackaged), keep using the project's own data/ folder
-// so existing local workflows and fixtures are unaffected.
+// archive, so data lives in a "data" folder next to the exe instead -
+// portable, no install/userData wandering. process.execPath is always the
+// actual exe being run, whether it's a launcher wrapper or direct invoke;
+// PORTABLE_EXECUTABLE_DIR is a fallback if the launcher sets it. In dev
+// (unpackaged), keep using the project's own data/ folder, which already has
+// this exact layout - jarvis-status.json, settings.json,
+// html-panels/_template.html - so dev and a packaged exe are interchangeable.
 function getDataDir() {
-  return app.isPackaged ? app.getPath('userData') : path.join(path.resolve(__dirname, '../..'), 'data');
+  if (!app.isPackaged) return path.join(path.resolve(__dirname, '../..'), 'data');
+  let exeDir = process.env.PORTABLE_EXECUTABLE_DIR;
+  if (!exeDir && process.execPath) {
+    exeDir = path.dirname(process.execPath);
+  }
+  if (!exeDir) {
+    exeDir = path.dirname(app.getPath('exe'));
+  }
+  return path.join(exeDir, 'data');
 }
 
 function getStatusFilePath() {
   return path.join(getDataDir(), 'jarvis-status.json');
+}
+
+function getSettingsFilePath() {
+  return path.join(getDataDir(), 'settings.json');
+}
+
+function getMusicDir() {
+  return path.join(getDataDir(), 'music');
+}
+
+function getMusicLibraryFilePath() {
+  return path.join(getDataDir(), 'music-library.json');
+}
+
+function getVoiceCacheDir() {
+  return path.join(getDataDir(), 'voice-cache');
+}
+
+// One-time migration for voice cache from the legacy ~/.jarvis-voices location
+// to the portable voice-cache/ folder next to the exe (or in data/ for dev).
+// Dev mode only — packaged builds start with empty voice-cache/.
+function migrateLegacyVoiceCacheIfNeeded(newVoiceCacheDir) {
+  fs.mkdirSync(newVoiceCacheDir, { recursive: true });
+  if (app.isPackaged) return;
+
+  const legacyVoiceCacheDir = path.join(os.homedir(), '.jarvis-voices');
+  if (!fs.existsSync(legacyVoiceCacheDir)) return;
+
+  try {
+    const categories = fs.readdirSync(legacyVoiceCacheDir);
+    for (const category of categories) {
+      const srcCategoryDir = path.join(legacyVoiceCacheDir, category);
+      const destCategoryDir = path.join(newVoiceCacheDir, category);
+      if (!fs.existsSync(destCategoryDir)) {
+        fs.cpSync(srcCategoryDir, destCategoryDir, { recursive: true });
+      }
+    }
+    console.log('[TTS] Migrated voice cache from legacy location');
+  } catch (err) {
+    console.log(`[TTS] Voice cache migration failed: ${err.message}`);
+  }
+}
+
+// One-time migration for music files from the legacy ~/.jarvis-music location
+// to the portable music/ folder next to the exe (or in data/ for dev).
+function migrateLegacyMusicFilesIfNeeded(newMusicDir) {
+  fs.mkdirSync(newMusicDir, { recursive: true });
+  const legacyMusicDir = path.join(os.homedir(), '.jarvis-music');
+  if (!fs.existsSync(legacyMusicDir)) return;
+
+  try {
+    const files = fs.readdirSync(legacyMusicDir);
+    for (const file of files) {
+      const src = path.join(legacyMusicDir, file);
+      const dest = path.join(newMusicDir, file);
+      if (!fs.existsSync(dest)) {
+        const stat = fs.statSync(src);
+        if (stat.isFile()) {
+          fs.copyFileSync(src, dest);
+        } else if (stat.isDirectory()) {
+          fs.cpSync(src, dest, { recursive: true });
+        }
+      }
+    }
+  } catch (err) {
+    console.log(`[Music] Migration from legacy location failed: ${err.message}`);
+  }
+}
+
+// Initialize music library based on available tracks in the music folder.
+// If music folder is empty, the library stays empty. If pre-packaged tracks exist,
+// they're detected and the default schedule is activated.
+function initializeMusicLibraryIfNeeded(musicDir, musicLibraryFilePath) {
+  fs.mkdirSync(musicDir, { recursive: true });
+
+  // Check if music library already exists
+  if (fs.existsSync(musicLibraryFilePath)) {
+    try {
+      const existing = JSON.parse(fs.readFileSync(musicLibraryFilePath, 'utf8'));
+      if (existing.tracks && existing.tracks.length > 0) {
+        return;
+      }
+    } catch {
+      // Continue with initialization if file is corrupt
+    }
+  }
+
+  // Detect available music tracks (pre-packaged in data/music/)
+  const availableTracks = [];
+  for (const trackTemplate of DEFAULT_MUSIC_TRACKS) {
+    const trackPath = path.join(musicDir, trackTemplate.fileName);
+    if (fs.existsSync(trackPath)) {
+      availableTracks.push(trackTemplate);
+    }
+  }
+
+  // Only create library if tracks are present
+  if (availableTracks.length > 0) {
+    const defaultLibrary = {
+      tracks: availableTracks,
+      playlists: [],
+      schedule: DEFAULT_MUSIC_SCHEDULE,
+    };
+    fs.writeFileSync(musicLibraryFilePath, JSON.stringify(defaultLibrary, null, 2));
+    console.log(`[Music] Initialized music library with ${availableTracks.length} pre-packaged tracks`);
+  }
+}
+
+// One-time migration for dev machines that already have a pre-existing
+// ~/.jarvis-settings.json from before settings.json moved into the
+// data/ folder - copies it in instead of losing local dev config (API keys,
+// voice settings, etc.). Packaged builds skip this and start with defaults
+// instead, prompting the user to set up their own keys via the welcome panel.
+// Ensure music library has individual playlists per track and schedule
+function ensureDataFilesExist(dataDir) {
+  fs.mkdirSync(dataDir, { recursive: true });
+
+  const musicLibraryPath = path.join(dataDir, 'music-library.json');
+  if (!fs.existsSync(musicLibraryPath)) {
+    try {
+      // Copy the bundled royalty-free sample tracks into data/music/ so the
+      // fileName each DEFAULT_MUSIC_TRACKS entry references actually exists
+      // on disk (music-library.json alone is just metadata).
+      const musicDir = path.join(dataDir, 'music');
+      fs.mkdirSync(musicDir, { recursive: true });
+      const sampleMusicDir = path.join(__dirname, 'assets', 'sample-music');
+      for (const t of DEFAULT_MUSIC_TRACKS) {
+        const src = path.join(sampleMusicDir, t.fileName);
+        const dest = path.join(musicDir, t.fileName);
+        if (!fs.existsSync(dest) && fs.existsSync(src)) {
+          fs.copyFileSync(src, dest);
+        }
+      }
+
+      // One playlist per weekday slot (single track each), plus one combined
+      // weekend playlist holding both weekend tracks (played all day Sat/Sun).
+      // Playlist names use the slot id (early-morning, morning, ...) so the
+      // Edit Playlist dropdown reads as a schedule slot, not a song title.
+      const weekdayTrackIds = ['early-morning', 'morning', 'afternoon', 'evening', 'mid-night'];
+      const weekendTrackIds = ['weekend-chill', 'weekend-work'];
+      const playlists = [
+        ...DEFAULT_MUSIC_TRACKS
+          .filter((t) => weekdayTrackIds.includes(t.id))
+          .map((t) => ({ id: `pl_${t.id}`, name: t.id, trackIds: [t.id] })),
+        { id: 'pl_weekend', name: 'weekend', trackIds: weekendTrackIds },
+      ];
+
+      // Build schedule keyed by full day name x camelCase bucket, matching
+      // the schema musicPanel.js / musicSchedule.js expect (see DAY_NAMES /
+      // BUCKET_KEYS in src/renderer/voice/musicSchedule.js).
+      const WEEKDAY_BUCKETS = {
+        earlyMorning: 'pl_early-morning',
+        morning: 'pl_morning',
+        afternoon: 'pl_afternoon',
+        evening: 'pl_evening',
+        midnight: 'pl_mid-night',
+      };
+      const WEEKEND_BUCKETS = {
+        earlyMorning: 'pl_weekend',
+        morning: 'pl_weekend',
+        afternoon: 'pl_weekend',
+        evening: 'pl_weekend',
+        midnight: 'pl_weekend',
+      };
+      const schedule = {
+        monday: { ...WEEKDAY_BUCKETS },
+        tuesday: { ...WEEKDAY_BUCKETS },
+        wednesday: { ...WEEKDAY_BUCKETS },
+        thursday: { ...WEEKDAY_BUCKETS },
+        friday: { ...WEEKDAY_BUCKETS },
+        saturday: { ...WEEKEND_BUCKETS },
+        sunday: { ...WEEKEND_BUCKETS },
+      };
+
+      const defaultLibrary = {
+        tracks: DEFAULT_MUSIC_TRACKS.map((t) => ({
+          id: t.id,
+          fileName: t.fileName,
+          title: t.fileName,
+          artist: t.artist,
+          duration: t.duration || 0,
+        })),
+        playlists,
+        schedule,
+      };
+      fs.writeFileSync(musicLibraryPath, JSON.stringify(defaultLibrary, null, 2));
+    } catch (err) {
+      console.error('[Init] Failed to create music-library.json:', err.message);
+    }
+  }
+}
+
+function copyLegacySettingsFileIfNeeded(filePath) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  if (fs.existsSync(filePath)) return;
+  if (app.isPackaged) return;
+  const legacyPath = path.join(os.homedir(), '.jarvis-settings.json');
+  if (fs.existsSync(legacyPath)) {
+    fs.copyFileSync(legacyPath, filePath);
+  }
 }
 
 const DEFAULT_USER_PROFILE = 'Robotics educator. Interests focus on technology, especially humanoid robots, drones, and robotics.';
@@ -38,6 +252,20 @@ const DEFAULT_USER_PROFILE_DETAIL = 'Geolocation: Bayan Lepas';
 function ensureUserProfileRow(filePath, rows) {
   const existing = rows.find((row) => row.type === 'User Profile');
   if (existing && existing.value) return { rows, wasDefaulted: false };
+
+  // For packaged builds (fresh installs), leave User Profile empty until user completes onboarding.
+  // For dev builds, use sensible defaults to avoid re-configuring every time.
+  if (app.isPackaged) {
+    if (!existing) {
+      const profileRow = { type: 'User Profile', value: '', detail: '' };
+      const updatedRows = [...rows, profileRow];
+      fs.writeFileSync(filePath, JSON.stringify(updatedRows, null, 2));
+      return { rows: updatedRows, wasDefaulted: true };
+    }
+    return { rows, wasDefaulted: false };
+  }
+
+  // Dev mode: add default profile if missing.
   const profileRow = { type: 'User Profile', value: DEFAULT_USER_PROFILE, detail: existing?.detail || DEFAULT_USER_PROFILE_DETAIL };
   const updatedRows = existing
     ? rows.map((row) => (row.type === 'User Profile' ? profileRow : row))
@@ -68,9 +296,21 @@ function ensureHtmlPanelDir() {
   return dir;
 }
 
+// Regenerates _template.html when missing or emptied out, same "found
+// empty" rule as ensureStatusFile, so delegated report tasks always have a
+// style/structure reference to match instead of silently losing it.
 function getHtmlPanelTemplatePath() {
-  const templatePath = path.join(getHtmlPanelDir(), '_template.html');
-  return fs.existsSync(templatePath) ? templatePath : null;
+  const templatePath = path.join(ensureHtmlPanelDir(), '_template.html');
+  let needsTemplate = !fs.existsSync(templatePath);
+  if (!needsTemplate) {
+    try {
+      needsTemplate = !fs.readFileSync(templatePath, 'utf8').trim();
+    } catch {
+      needsTemplate = true;
+    }
+  }
+  if (needsTemplate) fs.writeFileSync(templatePath, DEFAULT_TEMPLATE_HTML);
+  return templatePath;
 }
 
 function listHtmlPanelIds(dir) {
@@ -129,13 +369,44 @@ function copyLegacyStatusFileIfNeeded(filePath) {
 }
 
 function registerIpcHandlers() {
+  console.log('[Init] Starting registerIpcHandlers');
+
+  // Check & generate the data/ folder next to the exe (or the project's
+  // data/ folder in dev) on every launch: jarvis-status.json, settings.json,
+  // and html-panels/_template.html all get created with sane defaults the
+  // first time, or regenerated if any of them is later found missing/empty.
+  try {
+    console.log('[Init] Getting data directory...');
+    const dataDir = getDataDir();
+    console.log('[Init] Data dir:', dataDir);
+    fs.mkdirSync(dataDir, { recursive: true });
+    console.log('[Init] Data dir created');
+    ensureDataFilesExist(dataDir);
+    console.log('[Init] Data files ensured');
+  } catch (err) {
+    console.error('[Init] Error in initialization:', err);
+  }
+
+  const settingsFilePath = getSettingsFilePath();
+  copyLegacySettingsFileIfNeeded(settingsFilePath);
   const settingsStore = createSettingsStore({
-    filePath: path.join(os.homedir(), '.jarvis-settings.json'),
+    filePath: settingsFilePath,
     crypto: safeStorage,
   });
-  const musicDir = path.join(os.homedir(), '.jarvis-music');
+
+  const statusFilePath = getStatusFilePath();
+  copyLegacyStatusFileIfNeeded(statusFilePath);
+  ensureStatusFile(statusFilePath);
+  getHtmlPanelTemplatePath();
+
+  const musicDir = getMusicDir();
+  const musicLibraryFilePath = getMusicLibraryFilePath();
+  const voiceCacheDir = getVoiceCacheDir();
+  migrateLegacyMusicFilesIfNeeded(musicDir);
+  initializeMusicLibraryIfNeeded(musicDir, musicLibraryFilePath);
+  migrateLegacyVoiceCacheIfNeeded(voiceCacheDir);
   const musicStore = createMusicLibraryStore({
-    filePath: path.join(os.homedir(), '.jarvis-music-library.json'),
+    filePath: musicLibraryFilePath,
     musicDir,
     sampleDir: path.join(__dirname, '..', 'assets', 'sample-music'),
   });
@@ -177,6 +448,34 @@ function registerIpcHandlers() {
       return { ok: true };
     } catch (err) {
       return { ok: false, error: `I couldn't save your settings, sir: ${err.message}` };
+    }
+  });
+
+  ipcMain.handle('profile:update', (_event, profileText, geolocation) => {
+    try {
+      const statusFilePath = getStatusFilePath();
+      const rows = readStatusRows(statusFilePath);
+      const updated = rows.map((row) => {
+        if (row.type === 'User Profile') {
+          return {
+            ...row,
+            value: profileText,
+            detail: geolocation ? `Geolocation: ${geolocation}` : '',
+          };
+        }
+        return row;
+      });
+      if (!updated.some((r) => r.type === 'User Profile')) {
+        updated.push({
+          type: 'User Profile',
+          value: profileText,
+          detail: geolocation ? `Geolocation: ${geolocation}` : '',
+        });
+      }
+      fs.writeFileSync(statusFilePath, JSON.stringify(updated, null, 2));
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: `Couldn't save profile, sir: ${err.message}` };
     }
   });
 
@@ -258,7 +557,7 @@ function registerIpcHandlers() {
     return synthesizeGreetingWithCache({
       text,
       settings,
-      homeDir: os.homedir(),
+      cacheDir: voiceCacheDir,
       fsImpl: fs,
       createProvider: createElevenLabsProvider,
     });
@@ -269,7 +568,7 @@ function registerIpcHandlers() {
     return synthesizeGreetingWithCache({
       text,
       settings,
-      homeDir: os.homedir(),
+      cacheDir: voiceCacheDir,
       fsImpl: fs,
       createProvider: createElevenLabsProvider,
       category: category || 'general',

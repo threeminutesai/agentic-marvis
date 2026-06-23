@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld('jarvis', {
   deleteMusicTrack: (trackId) => ipcRenderer.invoke('music:deleteTrack', trackId),
   getStatus: () => ipcRenderer.invoke('status:get'),
   saveUserProfile: (profileText, geolocation) => ipcRenderer.invoke('status:saveUserProfile', { profileText, geolocation }),
+  updateProfile: (profileText, geolocation) => ipcRenderer.invoke('profile:update', profileText, geolocation),
   prepareHtmlPanel: () => ipcRenderer.invoke('html-panel:prepare'),
   readHtmlPanel: (filePath) => ipcRenderer.invoke('html-panel:read', filePath),
   discardHtmlPanel: (filePath) => ipcRenderer.invoke('html-panel:discard', filePath),

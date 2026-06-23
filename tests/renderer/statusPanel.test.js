@@ -154,7 +154,7 @@ test('renderStatusBoard renders compact top cards, email content, and latest new
   delete global.document;
 });
 
-test('renderStatusBoard renders a news thumbnail and "details" link, and drops unsafe URLs', () => {
+test('renderStatusBoard renders a news thumbnail with its index, and drops unsafe image URLs', () => {
   const { mod } = loadStatusPanel('<div id="app-body"><div id="status-panel"></div></div>');
 
   const html = mod.renderStatusBoard([
@@ -168,9 +168,14 @@ test('renderStatusBoard renders a news thumbnail and "details" link, and drops u
   ]);
 
   assert.match(html, /<img class="news-briefing-thumb" src="https:\/\/example\.com\/thumb\.jpg"/);
-  assert.match(html, /<a class="news-briefing-link" href="https:\/\/example\.com\/article"[^>]*>details<\/a>/);
+  // Cards no longer render an inline link/href - the whole card is clickable
+  // (wired up in renderer.js via data-news-index) and opens a floating
+  // window with the full text and source link instead.
+  assert.match(html, /data-news-index="0"/);
+  assert.match(html, /data-news-index="1"/);
   assert.doesNotMatch(html, /javascript:alert/);
   assert.doesNotMatch(html, /not-a-url/);
+  assert.doesNotMatch(html, /href=/);
 
   delete global.document;
 });

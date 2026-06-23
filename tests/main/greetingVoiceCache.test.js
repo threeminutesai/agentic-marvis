@@ -27,29 +27,29 @@ test('hashVoiceText creates stable five-digit numeric cache IDs', () => {
 });
 
 test('getGreetingVoicePath scopes saved greetings by selected voice', () => {
-  const homeDir = 'C:\\Users\\Test';
+  const cacheDir = 'C:\\data\\voice-cache';
   const voicePath = getGreetingVoicePath({
-    homeDir,
+    cacheDir,
     voiceId: 'voice-123',
     text: 'Welcome back, sir.',
   });
 
-  assert.ok(voicePath.endsWith(path.join('.jarvis-voices', 'greetings', 'voice-123', `${hashVoiceText('Welcome back, sir.')}.base64`)));
+  assert.ok(voicePath.endsWith(path.join('greetings', 'voice-123', `${hashVoiceText('Welcome back, sir.')}.base64`)));
 });
 
 test('getCachedVoicePath scopes saved audio by category and numeric cache ID', () => {
   const voicePath = getCachedVoicePath({
-    homeDir: 'C:\\Users\\Test',
+    cacheDir: 'C:\\data\\voice-cache',
     voiceId: '',
     category: 'processing',
     text: 'Working on it',
   });
 
-  assert.ok(voicePath.endsWith(path.join('.jarvis-voices', 'processing', 'default', `${hashVoiceText('Working on it')}.base64`)));
+  assert.ok(voicePath.endsWith(path.join('processing', 'default', `${hashVoiceText('Working on it')}.base64`)));
 });
 
 test('synthesizeGreetingWithCache saves first greeting audio and reuses it next time', async () => {
-  const homeDir = tempHomeDir();
+  const cacheDir = tempHomeDir();
   const settings = {
     elevenLabsVoiceId: 'custom-voice',
     apiKeys: { elevenlabs: 'el-test' },
@@ -69,14 +69,14 @@ test('synthesizeGreetingWithCache saves first greeting audio and reuses it next 
   const first = await synthesizeGreetingWithCache({
     text: 'Welcome back, sir.',
     settings,
-    homeDir,
+    cacheDir,
     fsImpl: fs,
     createProvider,
   });
   const second = await synthesizeGreetingWithCache({
     text: 'Welcome back, sir.',
     settings,
-    homeDir,
+    cacheDir,
     fsImpl: fs,
     createProvider,
   });
@@ -90,7 +90,7 @@ test('synthesizeGreetingWithCache saves first greeting audio and reuses it next 
 });
 
 test('synthesizeGreetingWithCache uses provider default voice when no custom voice is selected', async () => {
-  const homeDir = tempHomeDir();
+  const cacheDir = tempHomeDir();
   let capturedVoiceId = 'not-called';
   const createProvider = ({ voiceId }) => {
     capturedVoiceId = voiceId;
@@ -105,7 +105,7 @@ test('synthesizeGreetingWithCache uses provider default voice when no custom voi
       elevenLabsVoiceId: '',
       apiKeys: { elevenlabs: 'el-test' },
     },
-    homeDir,
+    cacheDir,
     fsImpl: fs,
     createProvider,
   });
@@ -113,7 +113,7 @@ test('synthesizeGreetingWithCache uses provider default voice when no custom voi
   assert.strictEqual(result.ok, true);
   assert.strictEqual(result.reused, false);
   assert.strictEqual(capturedVoiceId, undefined);
-  assert.ok(result.voicePath.endsWith(path.join('.jarvis-voices', 'greetings', 'default', `${hashVoiceText('Good evening, sir.')}.base64`)));
+  assert.ok(result.voicePath.endsWith(path.join('greetings', 'default', `${hashVoiceText('Good evening, sir.')}.base64`)));
 });
 
 test('synthesizeGreetingWithCache falls back without an ElevenLabs key', async () => {
@@ -121,7 +121,7 @@ test('synthesizeGreetingWithCache falls back without an ElevenLabs key', async (
   const result = await synthesizeGreetingWithCache({
     text: 'Hello, sir.',
     settings: { elevenLabsVoiceId: '', apiKeys: { elevenlabs: '' } },
-    homeDir: tempHomeDir(),
+    cacheDir: tempHomeDir(),
     fsImpl: fs,
     createProvider: () => {
       providerCreated = true;

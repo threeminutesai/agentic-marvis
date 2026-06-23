@@ -32,12 +32,17 @@ function createMusicLibraryStore({ filePath, musicDir, sampleDir, fsImpl = fs })
   // feature has something to play immediately instead of an empty Library.
   // Only fires once - once a catalog file exists, this is never called
   // again, even if the user later deletes every track themselves.
+  // Skipped for packaged builds (pre-packaged music already in music-library.json).
   function seedFromSamples() {
     const catalog = createEmptyCatalog();
     if (!sampleDir || !fsImpl.existsSync(sampleDir)) return catalog;
     fsImpl.mkdirSync(musicDir, { recursive: true });
     const sampleFiles = fsImpl.readdirSync(sampleDir)
       .filter((name) => SUPPORTED_EXTENSIONS.includes(path.extname(name).toLowerCase()));
+    // Skip seeding if sample files would overwrite pre-packaged tracks
+    if (!sampleFiles.length) return catalog;
+    const existingFiles = fsImpl.readdirSync(musicDir).filter((n) => !n.startsWith('trk_'));
+    if (existingFiles.length > 0) return catalog;
     const trackIds = [];
     for (const fileName of sampleFiles) {
       try {
