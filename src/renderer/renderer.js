@@ -1395,7 +1395,7 @@ async function sendTextFromInput() {
   if (isBusy) return;
   const input = document.getElementById('chat-input');
   const text = input.value.trim();
-  if (!text) return;
+  if (!text && !pendingAttachments.length) return;
   input.value = '';
   isBusy = true;
   shouldAbortResponse = false;
