@@ -26,6 +26,7 @@ let appClockTimer = null;
 // CLI-delegated message. See docs/superpowers/specs/
 // 2026-06-23-panel-screenshot-capture-design.md.
 let pendingAttachments = [];
+let currentHtmlPath = null; // Track HTML file currently displayed for joint analysis with screenshots
 
 // Capture drag-to-select state.
 let captureSelectMode = false;
@@ -1343,6 +1344,7 @@ async function routeUserMessage(text) {
       const result = await window.jarvis.readHtmlPanel(path);
       if (result?.ok) {
         showPanel(result.html);
+        currentHtmlPath = path; // Track for joint analysis with screenshots
         appendChatLine('Jarvis', `Displaying ${path}`);
       } else {
         appendChatLine('Jarvis', `I couldn't read that file, sir: ${result?.error || 'unknown error'}`);
@@ -1362,6 +1364,10 @@ async function routeUserMessage(text) {
     const channel = explicitChannel || CLI_CHANNELS[`/${currentSettings.preferredCliChannel || 'code'}`];
     const taskText = text || 'Take a look at the attached screenshot(s).';
     const lines = [taskText];
+    // Include HTML file path if currently displayed (for joint analysis)
+    if (currentHtmlPath) {
+      lines.push(`[html] ${currentHtmlPath}`);
+    }
     for (const att of pendingAttachments) {
       lines.push(`[screenshot] ${att.filePath}`);
     }
