@@ -1503,8 +1503,8 @@ document.getElementById('status-panel-capture-btn').addEventListener('click', ()
 
     const currentX = e.clientX;
     const currentY = e.clientY;
-    const left = Math.min(captureSelectStartX, currentX);
-    const top = Math.min(captureSelectStartY, currentY);
+    const left = Math.min(captureSelectStartX, currentX) - panelRect.left;
+    const top = Math.min(captureSelectStartY, currentY) - panelRect.top;
     const width = Math.abs(currentX - captureSelectStartX);
     const height = Math.abs(currentY - captureSelectStartY);
 
@@ -1531,8 +1531,8 @@ document.getElementById('status-panel-capture-btn').addEventListener('click', ()
 
     const currentX = e.clientX;
     const currentY = e.clientY;
-    const left = Math.min(captureSelectStartX, currentX);
-    const top = Math.min(captureSelectStartY, currentY);
+    const left = Math.min(captureSelectStartX, currentX) - panelRect.left;
+    const top = Math.min(captureSelectStartY, currentY) - panelRect.top;
     const width = Math.abs(currentX - captureSelectStartX);
     const height = Math.abs(currentY - captureSelectStartY);
 
@@ -1548,8 +1548,8 @@ document.getElementById('status-panel-capture-btn').addEventListener('click', ()
 
     const dpr = window.devicePixelRatio || 1;
     const rect = {
-      x: left * dpr,
-      y: top * dpr,
+      x: (left + panelRect.left) * dpr,
+      y: (top + panelRect.top) * dpr,
       width: width * dpr,
       height: height * dpr,
     };
