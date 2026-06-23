@@ -22,6 +22,16 @@ let voicePhraseDraft = null;
 let nowPlayingWidgetTimer = null;
 let appClockTimer = null;
 
+// Pending attachments (panel screenshot captures) to be sent with the next
+// CLI-delegated message. See docs/superpowers/specs/
+// 2026-06-23-panel-screenshot-capture-design.md.
+let pendingAttachments = [];
+
+// Capture drag-to-select state.
+let captureSelectMode = false;
+let captureSelectStartX = null;
+let captureSelectStartY = null;
+
 const PROCESSING_CUES = [
   'Working on it.',
   'Processing.',
@@ -1338,6 +1348,23 @@ async function routeUserMessage(text) {
     await speakReply(reply);
     return;
   }
+  if (pendingAttachments.length > 0) {
+    // Image attachments can only be read off disk by the CLI delegate
+    // channels (Claude Code / Codex) - never the plain chat providers. An
+    // explicit /code or /codex prefix the user typed still overrides the
+    // default routing to the preferred CLI channel.
+    const explicitChannel = parseCliCommand(text)?.channel;
+    const channel = explicitChannel || CLI_CHANNELS[`/${currentSettings.preferredCliChannel || 'code'}`];
+    const taskText = text || 'Take a look at the attached screenshot(s).';
+    const lines = [taskText];
+    for (const att of pendingAttachments) {
+      lines.push(`[screenshot] ${att.filePath}`);
+    }
+    const fullTask = lines.join('\n');
+    await sendToCli(text, channel, fullTask, { forceReport: isReportRequest(taskText) });
+    clearAttachments();
+    return;
+  }
   const cliCommand = parseCliCommand(text);
   if (cliCommand) {
     await sendToCli(text, cliCommand.channel, cliCommand.task, { forceReport: isReportRequest(cliCommand.task) });
@@ -1428,6 +1455,169 @@ document.getElementById('continue-btn').addEventListener('click', () => {
 document.getElementById('status-panel-dismiss-btn').addEventListener('click', () => {
   hidePanel();
 });
+
+function exitCaptureSelectMode(overlay) {
+  if (overlay) overlay.remove();
+  captureSelectMode = false;
+  captureSelectStartX = null;
+  captureSelectStartY = null;
+}
+
+document.getElementById('status-panel-capture-btn').addEventListener('click', () => {
+  if (captureSelectMode) {
+    exitCaptureSelectMode(document.getElementById('capture-select-overlay'));
+    return;
+  }
+
+  const statusPanel = document.getElementById('status-panel');
+  const statusPanelWrap = document.getElementById('status-panel-wrap');
+  if (!statusPanel || !statusPanelWrap) return;
+
+  captureSelectMode = true;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'capture-select-overlay';
+
+  // Position the overlay over the status panel's content box only, so the
+  // capture/dismiss buttons stay clickable (e.g. to cancel selection).
+  const panelRect = statusPanel.getBoundingClientRect();
+  overlay.style.position = 'fixed';
+  overlay.style.left = `${panelRect.left}px`;
+  overlay.style.top = `${panelRect.top}px`;
+  overlay.style.width = `${panelRect.width}px`;
+  overlay.style.height = `${panelRect.height}px`;
+
+  let isDrawing = false;
+
+  overlay.addEventListener('mousedown', (e) => {
+    isDrawing = true;
+    captureSelectStartX = e.clientX;
+    captureSelectStartY = e.clientY;
+
+    const existingBox = document.getElementById('capture-select-box');
+    if (existingBox) existingBox.remove();
+  });
+
+  overlay.addEventListener('mousemove', (e) => {
+    if (!isDrawing) return;
+
+    const currentX = e.clientX;
+    const currentY = e.clientY;
+    const left = Math.min(captureSelectStartX, currentX);
+    const top = Math.min(captureSelectStartY, currentY);
+    const width = Math.abs(currentX - captureSelectStartX);
+    const height = Math.abs(currentY - captureSelectStartY);
+
+    let box = document.getElementById('capture-select-box');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'capture-select-box';
+      overlay.appendChild(box);
+    }
+
+    box.style.left = `${left}px`;
+    box.style.top = `${top}px`;
+    box.style.width = `${width}px`;
+    box.style.height = `${height}px`;
+  });
+
+  overlay.addEventListener('mouseup', async (e) => {
+    isDrawing = false;
+
+    if (captureSelectStartX === null || captureSelectStartY === null) {
+      exitCaptureSelectMode(overlay);
+      return;
+    }
+
+    const currentX = e.clientX;
+    const currentY = e.clientY;
+    const left = Math.min(captureSelectStartX, currentX);
+    const top = Math.min(captureSelectStartY, currentY);
+    const width = Math.abs(currentX - captureSelectStartX);
+    const height = Math.abs(currentY - captureSelectStartY);
+
+    // Reject zero/negative-area selections (accidental clicks, not drags).
+    if (width <= 0 || height <= 0) {
+      exitCaptureSelectMode(overlay);
+      return;
+    }
+
+    // Remove the overlay immediately - don't wait for the IPC round-trip so
+    // the UI doesn't feel stuck.
+    exitCaptureSelectMode(overlay);
+
+    const dpr = window.devicePixelRatio || 1;
+    const rect = {
+      x: left * dpr,
+      y: top * dpr,
+      width: width * dpr,
+      height: height * dpr,
+    };
+
+    try {
+      const result = await window.jarvis.captureRegion(rect);
+      if (result?.ok) {
+        await addAttachmentChip(result.filePath, result.fileName);
+      } else {
+        setAvatarHeadline(`I couldn't capture that, sir: ${result?.error || 'unknown error'}`);
+      }
+    } catch (err) {
+      setAvatarHeadline(`I couldn't capture that, sir: ${err.message}`);
+    }
+  });
+
+  const handleEscape = (e) => {
+    if (e.key !== 'Escape') return;
+    exitCaptureSelectMode(document.getElementById('capture-select-overlay'));
+    document.removeEventListener('keydown', handleEscape);
+  };
+  document.addEventListener('keydown', handleEscape);
+
+  statusPanelWrap.appendChild(overlay);
+});
+
+async function addAttachmentChip(filePath, fileName) {
+  pendingAttachments.push({ filePath, fileName });
+
+  const container = document.getElementById('chat-attachments');
+  if (!container) return;
+
+  const chip = document.createElement('div');
+  chip.className = 'attachment-chip';
+  chip.dataset.filePath = filePath;
+
+  try {
+    const readResult = await window.jarvis.readCapture(filePath);
+    if (readResult?.ok) {
+      const img = document.createElement('img');
+      img.src = readResult.dataUrl;
+      img.alt = fileName || 'Screenshot capture';
+      chip.appendChild(img);
+    }
+  } catch (err) {
+    console.error('[Attachment] Failed to read capture:', err);
+  }
+
+  const removeBtn = document.createElement('button');
+  removeBtn.className = 'attachment-chip-remove';
+  removeBtn.type = 'button';
+  removeBtn.textContent = '×';
+  removeBtn.title = 'Remove attachment';
+  removeBtn.addEventListener('click', () => {
+    const idx = pendingAttachments.findIndex((a) => a.filePath === filePath);
+    if (idx >= 0) pendingAttachments.splice(idx, 1);
+    chip.remove();
+  });
+  chip.appendChild(removeBtn);
+
+  container.appendChild(chip);
+}
+
+function clearAttachments() {
+  const container = document.getElementById('chat-attachments');
+  if (container) container.innerHTML = '';
+  pendingAttachments = [];
+}
 
 document.getElementById('settings-btn').addEventListener('click', () => {
   const isHidden = document.getElementById('settings-modal').classList.toggle('hidden');
