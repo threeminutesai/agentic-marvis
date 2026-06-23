@@ -1,5 +1,5 @@
 // src/main/ipcHandlers.js
-const { ipcMain, dialog, safeStorage, app } = require('electron');
+const { ipcMain, dialog, safeStorage, app, BrowserWindow, nativeImage } = require('electron');
 const path = require('node:path');
 const os = require('node:os');
 const fs = require('node:fs');
@@ -11,6 +11,7 @@ const { createElevenLabsSttProvider } = require('./providers/elevenLabsSttProvid
 const { delegateTask } = require('./claudeCode/delegate');
 const { delegateCodexTask } = require('./codex/delegate');
 const { readStatusRows, ensureStatusFile } = require('./status/statusFile');
+const { ensureCaptureDir, getNextCapturePath, pruneCaptures } = require('./status/captureFile');
 const { DEFAULT_TEMPLATE_HTML } = require('./status/htmlPanelTemplate');
 const { DEFAULT_MUSIC_TRACKS, DEFAULT_MUSIC_SCHEDULE } = require('./music/defaultMusic');
 const { synthesizeGreetingWithCache } = require('./voice/greetingVoiceCache');
@@ -704,6 +705,57 @@ function registerIpcHandlers() {
         fs.unlinkSync(resolved);
       }
       return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
+  // Captures a region of the main window's rendered pixels (not a DOM
+  // screenshot - this rasterizes whatever capturePage() sees, so Chart.js
+  // canvases and cross-origin news thumbnails in the status panel come
+  // through correctly with no CORS/canvas-taint issues).
+  ipcMain.handle('panel:captureRegion', async (_event, rect) => {
+    try {
+      const win = BrowserWindow.getAllWindows()[0];
+      if (!win) return { ok: false, error: 'No window available to capture.' };
+      const x = Number(rect?.x);
+      const y = Number(rect?.y);
+      const width = Number(rect?.width);
+      const height = Number(rect?.height);
+      if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+        return { ok: false, error: 'Invalid capture region.' };
+      }
+      const fullImage = await win.webContents.capturePage();
+      const bounds = fullImage.getSize();
+      const clampedX = Math.max(0, Math.min(Math.round(x), bounds.width - 1));
+      const clampedY = Math.max(0, Math.min(Math.round(y), bounds.height - 1));
+      const cropRect = {
+        x: clampedX,
+        y: clampedY,
+        width: Math.max(1, Math.min(Math.round(width), bounds.width - clampedX)),
+        height: Math.max(1, Math.min(Math.round(height), bounds.height - clampedY)),
+      };
+      const cropped = fullImage.crop(cropRect);
+      const dataDir = getDataDir();
+      ensureCaptureDir(dataDir);
+      const filePath = getNextCapturePath(dataDir);
+      fs.writeFileSync(filePath, cropped.toPNG());
+      pruneCaptures(dataDir, 30);
+      return { ok: true, filePath, fileName: path.basename(filePath) };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle('capture:read', (_event, filePath) => {
+    try {
+      const dir = ensureCaptureDir(getDataDir());
+      const resolved = path.resolve(filePath || '');
+      if (!resolved.startsWith(path.resolve(dir) + path.sep)) {
+        return { ok: false, error: 'Capture file must be inside the Jarvis captures folder.' };
+      }
+      const buffer = fs.readFileSync(resolved);
+      return { ok: true, dataUrl: `data:image/png;base64,${buffer.toString('base64')}` };
     } catch (err) {
       return { ok: false, error: err.message };
     }
