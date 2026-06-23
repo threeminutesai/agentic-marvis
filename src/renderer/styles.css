@@ -958,7 +958,7 @@ button:active { transform: scale(0.97); }
 #status-panel-wrap {
   flex: 0 0 0%;
   min-width: 0;
-  overflow: hidden;
+  overflow: auto;
   opacity: 0;
   position: relative;
   transition: flex-basis 0.35s ease, opacity 0.35s ease;
