@@ -1332,22 +1332,6 @@ function applyMuteCommand({ target, action }) {
 }
 
 async function routeUserMessage(text) {
-  const muteCommand = parseMuteCommand(text);
-  if (muteCommand) {
-    appendChatLine('You', text);
-    const reply = await applyMuteCommand(muteCommand);
-    appendChatLine('Jarvis', reply);
-    await speakReply(reply);
-    return;
-  }
-  const detailRow = matchStatusDetailRequest(text, statusRows);
-  if (detailRow) {
-    appendChatLine('You', text);
-    const reply = detailRow.detail || `I don't have further detail on ${detailRow.type.toLowerCase()}, sir.`;
-    appendChatLine('Jarvis', reply);
-    await speakReply(reply);
-    return;
-  }
   if (pendingAttachments.length > 0) {
     // Image attachments can only be read off disk by the CLI delegate
     // channels (Claude Code / Codex) - never the plain chat providers. An
@@ -1363,6 +1347,22 @@ async function routeUserMessage(text) {
     const fullTask = lines.join('\n');
     await sendToCli(text, channel, fullTask, { forceReport: isReportRequest(taskText) });
     clearAttachments();
+    return;
+  }
+  const muteCommand = parseMuteCommand(text);
+  if (muteCommand) {
+    appendChatLine('You', text);
+    const reply = await applyMuteCommand(muteCommand);
+    appendChatLine('Jarvis', reply);
+    await speakReply(reply);
+    return;
+  }
+  const detailRow = matchStatusDetailRequest(text, statusRows);
+  if (detailRow) {
+    appendChatLine('You', text);
+    const reply = detailRow.detail || `I don't have further detail on ${detailRow.type.toLowerCase()}, sir.`;
+    appendChatLine('Jarvis', reply);
+    await speakReply(reply);
     return;
   }
   const cliCommand = parseCliCommand(text);
