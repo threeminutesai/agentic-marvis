@@ -1,4 +1,4 @@
-// src/renderer/voice/ttsController.js
+﻿// src/renderer/voice/ttsController.js
 function isElevenLabsQuotaShortage(error) {
   const text = String(error || '').toLowerCase();
   return text.includes('exceeds your quota')
@@ -65,10 +65,10 @@ function createTtsController() {
 
   async function speak(text) {
     try {
-      const result = await window.jarvis.synthesizeSpeech(text);
+      const result = await window.marvis.synthesizeSpeech(text);
       if (!result.ok) {
         if (isElevenLabsQuotaShortage(result.error)) {
-          window.dispatchEvent(new CustomEvent('jarvis:temporaryNotice', {
+          window.dispatchEvent(new CustomEvent('marvis:temporaryNotice', {
             detail: {
               type: 'warning',
               message: 'ElevenLabs credits are too low for this voice request.',

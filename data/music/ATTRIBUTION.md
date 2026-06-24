@@ -1,6 +1,6 @@
-# Music Library Attribution & Licenses
+﻿# Music Library Attribution & Licenses
 
-This document credits all audio tracks used in Agentic Jarvis's music library. All tracks are sourced from royalty-free music platforms and are used under their respective licenses.
+This document credits all audio tracks used in Agentic Marvis's music library. All tracks are sourced from royalty-free music platforms and are used under their respective licenses.
 
 ## Current Tracks
 
@@ -176,7 +176,7 @@ To expand the library beyond 13 tracks:
 2. Download in batches (5-10 at a time)
 3. Organize by time slot and mood
 4. Update music-library.json with new tracks
-5. Test playback in Jarvis settings
+5. Test playback in Marvis settings
 6. Update this attribution file
 
 ## FAQ

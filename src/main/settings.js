@@ -1,11 +1,12 @@
-const fs = require('node:fs');
+﻿const fs = require('node:fs');
 
 const DEFAULTS = {
   provider: 'deepseek',
-  apiKeys: { deepseek: '', gemini: '', elevenlabs: '', anthropic: '' },
+  apiKeys: { deepseek: '', gemini: '', elevenlabs: '', anthropic: '', openai: '' },
   elevenLabsVoiceId: '',
   elevenLabsVoices: [],
   userName: '',
+  botName: 'MARVIS',
   voicePhrases: {
     morning: ['Good morning [user]', 'Hi [user]', 'Morning [user]'],
     afternoon: ['Good afternoon [user]', 'Hi [user]', 'Ready for the afternoon run [user]'],
@@ -15,7 +16,7 @@ const DEFAULTS = {
   wakeWordEnabled: false,
   voiceVolume: 1,
   musicVolume: 0.6,
-  personality: 'You are Jarvis: calm, witty, formal, loyal. Address the user respectfully.',
+  personality: 'You are Marvis: calm, witty, formal, loyal. Address the user respectfully.',
   avatarStyle: 'rings',
   activeProject: '',
   preferredCliChannel: null,

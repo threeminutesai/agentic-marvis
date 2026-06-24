@@ -1,7 +1,7 @@
-# Agentic Jarvis Brief Skill
+﻿# Agentic Marvis Brief Skill
 
 ## Overview
-The brief skill enables Jarvis to generate and deliver structured briefings covering weather, news, email summaries, and custom updates. Briefings are displayed on the status panel and can be spoken aloud as part of daily greetings.
+The brief skill enables Marvis to generate and deliver structured briefings covering weather, news, email summaries, and custom updates. Briefings are displayed on the status panel and can be spoken aloud as part of daily greetings.
 
 ## Features
 
@@ -31,7 +31,7 @@ The brief skill enables Jarvis to generate and deliver structured briefings cove
 - Calendar summaries
 - Task status
 
-### Integration with Jarvis
+### Integration with Marvis
 - Display on startup greeting
 - Update in status panel
 - Read aloud via TTS (text-to-speech)
@@ -40,7 +40,7 @@ The brief skill enables Jarvis to generate and deliver structured briefings cove
 
 ## Data Format
 
-Briefings are stored in `data/jarvis-status.json`:
+Briefings are stored in `data/marvis-status.json`:
 
 ```json
 {
@@ -69,7 +69,7 @@ Supported types:
 ```
 
 ### Scheduled Briefings
-Configure in `data/jarvis-status.json`:
+Configure in `data/marvis-status.json`:
 ```json
 [
   {
@@ -92,7 +92,7 @@ Send updates to the status file from external processes:
 3. Email sync service updates email count
 4. Custom scripts add business metrics
 
-Jarvis reads and displays the latest data.
+Marvis reads and displays the latest data.
 
 ## Configuration
 
@@ -125,20 +125,20 @@ In Settings → Briefing Options:
 ## Data Flow
 
 ```
-External Source → jarvis-status.json → Jarvis reads → Display/Speak
+External Source → marvis-status.json → Marvis reads → Display/Speak
 ```
 
 Example flow:
 1. Weather API fetches current conditions
-2. Writes to `data/jarvis-status.json`
-3. Jarvis detects change
+2. Writes to `data/marvis-status.json`
+3. Marvis detects change
 4. Updates status panel
 5. Reads weather aloud if enabled
 
 ## Best Practices
 
 ### Data Updates
-- Update `jarvis-status.json` atomically (write to temp file, then rename)
+- Update `marvis-status.json` atomically (write to temp file, then rename)
 - Include timestamp for freshness detection
 - Limit array lengths (cap news items at 15)
 - Clean old entries periodically
@@ -187,10 +187,10 @@ Example flow:
 ## Troubleshooting
 
 **Briefing not appearing:**
-1. Check `data/jarvis-status.json` exists
+1. Check `data/marvis-status.json` exists
 2. Verify file is valid JSON
 3. Ensure status rows have `type` and `value` fields
-4. Restart Jarvis to reload
+4. Restart Marvis to reload
 
 **Voice not playing:**
 1. Check if briefing TTS is enabled in Settings
@@ -199,6 +199,6 @@ Example flow:
 4. Review browser speaker permissions
 
 ## Related Documentation
-- [README.md](../README.md) - Main Jarvis documentation
+- [README.md](../README.md) - Main Marvis documentation
 - [Dashboard Skill](./DASHBOARD_SKILL.md) - Dashboard generation
 - [CHANGELOG.md](../CHANGELOG.md) - Version history

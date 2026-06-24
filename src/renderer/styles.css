@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+﻿@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root {
   --void: #050714;
@@ -134,7 +134,7 @@ body {
   animation: line-in 0.25s ease-out;
 }
 @keyframes line-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
-.role-jarvis { align-self: flex-start; align-items: flex-start; }
+.role-marvis { align-self: flex-start; align-items: flex-start; }
 .role-user { align-self: flex-end; align-items: flex-end; }
 .chat-role {
   flex: 0 0 auto;
@@ -143,7 +143,7 @@ body {
   letter-spacing: 1px;
   padding: 0 4px;
 }
-.role-jarvis .chat-role { color: var(--ion-bright); }
+.role-marvis .chat-role { color: var(--ion-bright); }
 .role-user .chat-role { color: var(--amber); }
 .chat-time {
   flex: 0 0 auto;
@@ -161,7 +161,7 @@ body {
   border-radius: 14px;
   backdrop-filter: blur(6px);
 }
-.role-jarvis .chat-text {
+.role-marvis .chat-text {
   background: rgba(79, 214, 255, 0.07);
   border: 1px solid var(--glass-border);
   border-bottom-left-radius: 4px;

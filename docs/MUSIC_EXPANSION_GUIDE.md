@@ -1,7 +1,7 @@
-# Music Library Expansion Guide
+﻿# Music Library Expansion Guide
 
 ## Overview
-This guide helps you expand your Jarvis music library from 7 tracks to 13+ tracks with curated royalty-free music from Pixabay.
+This guide helps you expand your Marvis music library from 7 tracks to 13+ tracks with curated royalty-free music from Pixabay.
 
 ## Quick Start
 
@@ -14,7 +14,7 @@ Place downloaded MP3 files in: `data/music/`
 ### 3. Update Configuration
 Add entries to `data/music-library.json` and update `data/music/ATTRIBUTION.md`
 
-### 4. Restart Jarvis
+### 4. Restart Marvis
 Changes take effect immediately
 
 ---
@@ -191,10 +191,10 @@ Changes take effect immediately
 6. Repeat for all 6 tracks
 ```
 
-### Step 2: Move to Jarvis Music Folder (2 minutes)
+### Step 2: Move to Marvis Music Folder (2 minutes)
 
 ```
-1. Open: C:\L_Center\AI_devp\jarvis\data\music\
+1. Open: C:\L_Center\AI_devp\marvis\data\music\
 2. Copy/paste downloaded MP3 files here
 3. Verify all 13 files now in folder (7 original + 6 new)
 ```
@@ -256,9 +256,9 @@ Add entries to `data/music/ATTRIBUTION.md`:
 * **File:** `anno_domini_beats-waking_up-12345.mp3`
 ```
 
-### Step 7: Test in Jarvis (2 minutes)
+### Step 7: Test in Marvis (2 minutes)
 
-1. Restart Jarvis
+1. Restart Marvis
 2. Go to Settings → Music
 3. Verify all 13 tracks appear in library
 4. Test playback for each time slot
@@ -344,7 +344,7 @@ Before downloading, check if Pixabay already has it in library:
 
 ## Troubleshooting
 
-### Track Not Appearing in Jarvis
+### Track Not Appearing in Marvis
 
 **Problem:** Newly added track doesn't show up
 
@@ -352,7 +352,7 @@ Before downloading, check if Pixabay already has it in library:
 1. Verify file is in `data/music/` folder
 2. Check `data/music-library.json` for entry
 3. Ensure JSON syntax is valid (use linter)
-4. Restart Jarvis application
+4. Restart Marvis application
 5. Check file permissions (should be readable)
 
 ### Music Won't Play

@@ -1,4 +1,4 @@
-function createMusicPanel({ musicController } = {}) {
+﻿function createMusicPanel({ musicController } = {}) {
   let catalog = { tracks: [], playlists: [], schedule: {} };
   let activeScheduleDay = 'monday';
   let previewAudio = null;
@@ -49,13 +49,13 @@ function createMusicPanel({ musicController } = {}) {
   const BUCKET_ORDER = ['earlyMorning', 'morning', 'afternoon', 'evening', 'midnight'];
 
   async function load() {
-    catalog = await window.jarvis.getMusicLibrary();
+    catalog = await window.marvis.getMusicLibrary();
     renderAll();
     return catalog;
   }
 
   async function persist() {
-    await window.jarvis.saveMusicLibrary(catalog);
+    await window.marvis.saveMusicLibrary(catalog);
     if (musicController) musicController.setCatalog(catalog);
   }
 
@@ -77,7 +77,7 @@ function createMusicPanel({ musicController } = {}) {
       removeBtn.type = 'button';
       removeBtn.textContent = 'Delete';
       removeBtn.addEventListener('click', async () => {
-        const result = await window.jarvis.deleteMusicTrack(track.id);
+        const result = await window.marvis.deleteMusicTrack(track.id);
         if (result.ok) {
           catalog = result.catalog;
           if (musicController) musicController.setCatalog(catalog);
@@ -215,7 +215,7 @@ function createMusicPanel({ musicController } = {}) {
   });
 
   document.getElementById('music-import-btn')?.addEventListener('click', async () => {
-    const result = await window.jarvis.importMusicFiles();
+    const result = await window.marvis.importMusicFiles();
     if (result.ok) {
       catalog = result.catalog;
       if (musicController) musicController.setCatalog(catalog);

@@ -1,4 +1,4 @@
-// src/renderer/renderer.js
+﻿// src/renderer/renderer.js
 let avatarController = null;
 let currentSettings = null;
 let onboarding = false;
@@ -78,7 +78,7 @@ function showTemporaryNotice(message, timeoutMs = 5000) {
   }, timeoutMs);
 }
 
-window.addEventListener('jarvis:temporaryNotice', (event) => {
+window.addEventListener('marvis:temporaryNotice', (event) => {
   showTemporaryNotice(event.detail?.message || 'Temporary voice notice.');
 });
 
@@ -136,7 +136,7 @@ async function pauseActiveOperation() {
   setAvatarState('idle');
   if (operationId) {
     try {
-      await window.jarvis.cancelOperation(operationId);
+      await window.marvis.cancelOperation(operationId);
     } catch (err) {
       console.log(`[Cancel] Failed to cancel operation: ${err.message}`);
     }
@@ -157,17 +157,17 @@ function blobToBase64(blob) {
 
 async function submitTranscribedAudio(blob) {
   const audioBase64 = await blobToBase64(blob);
-  const result = await window.jarvis.transcribeSpeech({
+  const result = await window.marvis.transcribeSpeech({
     audioBase64,
     mimeType: blob.type || 'audio/webm',
   });
   if (!result.ok) {
-    appendChatLine('Jarvis', `I couldn't transcribe that, sir: ${result.error}`);
+    appendChatLine('Marvis', `I couldn't transcribe that, sir: ${result.error}`);
     return;
   }
   const transcript = result.text.trim();
   if (!transcript) {
-    appendChatLine('Jarvis', "I couldn't hear any speech in that recording, sir.");
+    appendChatLine('Marvis', "I couldn't hear any speech in that recording, sir.");
     return;
   }
   document.getElementById('chat-input').value = transcript;
@@ -206,7 +206,7 @@ async function toggleAudioInput() {
       try {
         await submitTranscribedAudio(blob);
       } catch (err) {
-        appendChatLine('Jarvis', `I couldn't process that recording, sir: ${err.message}`);
+        appendChatLine('Marvis', `I couldn't process that recording, sir: ${err.message}`);
       } finally {
         isBusy = false;
         if (!isSpeaking && !isProcessingResponse) setAvatarState('idle');
@@ -217,7 +217,7 @@ async function toggleAudioInput() {
     updateAudioInputButton();
     setAvatarState('listening');
   } catch (err) {
-    appendChatLine('Jarvis', `I couldn't access the microphone, sir: ${err.message}`);
+    appendChatLine('Marvis', `I couldn't access the microphone, sir: ${err.message}`);
   }
 }
 
@@ -255,8 +255,10 @@ function selectRandomPhrase(category) {
 
 function applyVoiceTemplate(text) {
   const userName = (currentSettings?.userName || '').trim();
+  const botName = (currentSettings?.botName || 'MARVIS').trim();
   return String(text || '')
     .replace(/\[user\]/gi, userName || 'sir')
+    .replace(/\[box\]/gi, botName)
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -278,7 +280,7 @@ function stopCachedVoice() {
 }
 
 async function playCachedVoice(text, category) {
-  const result = await window.jarvis.synthesizeCachedSpeech({ text, category });
+  const result = await window.marvis.synthesizeCachedSpeech({ text, category });
   if (!result.ok || !result.audioBase64) return false;
   await new Promise((resolve) => {
     const audio = new Audio(`data:audio/mpeg;base64,${result.audioBase64}`);
@@ -301,7 +303,7 @@ async function speakProcessingCue() {
   musicController.duck();
   try {
     try {
-      const result = await window.jarvis.synthesizeCachedSpeech({ text, category: 'processing' });
+      const result = await window.marvis.synthesizeCachedSpeech({ text, category: 'processing' });
       if (result.ok && result.audioBase64 && !isMuted && isProcessingResponse) {
         await new Promise((resolve) => {
           const audio = new Audio(`data:audio/mpeg;base64,${result.audioBase64}`);
@@ -406,7 +408,7 @@ async function formatAssistantResponse(text) {
     // though displayText would otherwise fall back to the voice text.
     let html = null;
     if (voiceBlock.htmlPath) {
-      const result = await window.jarvis.readHtmlPanel(voiceBlock.htmlPath);
+      const result = await window.marvis.readHtmlPanel(voiceBlock.htmlPath);
       if (result.ok) html = result.html;
     } else if (voiceBlock.displayText) {
       html = renderContentBlock(voiceBlock.displayText);
@@ -448,7 +450,7 @@ function isFirstRun(settings) {
 
 async function init() {
   try {
-    currentSettings = await window.jarvis.getSettings();
+    currentSettings = await window.marvis.getSettings();
     populateSettingsForm(currentSettings);
 
     if (currentSettings.voiceMuted) setVoiceMuted(true);
@@ -577,10 +579,10 @@ function setupWelcomeModal() {
         profileText = PROFILE_TEMPLATES[selectedProfile];
       }
 
-      await window.jarvis.saveSettings(currentSettings);
-      await window.jarvis.updateProfile(profileText, geolocation);
+      await window.marvis.saveSettings(currentSettings);
+      await window.marvis.updateProfile(profileText, geolocation);
 
-      currentSettings = await window.jarvis.getSettings();
+      currentSettings = await window.marvis.getSettings();
       populateSettingsForm(currentSettings);
 
       document.getElementById('welcome-modal').classList.add('hidden');
@@ -615,6 +617,8 @@ function showAppScreen({ keepSettingsOpen = false } = {}) {
   updateAppClock();
   if (appClockTimer) clearInterval(appClockTimer);
   appClockTimer = setInterval(updateAppClock, 30 * 1000);
+  if (briefingCheckTimer) clearInterval(briefingCheckTimer);
+  briefingCheckTimer = setInterval(checkPeriodicBriefing, 60 * 1000);
 }
 
 function buildSimpleGreeting(rows) {
@@ -743,7 +747,7 @@ function matchStatusDetailRequest(text, rows) {
 // (not embedded in a longer sentence), to avoid misfiring on normal chat.
 const MUTE_COMMAND_PATTERNS = [
   { target: 'music', re: /^(mute|unmute)\s+(the\s+)?music$/ },
-  { target: 'voice', re: /^(mute|unmute)\s+(the\s+)?(bot|voice|jarvis)$/ },
+  { target: 'voice', re: /^(mute|unmute)\s+(the\s+)?(bot|voice|marvis)$/ },
   { target: 'all', re: /^(mute|unmute)$/ },
 ];
 
@@ -758,6 +762,30 @@ function parseMuteCommand(text) {
 
 let newsBriefingTimer = null;
 let newsBriefingToken = 0;
+let briefingCheckTimer = null;
+
+async function checkPeriodicBriefing() {
+  if (isMuted || isSpeaking) return;
+  const frequency = currentSettings?.briefingVoiceFrequency || '1h';
+  const lastBriefingVoiceAt = currentSettings?.lastBriefingVoiceAt || null;
+  if (!shouldTriggerBriefingVoice(frequency, lastBriefingVoiceAt)) return;
+
+  // Mark as triggered before speaking to prevent double-fire
+  if (currentSettings) {
+    currentSettings.lastBriefingVoiceAt = new Date().toISOString();
+    await window.marvis.saveSettings(currentSettings);
+  }
+
+  const newsItems = currentNewsBriefingItems;
+  if (newsItems.length) {
+    const intro = buildIntroBriefing(statusRows);
+    if (intro) await speakBriefing(intro);
+    await playNewsBriefingWithVoice(newsItems);
+  } else {
+    const briefing = buildBriefing(statusRows);
+    if (briefing) await speakBriefing(briefing);
+  }
+}
 
 // Bumping the token invalidates any in-flight playNewsBriefingCycle /
 // playNewsBriefingWithVoice run so it stops advancing after this is called
@@ -897,7 +925,7 @@ async function speakGreeting(text) {
   musicController.duck();
 
   try {
-    const result = await window.jarvis.synthesizeGreeting(text);
+    const result = await window.marvis.synthesizeGreeting(text);
     if (result.ok && result.audioBase64) {
       const audio = new Audio(`data:audio/mpeg;base64,${result.audioBase64}`);
       audio.play().catch((err) => console.log('[Audio] Play failed:', err.message));
@@ -923,7 +951,7 @@ async function speakGreeting(text) {
 async function greetUser() {
   let userProfileWasDefaulted = false;
   try {
-    const result = await window.jarvis.getStatus();
+    const result = await window.marvis.getStatus();
     statusRows = result.ok ? result.rows : [];
     userProfileWasDefaulted = Boolean(result.ok && result.userProfileWasDefaulted);
   } catch (err) {
@@ -941,10 +969,10 @@ async function greetUser() {
   }
   // Stage 1: Speak simple greeting only (with caching)
   const simpleGreeting = buildSimpleGreeting(statusRows);
-  appendChatLine('Jarvis', simpleGreeting);
+  appendChatLine('Marvis', simpleGreeting);
   await speakGreeting(simpleGreeting);
   if (userProfileWasDefaulted) {
-    appendChatLine('Jarvis', "I don't have your profile yet, sir - I've set a default. Update it anytime under Settings > User Profile.");
+    appendChatLine('Marvis', "I don't have your profile yet, sir - I've set a default. Update it anytime under Settings > User Profile.");
   }
 
   // Stage 2: Enter interaction mode and speak briefing
@@ -962,7 +990,7 @@ async function greetUser() {
     const briefingDisplay = buildBriefingDisplay(statusRows, briefing);
     const newsBriefingRow = statusRows.find((row) => row.type === 'News Briefing');
     // Animate/voice-sync per item whenever per-item array data exists, even
-    // if an Avatar Briefing summary is also present (the agentic-jarvis-brief
+    // if an Avatar Briefing summary is also present (the agentic-marvis-brief
     // skill always writes both) - the legacy reveal-all-at-once branch below
     // is only for older status files with no News Briefing array data.
     const newsItems = getNewsBriefingItems(newsBriefingRow);
@@ -1009,15 +1037,15 @@ async function greetUser() {
     }
     if (voiceDue && currentSettings) {
       currentSettings.lastBriefingVoiceAt = new Date().toISOString();
-      await window.jarvis.saveSettings(currentSettings);
+      await window.marvis.saveSettings(currentSettings);
     }
   }
 }
 
 const CLI_CHANNELS = {
-  '/code': { label: 'Claude Code', delegate: (task, operationId) => window.jarvis.delegateTask(task, operationId) },
-  '/claude': { label: 'Claude Code', delegate: (task, operationId) => window.jarvis.delegateTask(task, operationId) },
-  '/codex': { label: 'Codex', delegate: (task, operationId) => window.jarvis.delegateCodexTask(task, operationId) },
+  '/code': { label: 'Claude Code', delegate: (task, operationId) => window.marvis.delegateTask(task, operationId) },
+  '/claude': { label: 'Claude Code', delegate: (task, operationId) => window.marvis.delegateTask(task, operationId) },
+  '/codex': { label: 'Codex', delegate: (task, operationId) => window.marvis.delegateCodexTask(task, operationId) },
 };
 
 // Recognizes natural-language "generate me a report" phrasing (e.g. "in
@@ -1050,7 +1078,7 @@ async function sendToCli(text, channel, task, { forceReport = false } = {}) {
   appendChatLine('You', text);
   if (!task) {
     const prompt = `What would you like me to ask ${channel.label} to do, sir?`;
-    appendChatLine('Jarvis', prompt);
+    appendChatLine('Marvis', prompt);
     await speakReply(prompt);
     return;
   }
@@ -1061,14 +1089,14 @@ async function sendToCli(text, channel, task, { forceReport = false } = {}) {
   speakProcessingCue();
   // Placeholder bubble updated in place (no speech) as progress events stream
   // in from the CLI, then overwritten with the real reply once it resolves.
-  appendChatLine('Jarvis', 'Thinking...');
-  const unsubscribeProgress = window.jarvis.onCliProgress(({ operationId: progressOperationId, text: progressText }) => {
+  appendChatLine('Marvis', 'Thinking...');
+  const unsubscribeProgress = window.marvis.onCliProgress(({ operationId: progressOperationId, text: progressText }) => {
     if (progressOperationId !== operationId) return;
     setAvatarHeadline(progressText);
   });
   let htmlPanel = null;
   try {
-    htmlPanel = await window.jarvis.prepareHtmlPanel();
+    htmlPanel = await window.marvis.prepareHtmlPanel();
     const delegatedTask = buildCliTaskWithHtmlContract(task, htmlPanel, { forceReport });
     console.log(`[CLI] Delegating to ${channel.label}: "${task}"`);
     console.log(`[CLI] Calling channel.delegate (this is an IPC call)...`);
@@ -1077,7 +1105,7 @@ async function sendToCli(text, channel, task, { forceReport = false } = {}) {
     console.log(`[CLI] Result status: ${result?.status}, summary length: ${result?.summary?.length}`);
     unsubscribeProgress();
     if (result?.status !== 'success' && htmlPanel?.filePath) {
-      window.jarvis.discardHtmlPanel(htmlPanel.filePath).catch(() => {});
+      window.marvis.discardHtmlPanel(htmlPanel.filePath).catch(() => {});
     }
     if (activeOperationId !== operationId && shouldAbortResponse) return;
     activeOperationId = null;
@@ -1096,7 +1124,7 @@ async function sendToCli(text, channel, task, { forceReport = false } = {}) {
   } catch (err) {
     console.log(`[CLI] Error:`, err);
     unsubscribeProgress();
-    if (htmlPanel?.filePath) window.jarvis.discardHtmlPanel(htmlPanel.filePath).catch(() => {});
+    if (htmlPanel?.filePath) window.marvis.discardHtmlPanel(htmlPanel.filePath).catch(() => {});
     if (activeOperationId === operationId) activeOperationId = null;
     setProcessingResponse(false);
     if (shouldAbortResponse) return;
@@ -1110,30 +1138,43 @@ async function sendToCli(text, channel, task, { forceReport = false } = {}) {
 }
 
 async function startWakeWordIfConfigured() {
+  console.log('[WakeWord] startWakeWordIfConfigured — enabled:', currentSettings.wakeWordEnabled);
   if (!currentSettings.wakeWordEnabled) return;
-  wakeWordController.start(onWakeWordDetected);
+  const wakeWord = (currentSettings.botName || 'MARVIS').toLowerCase();
+  console.log('[WakeWord] starting, word:', wakeWord, 'hasLocal:', !!window.marvis?.transcribeWhisperLocal);
+  wakeWordController.start(onWakeWordDetected, wakeWord, () => {
+    showTemporaryNotice('Wake word unavailable: Google Speech API unreachable. Use the mic button instead.');
+  });
 }
 
 function onWakeWordDetected() {
   if (isBusy) return;
   isBusy = true;
+  isRecordingAudio = true;
   setAvatarState('listening');
-  sttController.listenOnce(
-    async (transcript) => {
-      await sendToJarvis(transcript);
-      isBusy = false;
-      startWakeWordIfConfigured();
-    },
-    (err) => {
-      appendChatLine('Jarvis', `I couldn't catch that, sir: ${err.message}`);
-      setAvatarState('idle');
-      isBusy = false;
-      startWakeWordIfConfigured();
-    }
-  );
+  updateAudioInputButton();
+  setTimeout(() => {
+    sttController.listenOnce(
+      async (transcript) => {
+        isRecordingAudio = false;
+        updateAudioInputButton();
+        await sendToMarvis(transcript);
+        isBusy = false;
+        startWakeWordIfConfigured();
+      },
+      (err) => {
+        isRecordingAudio = false;
+        updateAudioInputButton();
+        appendChatLine('Marvis', `I couldn't catch that, sir: ${err.message}`);
+        setAvatarState('idle');
+        isBusy = false;
+        startWakeWordIfConfigured();
+      }
+    );
+  }, 300);
 }
 
-async function sendToJarvis(text) {
+async function sendToMarvis(text) {
   appendChatLine('You', text);
   const operationId = createOperationId();
   activeOperationId = operationId;
@@ -1141,14 +1182,14 @@ async function sendToJarvis(text) {
   setAvatarState('processing');
   speakProcessingCue();
   try {
-    const { reply, cancelled } = await window.jarvis.sendMessage(text, operationId);
+    const { reply, cancelled } = await window.marvis.sendMessage(text, operationId);
     if (activeOperationId !== operationId && shouldAbortResponse) return;
     activeOperationId = null;
     setProcessingResponse(false);
     if (shouldAbortResponse || cancelled) return;
     const formatted = await formatAssistantResponse(reply);
     if (formatted.html) showHTML(formatted.html);
-    appendChatLine('Jarvis', formatted.displayReply);
+    appendChatLine('Marvis', formatted.displayReply);
     stopProcessingCue();
     stopCachedVoice();
     ttsController.stop();
@@ -1157,7 +1198,7 @@ async function sendToJarvis(text) {
     if (activeOperationId === operationId) activeOperationId = null;
     setProcessingResponse(false);
     if (shouldAbortResponse) return;
-    appendChatLine('Jarvis', `I ran into a problem, sir: ${err.message}`);
+    appendChatLine('Marvis', `I ran into a problem, sir: ${err.message}`);
   } finally {
     if (activeOperationId === operationId) activeOperationId = null;
     setProcessingResponse(false);
@@ -1186,7 +1227,7 @@ function setAvatarState(state) {
 function appendChatLine(role, text) {
   const log = document.getElementById('chat-log');
   const line = document.createElement('div');
-  line.className = `chat-line ${role === 'You' ? 'role-user' : 'role-jarvis'}`;
+  line.className = `chat-line ${role === 'You' ? 'role-user' : 'role-marvis'}`;
   const roleEl = document.createElement('span');
   roleEl.className = 'chat-role';
   roleEl.textContent = role;
@@ -1214,6 +1255,7 @@ function populateSettingsForm(settings) {
   document.getElementById('deepseek-api-key-input').value = settings.apiKeys.deepseek;
   document.getElementById('gemini-api-key-input').value = settings.apiKeys.gemini;
   document.getElementById('elevenlabs-api-key-input').value = settings.apiKeys.elevenlabs;
+  document.getElementById('openai-api-key-input').value = settings.apiKeys.openai || '';
   renderVoiceOptions(settings.elevenLabsVoices || [], settings.elevenLabsVoiceId);
   const voiceVolume = typeof settings.voiceVolume === 'number' ? settings.voiceVolume : 1;
   document.getElementById('voice-volume-input').value = voiceVolume;
@@ -1227,6 +1269,9 @@ function populateSettingsForm(settings) {
   document.getElementById('personality-input').value = settings.personality;
   document.getElementById('avatar-select').value = settings.avatarStyle;
   document.getElementById('user-name-input').value = settings.userName || '';
+  const botNameVal = settings.botName || 'MARVIS';
+  document.getElementById('bot-name-input').value = botNameVal;
+  document.getElementById('wake-word-label').textContent = botNameVal;
   voicePhraseDraft = normalizeVoicePhrases(settings);
   renderVoicePhraseEditor('morning');
   document.getElementById('preferred-cli-select').value = settings.preferredCliChannel || '';
@@ -1322,6 +1367,11 @@ document.getElementById('voice-words-toggle-btn').addEventListener('click', () =
   document.getElementById('voice-words-panel').classList.toggle('hidden');
 });
 
+document.getElementById('bot-name-input').addEventListener('input', (e) => {
+  const val = e.target.value.trim() || 'MARVIS';
+  document.getElementById('wake-word-label').textContent = val;
+});
+
 document.querySelectorAll('.voice-phrase-tab').forEach((button) => {
   button.addEventListener('click', () => {
     saveCurrentVoicePhraseEditor();
@@ -1347,16 +1397,16 @@ async function routeUserMessage(text) {
       : pathMatch;
     appendChatLine('You', text);
     try {
-      const result = await window.jarvis.readExternalHtml(filePath);
+      const result = await window.marvis.readExternalHtml(filePath);
       if (result?.ok) {
         showHTMLSafe(result.html);
         currentHtmlPath = filePath; // Track for joint analysis with screenshots
-        appendChatLine('Jarvis', `Displaying ${filePath}`);
+        appendChatLine('Marvis', `Displaying ${filePath}`);
       } else {
-        appendChatLine('Jarvis', `I couldn't read that file, sir: ${result?.error || 'unknown error'}`);
+        appendChatLine('Marvis', `I couldn't read that file, sir: ${result?.error || 'unknown error'}`);
       }
     } catch (err) {
-      appendChatLine('Jarvis', `I couldn't read that file, sir: ${err.message}`);
+      appendChatLine('Marvis', `I couldn't read that file, sir: ${err.message}`);
     }
     return;
   }
@@ -1367,16 +1417,16 @@ async function routeUserMessage(text) {
     const keyword = openCmdMatch[1].trim();
     appendChatLine('You', text);
     try {
-      const result = await window.jarvis.openHtmlPanelByKeyword(keyword);
+      const result = await window.marvis.openHtmlPanelByKeyword(keyword);
       if (result?.ok) {
         showHTMLSafe(result.html);
         currentHtmlPath = result.filePath; // Track for joint analysis with screenshots
-        appendChatLine('Jarvis', `Displaying ${result.fileName}`);
+        appendChatLine('Marvis', `Displaying ${result.fileName}`);
       } else {
-        appendChatLine('Jarvis', result?.error || `I couldn't find an HTML panel matching "${keyword}", sir.`);
+        appendChatLine('Marvis', result?.error || `I couldn't find an HTML panel matching "${keyword}", sir.`);
       }
     } catch (err) {
-      appendChatLine('Jarvis', `I couldn't open that panel, sir: ${err.message}`);
+      appendChatLine('Marvis', `I couldn't open that panel, sir: ${err.message}`);
     }
     return;
   }
@@ -1406,7 +1456,7 @@ async function routeUserMessage(text) {
   if (muteCommand) {
     appendChatLine('You', text);
     const reply = await applyMuteCommand(muteCommand);
-    appendChatLine('Jarvis', reply);
+    appendChatLine('Marvis', reply);
     await speakReply(reply);
     return;
   }
@@ -1414,7 +1464,7 @@ async function routeUserMessage(text) {
   if (detailRow) {
     appendChatLine('You', text);
     const reply = detailRow.detail || `I don't have further detail on ${detailRow.type.toLowerCase()}, sir.`;
-    appendChatLine('Jarvis', reply);
+    appendChatLine('Marvis', reply);
     await speakReply(reply);
     return;
   }
@@ -1430,7 +1480,7 @@ async function routeUserMessage(text) {
       // the report branch whenever the user's own wording asked for one.
       await sendToCli(text, channel, text, { forceReport: isReportRequest(text) });
     } else {
-      await sendToJarvis(text);
+      await sendToMarvis(text);
     }
   } else if (isReportRequest(text)) {
     // No explicit /code prefix and no sticky CLI preference, but the
@@ -1440,7 +1490,7 @@ async function routeUserMessage(text) {
     // providers have no file-write access to produce.
     await sendToCli(text, CLI_CHANNELS['/code'], text, { forceReport: true });
   } else {
-    await sendToJarvis(text);
+    await sendToMarvis(text);
   }
 }
 
@@ -1472,11 +1522,11 @@ document.getElementById('provider-select').addEventListener('change', (e) => {
 });
 
 async function selectAndSetProject() {
-  const selectedPath = await window.jarvis.selectFolder();
+  const selectedPath = await window.marvis.selectFolder();
   if (selectedPath) {
     currentSettings.activeProject = selectedPath;
     document.getElementById('project-input').value = selectedPath;
-    await window.jarvis.saveSettings(currentSettings);
+    await window.marvis.saveSettings(currentSettings);
     updateHud(currentSettings);
   }
 }
@@ -1484,7 +1534,7 @@ async function selectAndSetProject() {
 document.getElementById('select-project-btn').addEventListener('click', selectAndSetProject);
 
 document.getElementById('project-browse-btn').addEventListener('click', async () => {
-  const selectedPath = await window.jarvis.selectFolder();
+  const selectedPath = await window.marvis.selectFolder();
   if (selectedPath) {
     document.getElementById('project-input').value = selectedPath;
   }
@@ -1608,7 +1658,7 @@ document.getElementById('status-panel-capture-btn').addEventListener('click', ()
     };
 
     try {
-      const result = await window.jarvis.captureRegion(rect);
+      const result = await window.marvis.captureRegion(rect);
       if (result?.ok) {
         await addAttachmentChip(result.filePath, result.fileName);
       } else {
@@ -1640,7 +1690,7 @@ async function addAttachmentChip(filePath, fileName) {
   chip.dataset.filePath = filePath;
 
   try {
-    const readResult = await window.jarvis.readCapture(filePath);
+    const readResult = await window.marvis.readCapture(filePath);
     if (readResult?.ok) {
       const img = document.createElement('img');
       img.src = readResult.dataUrl;
@@ -1695,7 +1745,7 @@ document.getElementById('audio-input-btn').addEventListener('click', toggleAudio
 function persistStateSetting(key, value) {
   if (!currentSettings) return;
   currentSettings[key] = value;
-  window.jarvis.saveSettings(currentSettings).catch(() => {});
+  window.marvis.saveSettings(currentSettings).catch(() => {});
 }
 
 function setVoiceMuted(muted) {
@@ -1728,6 +1778,7 @@ document.getElementById('settings-save-btn').addEventListener('click', async () 
       deepseek: document.getElementById('deepseek-api-key-input').value,
       gemini: document.getElementById('gemini-api-key-input').value,
       elevenlabs: document.getElementById('elevenlabs-api-key-input').value,
+      openai: document.getElementById('openai-api-key-input').value,
     },
     elevenLabsVoiceId: document.getElementById('elevenlabs-voice-select').value,
     elevenLabsVoices: Array.from(document.getElementById('elevenlabs-voice-select').options)
@@ -1739,6 +1790,7 @@ document.getElementById('settings-save-btn').addEventListener('click', async () 
     personality: document.getElementById('personality-input').value,
     avatarStyle: document.getElementById('avatar-select').value,
     userName: document.getElementById('user-name-input').value.trim(),
+    botName: document.getElementById('bot-name-input').value.trim() || 'MARVIS',
     voicePhrases: voicePhraseDraft || normalizeVoicePhrases(),
     preferredCliChannel: document.getElementById('preferred-cli-select').value || null,
     activeProject: document.getElementById('project-input').value,
@@ -1750,19 +1802,19 @@ document.getElementById('settings-save-btn').addEventListener('click', async () 
   };
   const setupStatus = document.getElementById('setup-status');
 
-  const userProfileResult = await window.jarvis.saveUserProfile(
+  const userProfileResult = await window.marvis.saveUserProfile(
     document.getElementById('user-profile-input').value,
     document.getElementById('user-profile-geolocation-input').value
   );
   if (userProfileResult.ok) statusRows = userProfileResult.rows;
 
-  const result = await window.jarvis.saveSettings(settings);
+  const result = await window.marvis.saveSettings(settings);
   if (!result.ok) {
     const message = `I couldn't save your settings, sir: ${result.error}`;
     if (onboarding) {
       setupStatus.textContent = message;
     } else {
-      appendChatLine('Jarvis', message);
+      appendChatLine('Marvis', message);
     }
     return;
   }
@@ -1770,7 +1822,7 @@ document.getElementById('settings-save-btn').addEventListener('click', async () 
 
   if (onboarding) {
     setupStatus.textContent = 'Testing connection, sir...';
-    const test = await window.jarvis.testConnection({ provider: settings.provider, apiKey: settings.apiKeys[settings.provider] });
+    const test = await window.marvis.testConnection({ provider: settings.provider, apiKey: settings.apiKeys[settings.provider] });
     if (!test.ok) {
       setupStatus.textContent = `I couldn't verify that key, sir: ${test.error}`;
       return;

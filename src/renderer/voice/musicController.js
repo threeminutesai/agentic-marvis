@@ -15,6 +15,7 @@ function createMusicController() {
   let isPausedByUser = false;
   let audioCtx = null;
   let leveler = null;
+  let volumeGainNode = null;
   let levelCallback = null;
   let analyser = null;
   let analyserData = null;
@@ -91,10 +92,13 @@ function createMusicController() {
       analyser.smoothingTimeConstant = 0.6;
       analyserData = new Uint8Array(analyser.frequencyBinCount);
       const makeupGain = audioCtx.createGain();
-      makeupGain.gain.value = 2.2;  // Increased from 1.6 to bring quieter tracks up
+      makeupGain.gain.value = 2.2;  // Normalizes track loudness — user volume applied separately via volumeGainNode
+      volumeGainNode = audioCtx.createGain();
+      volumeGainNode.gain.value = effectiveVolume();
       compressor.connect(analyser);
       analyser.connect(makeupGain);
-      makeupGain.connect(audioCtx.destination);
+      makeupGain.connect(volumeGainNode);
+      volumeGainNode.connect(audioCtx.destination);
       leveler = { compressor, makeupGain };
       startLevelLoop();
     } catch {
@@ -116,19 +120,28 @@ function createMusicController() {
     }
   }
 
+  function applyEffectiveVolume() {
+    const v = effectiveVolume();
+    if (volumeGainNode) {
+      volumeGainNode.gain.value = v;
+    } else if (audio) {
+      audio.volume = v;
+    }
+  }
+
   function setVolume(v) {
     baseVolume = Math.max(0, Math.min(1, v));
-    if (audio) audio.volume = effectiveVolume();
+    applyEffectiveVolume();
   }
 
   function duck() {
     duckFactor = 0.2;
-    if (audio) audio.volume = effectiveVolume();
+    applyEffectiveVolume();
   }
 
   function unduck() {
     duckFactor = 1;
-    if (audio) audio.volume = effectiveVolume();
+    applyEffectiveVolume();
   }
 
   function trackById(trackId) {
@@ -158,8 +171,9 @@ function createMusicController() {
     }
     if (!track || !track.fileUrl || isPausedByUser) return;
     audio = new Audio(track.fileUrl);
-    audio.volume = effectiveVolume();
     routeThroughLeveler(audio);
+    // If leveler graph is active, volume is controlled via volumeGainNode; otherwise fall back to element volume.
+    audio.volume = volumeGainNode ? 1 : effectiveVolume();
     audio.addEventListener('ended', onTrackEnded);
     // A missing/corrupt file on disk fires 'error', not 'ended' - route it
     // through the same advance-to-next-track path rather than stalling.

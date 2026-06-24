@@ -1,4 +1,4 @@
-// src/main/ipcHandlers.js
+﻿// src/main/ipcHandlers.js
 const { ipcMain, dialog, safeStorage, app, BrowserWindow, nativeImage } = require('electron');
 const path = require('node:path');
 const os = require('node:os');
@@ -8,6 +8,8 @@ const { createDeepseekProvider } = require('./providers/deepseekProvider');
 const { createGeminiProvider } = require('./providers/geminiProvider');
 const { createElevenLabsProvider } = require('./providers/elevenLabsProvider');
 const { createElevenLabsSttProvider } = require('./providers/elevenLabsSttProvider');
+const { createWhisperSttProvider } = require('./providers/whisperSttProvider');
+const { createWhisperLocalProvider, getWhisperPipeline } = require('./providers/whisperLocalProvider');
 const { delegateTask } = require('./claudeCode/delegate');
 const { delegateCodexTask } = require('./codex/delegate');
 const { readStatusRows, ensureStatusFile } = require('./status/statusFile');
@@ -40,7 +42,7 @@ function getDataDir() {
 }
 
 function getStatusFilePath() {
-  return path.join(getDataDir(), 'jarvis-status.json');
+  return path.join(getDataDir(), 'marvis-status.json');
 }
 
 function getSettingsFilePath() {
@@ -59,14 +61,14 @@ function getVoiceCacheDir() {
   return path.join(getDataDir(), 'voice-cache');
 }
 
-// One-time migration for voice cache from the legacy ~/.jarvis-voices location
+// One-time migration for voice cache from the legacy ~/.marvis-voices location
 // to the portable voice-cache/ folder next to the exe (or in data/ for dev).
 // Dev mode only — packaged builds start with empty voice-cache/.
 function migrateLegacyVoiceCacheIfNeeded(newVoiceCacheDir) {
   fs.mkdirSync(newVoiceCacheDir, { recursive: true });
   if (app.isPackaged) return;
 
-  const legacyVoiceCacheDir = path.join(os.homedir(), '.jarvis-voices');
+  const legacyVoiceCacheDir = path.join(os.homedir(), '.marvis-voices');
   if (!fs.existsSync(legacyVoiceCacheDir)) return;
 
   try {
@@ -84,11 +86,11 @@ function migrateLegacyVoiceCacheIfNeeded(newVoiceCacheDir) {
   }
 }
 
-// One-time migration for music files from the legacy ~/.jarvis-music location
+// One-time migration for music files from the legacy ~/.marvis-music location
 // to the portable music/ folder next to the exe (or in data/ for dev).
 function migrateLegacyMusicFilesIfNeeded(newMusicDir) {
   fs.mkdirSync(newMusicDir, { recursive: true });
-  const legacyMusicDir = path.join(os.homedir(), '.jarvis-music');
+  const legacyMusicDir = path.join(os.homedir(), '.marvis-music');
   if (!fs.existsSync(legacyMusicDir)) return;
 
   try {
@@ -112,7 +114,7 @@ function migrateLegacyMusicFilesIfNeeded(newMusicDir) {
 
 
 // One-time migration for dev machines that already have a pre-existing
-// ~/.jarvis-settings.json from before settings.json moved into the
+// ~/.marvis-settings.json from before settings.json moved into the
 // data/ folder - copies it in instead of losing local dev config (API keys,
 // voice settings, etc.). Packaged builds skip this and start with defaults
 // instead, prompting the user to set up their own keys via the welcome panel.
@@ -177,7 +179,7 @@ function copyLegacySettingsFileIfNeeded(filePath) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   if (fs.existsSync(filePath)) return;
   if (app.isPackaged) return;
-  const legacyPath = path.join(os.homedir(), '.jarvis-settings.json');
+  const legacyPath = path.join(os.homedir(), '.marvis-settings.json');
   if (fs.existsSync(legacyPath)) {
     fs.copyFileSync(legacyPath, filePath);
   }
@@ -232,10 +234,11 @@ const ENV_KEY_MAP = {
   GEMINI_API_KEY: 'gemini',
   ELEVENLABS_API_KEY: 'elevenlabs',
   ANTHROPIC_API_KEY: 'anthropic',
+  OPENAI_API_KEY: 'openai',
 };
 
 function loadEnvFile() {
-  const keys = { deepseek: '', gemini: '', elevenlabs: '', anthropic: '' };
+  const keys = { deepseek: '', gemini: '', elevenlabs: '', anthropic: '', openai: '' };
   const envPath = getEnvFilePath();
   if (!fs.existsSync(envPath)) return keys;
   for (const line of fs.readFileSync(envPath, 'utf8').split('\n')) {
@@ -265,7 +268,7 @@ function migrateApiKeysToEnvIfNeeded(settingsStore) {
   const { apiKeys } = settings;
   if (!apiKeys || !Object.values(apiKeys).some((v) => v)) return;
   saveEnvFile(apiKeys);
-  settingsStore.save({ ...settings, apiKeys: { deepseek: '', gemini: '', elevenlabs: '', anthropic: '' } });
+  settingsStore.save({ ...settings, apiKeys: { deepseek: '', gemini: '', elevenlabs: '', anthropic: '', openai: '' } });
   console.log('[Settings] Migrated API keys from settings.json to .env');
 }
 
@@ -404,7 +407,7 @@ function readHtmlPanelFile(filePath) {
   const dir = ensureHtmlPanelDir();
   const resolved = path.resolve(filePath || '');
   if (!resolved.startsWith(path.resolve(dir) + path.sep)) {
-    throw new Error('HTML panel file must be inside the Jarvis html-panels folder.');
+    throw new Error('HTML panel file must be inside the Marvis html-panels folder.');
   }
   const html = fs.readFileSync(resolved, 'utf8');
   if (!html.trim()) throw new Error('HTML panel file is empty.');
@@ -413,8 +416,8 @@ function readHtmlPanelFile(filePath) {
 
 function copyLegacyStatusFileIfNeeded(filePath) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  const rootStatusFilePath = path.join(path.resolve(__dirname, '../..'), 'jarvis-status.json');
-  const legacyFilePath = path.join(os.homedir(), '.jarvis-status.json');
+  const rootStatusFilePath = path.join(path.resolve(__dirname, '../..'), 'marvis-status.json');
+  const legacyFilePath = path.join(os.homedir(), '.marvis-status.json');
   if (!fs.existsSync(filePath) && fs.existsSync(rootStatusFilePath)) {
     fs.copyFileSync(rootStatusFilePath, filePath);
     return;
@@ -428,7 +431,7 @@ function registerIpcHandlers() {
   console.log('[Init] Starting registerIpcHandlers');
 
   // Check & generate the data/ folder next to the exe (or the project's
-  // data/ folder in dev) on every launch: jarvis-status.json, settings.json,
+  // data/ folder in dev) on every launch: marvis-status.json, settings.json,
   // and html-panels/_template.html all get created with sane defaults the
   // first time, or regenerated if any of them is later found missing/empty.
   try {
@@ -505,7 +508,7 @@ function registerIpcHandlers() {
     try {
       const { apiKeys, ...rest } = settings;
       if (apiKeys) saveEnvFile(apiKeys);
-      settingsStore.save({ ...rest, apiKeys: { deepseek: '', gemini: '', elevenlabs: '', anthropic: '' } });
+      settingsStore.save({ ...rest, apiKeys: { deepseek: '', gemini: '', elevenlabs: '', anthropic: '', openai: '' } });
       return { ok: true };
     } catch (err) {
       return { ok: false, error: `I couldn't save your settings, sir: ${err.message}` };
@@ -572,7 +575,8 @@ function registerIpcHandlers() {
     const operationId = typeof payload === 'string' ? null : payload.operationId;
     const controller = createOperationController(operationId);
     const settings = settingsStore.load();
-    const apiKey = settings.apiKeys?.[settings.provider];
+    const envKeys = loadEnvFile();
+    const apiKey = envKeys[settings.provider] || settings.apiKeys?.[settings.provider];
     if (!apiKey) {
       finishOperation(operationId);
       return { ok: false, reply: `I don't have an API key configured for ${settings.provider}, sir - please add one in Settings.` };
@@ -639,6 +643,36 @@ function registerIpcHandlers() {
       createProvider: createElevenLabsProvider,
       category: category || 'general',
     });
+  });
+
+  ipcMain.handle('stt:whisper-local', async (_event, { pcmFloat32, sampleRate }) => {
+    try {
+      const provider = createWhisperLocalProvider();
+      const result = await provider.transcribe({ pcmFloat32: new Float32Array(pcmFloat32), sampleRate });
+      return { ok: true, ...result };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
+  // Pre-warm disabled — local Whisper not in use
+
+  ipcMain.handle('stt:whisper', async (_event, { audioBase64, mimeType }) => {
+    const envKeys = loadEnvFile();
+    const apiKey = envKeys.openai;
+    if (!apiKey) {
+      return { ok: false, error: 'No OpenAI API key configured for Whisper, sir.' };
+    }
+    try {
+      const provider = createWhisperSttProvider({ apiKey });
+      const result = await provider.transcribe({
+        audioBuffer: Buffer.from(audioBase64, 'base64'),
+        mimeType,
+      });
+      return { ok: true, ...result };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
   });
 
   ipcMain.handle('stt:transcribe', async (_event, { audioBase64, mimeType }) => {
@@ -787,7 +821,7 @@ function registerIpcHandlers() {
       const dir = ensureHtmlPanelDir();
       const resolved = path.resolve(filePath || '');
       if (!resolved.startsWith(path.resolve(dir) + path.sep)) {
-        return { ok: false, error: 'HTML panel file must be inside the Jarvis html-panels folder.' };
+        return { ok: false, error: 'HTML panel file must be inside the Marvis html-panels folder.' };
       }
       if (fs.existsSync(resolved) && fs.statSync(resolved).size === 0) {
         fs.unlinkSync(resolved);
@@ -862,7 +896,7 @@ function registerIpcHandlers() {
       const dir = ensureCaptureDir(getDataDir());
       const resolved = path.resolve(filePath || '');
       if (!resolved.startsWith(path.resolve(dir) + path.sep)) {
-        return { ok: false, error: 'Capture file must be inside the Jarvis captures folder.' };
+        return { ok: false, error: 'Capture file must be inside the Marvis captures folder.' };
       }
       const buffer = fs.readFileSync(resolved);
       return { ok: true, dataUrl: `data:image/png;base64,${buffer.toString('base64')}` };

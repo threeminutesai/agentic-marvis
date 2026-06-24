@@ -1,6 +1,6 @@
-const { contextBridge, ipcRenderer } = require('electron');
+﻿const { contextBridge, ipcRenderer } = require('electron');
 
-contextBridge.exposeInMainWorld('jarvis', {
+contextBridge.exposeInMainWorld('marvis', {
   sendMessage: (text, operationId) => ipcRenderer.invoke('chat:send', { text, operationId }),
   cancelOperation: (operationId) => ipcRenderer.invoke('operation:cancel', operationId),
   getSettings: () => ipcRenderer.invoke('settings:get'),
@@ -10,6 +10,8 @@ contextBridge.exposeInMainWorld('jarvis', {
   synthesizeGreeting: (text) => ipcRenderer.invoke('tts:synthesize-greeting', text),
   synthesizeCachedSpeech: (payload) => ipcRenderer.invoke('tts:synthesize-cached', payload),
   transcribeSpeech: (payload) => ipcRenderer.invoke('stt:transcribe', payload),
+  transcribeWhisper: (payload) => ipcRenderer.invoke('stt:whisper', payload),
+  transcribeWhisperLocal: (payload) => ipcRenderer.invoke('stt:whisper-local', payload),
   delegateTask: (task, operationId) => ipcRenderer.invoke('claudeCode:delegate', { task, operationId }),
   delegateCodexTask: (task, operationId) => ipcRenderer.invoke('codex:delegate', { task, operationId }),
   selectFolder: () => ipcRenderer.invoke('dialog:selectFolder'),

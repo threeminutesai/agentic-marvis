@@ -1,4 +1,4 @@
-const { spawn } = require('node:child_process');
+﻿const { spawn } = require('node:child_process');
 
 // README documents "up to 10 minutes" for CLI delegation - keep this in sync.
 const TIMEOUT_MS = 10 * 60 * 1000;
@@ -41,7 +41,7 @@ function lastMeaningfulLine(text) {
 // Codex CLI prints its own auth-failure text to stdout/stderr like any other
 // output, so the "any output = success" check below would otherwise treat a
 // 401 as a normal completed response. Codex authenticates itself externally
-// (e.g. `codex login`), not via a Jarvis-managed API key, so this can't
+// (e.g. `codex login`), not via a Marvis-managed API key, so this can't
 // point at a specific Settings field - it just needs to be flagged as an
 // error and named as Codex's own auth, rather than silently shown as a reply.
 function isAuthFailureText(text) {

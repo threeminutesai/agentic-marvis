@@ -1,7 +1,7 @@
-# Agentic Jarvis Dashboard Skill
+﻿# Agentic Marvis Dashboard Skill
 
 ## Overview
-The dashboard skill enables Jarvis to generate, search, and display interactive HTML dashboards from data sources. It integrates with Jarvis's HTML panel management system for seamless display.
+The dashboard skill enables Marvis to generate, search, and display interactive HTML dashboards from data sources. It integrates with Marvis's HTML panel management system for seamless display.
 
 ## Features
 
@@ -11,7 +11,7 @@ The dashboard skill enables Jarvis to generate, search, and display interactive 
 - Responsive design that works in iframe sandboxes
 - Template-based generation for consistency
 
-### Integration with Jarvis
+### Integration with Marvis
 - Store generated dashboards in `data/html-panels` folder
 - Access via: `open <dashboard-name>`
 - Safe iframe display prevents CSS conflicts
@@ -32,7 +32,7 @@ Dashboards are stored with naming conventions:
 /claude Create a project status dashboard for the team
 ```
 
-Jarvis will:
+Marvis will:
 1. Delegate to Claude Code or Codex
 2. Generate HTML file in `data/html-panels`
 3. Display the dashboard in an isolated iframe
@@ -57,7 +57,7 @@ The search system finds matching dashboards by keyword.
 
 ### Display
 - Renderer: Sandboxed iframe (`showHTMLSafe()`)
-- CSS: Isolated from main Jarvis UI
+- CSS: Isolated from main Marvis UI
 - Scripts: Allowed but restricted from accessing parent
 - Styling: Modern, dark theme by default
 
@@ -91,6 +91,6 @@ Dashboards can be triggered from:
 - Status panel interactions: Click to view detailed dashboards
 
 ## Related Documentation
-- [README.md](../README.md) - Main Jarvis documentation
+- [README.md](../README.md) - Main Marvis documentation
 - [Brief Skill](./BRIEF_SKILL.md) - Status briefing generation
 - [CHANGELOG.md](../CHANGELOG.md) - Version history

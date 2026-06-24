@@ -1,4 +1,4 @@
-@echo off
+﻿@echo off
 cd /d "%~dp0"
 
 if not exist "node_modules" (
@@ -11,6 +11,6 @@ if not exist "node_modules" (
   )
 )
 
-echo Starting Jarvis...
+echo Starting Marvis...
 call npm start
 pause
