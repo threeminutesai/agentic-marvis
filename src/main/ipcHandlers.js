@@ -165,7 +165,7 @@ function initDevMusicLibraryIfNeeded(musicDir, musicLibraryFilePath) {
 
   // id IS the fileName — no separate fileName field
   const library = {
-    tracks: present.map((t) => ({ id: t.fileName, title: t.title, artist: t.artist, duration: 0 })),
+    tracks: present.map((t) => ({ id: t.fileName, artist: t.artist, duration: 0 })),
     playlists,
     schedule,
   };

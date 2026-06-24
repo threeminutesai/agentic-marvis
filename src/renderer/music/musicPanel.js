@@ -72,7 +72,7 @@ function createMusicPanel({ musicController } = {}) {
     for (const track of catalog.tracks) {
       const li = document.createElement('li');
       const name = document.createElement('span');
-      name.textContent = track.title || track.originalName || track.id || 'Unknown Track';
+      name.textContent = track.originalName || track.id || 'Unknown Track';
       const removeBtn = document.createElement('button');
       removeBtn.type = 'button';
       removeBtn.textContent = 'Delete';
@@ -129,7 +129,7 @@ function createMusicPanel({ musicController } = {}) {
         }
         await persist();
       });
-      label.append(checkbox, document.createTextNode(' ' + (track.title || track.originalName || track.id || 'Unknown Track')));
+      label.append(checkbox, document.createTextNode(' ' + (track.originalName || track.id || 'Unknown Track')));
       const playBtn = document.createElement('button');
       playBtn.type = 'button';
       playBtn.textContent = 'Play';
