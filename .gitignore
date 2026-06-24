@@ -4,10 +4,11 @@ out/
 release*/
 *.zip
 *.exe
-.claude/*
-!.claude/skills/
+.claude/
 .superpowers/
 docs/superpowers/
+skills/
+skills-lock.json
 .DS_Store
 Thumbs.db
 data/
