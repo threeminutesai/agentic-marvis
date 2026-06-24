@@ -1,0 +1,96 @@
+name: Build macOS
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/**'
+      - 'package.json'
+      - 'data/music/**'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build for macOS
+        run: npm run dist:mac
+
+      - name: List build outputs
+        run: ls -lh release/
+
+      - name: Create macOS bundle
+        run: |
+          mkdir -p release-bundle/data
+          cp release/Jarvis-*.dmg release-bundle/ 2>/dev/null || true
+          cp release/Jarvis-*.zip release-bundle/ 2>/dev/null || true
+          cp -r data/music release-bundle/data/
+          cp data/music-library.json release-bundle/data/
+          cd release-bundle
+          zip -r ../Jarvis-0.4.0-Mac-Bundle.zip .
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: macos-builds
+          path: |
+            release/Jarvis-*.dmg
+            release/Jarvis-*.zip
+            Jarvis-0.4.0-Mac-Bundle.zip
+          retention-days: 30
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: ${{ github.ref }} (macOS)
+          body: |
+            ## macOS Build for v0.4.0
+
+            ### Download Options
+            - **DMG Installer:** Drag and drop to Applications
+            - **ZIP Portable:** Extract and run
+            - **Mac Bundle:** Includes music library
+
+            ### What's Included
+            - Jarvis 0.4.0 for macOS
+            - 7 pre-configured music tracks
+            - All features: search, safe display, music library
+
+            ### System Requirements
+            - macOS 10.13+
+            - Intel or Apple Silicon (M1/M2/M3)
+
+            ### Installation
+            1. Download DMG or ZIP
+            2. Mount DMG or extract ZIP
+            3. Run Jarvis.app
+            4. Configure API key on first run
+          draft: false
+          prerelease: false
+
+      - name: Upload to Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            release/Jarvis-*.dmg
+            release/Jarvis-*.zip
+            Jarvis-0.4.0-Mac-Bundle.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
