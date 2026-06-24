@@ -34,7 +34,6 @@ function createTtsController() {
   }
 
   function stop() {
-    window.speechSynthesis.cancel();
     if (currentAudio) {
       currentAudio.pause();
       currentAudio.currentTime = 0;
@@ -64,32 +63,6 @@ function createTtsController() {
     tick();
   }
 
-  function speakWithWebSpeech(text) {
-    return new Promise((resolve) => {
-      currentResolve = resolve;
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.volume = volume;
-      // Web Speech audio isn't tappable by the Web Audio API, so approximate
-      // a voice-like pulse on each word boundary instead of true amplitude.
-      utterance.onboundary = () => emitLevel(0.55 + Math.random() * 0.45);
-      utterance.onend = () => {
-        stopLevelLoop();
-        if (currentResolve) {
-          currentResolve = null;
-          resolve();
-        }
-      };
-      utterance.onerror = () => {
-        stopLevelLoop();
-        if (currentResolve) {
-          currentResolve = null;
-          resolve();
-        }
-      };
-      window.speechSynthesis.speak(utterance);
-    });
-  }
-
   async function speak(text) {
     try {
       const result = await window.jarvis.synthesizeSpeech(text);
@@ -98,20 +71,19 @@ function createTtsController() {
           window.dispatchEvent(new CustomEvent('jarvis:temporaryNotice', {
             detail: {
               type: 'warning',
-              message: 'ElevenLabs credits are too low for this voice request. Using system voice for now.',
+              message: 'ElevenLabs credits are too low for this voice request.',
             },
           }));
         }
-        await speakWithWebSpeech(text);
         return;
       }
-      await playWithLevelAnalysis(`data:audio/mpeg;base64,${result.audioBase64}`, text);
-    } catch (err) {
-      await speakWithWebSpeech(text);
+      await playWithLevelAnalysis(`data:audio/mpeg;base64,${result.audioBase64}`);
+    } catch {
+      // ElevenLabs unavailable — stay silent
     }
   }
 
-  function playWithLevelAnalysis(src, fallbackText) {
+  function playWithLevelAnalysis(src) {
     return new Promise((resolve) => {
       const audio = new Audio(src);
       audio.volume = volume;
@@ -126,7 +98,7 @@ function createTtsController() {
         dataArray = new Uint8Array(analyser.fftSize);
         source.connect(analyser);
         analyser.connect(audioCtx.destination);
-      } catch (err) {
+      } catch {
         analyser = null;
       }
 
@@ -149,11 +121,10 @@ function createTtsController() {
       audio
         .play()
         .then(() => startLevelLoop())
-        .catch(async () => {
+        .catch(() => {
           stopLevelLoop();
           currentAudio = null;
           currentResolve = null;
-          await speakWithWebSpeech(fallbackText);
           resolve();
         });
     });
