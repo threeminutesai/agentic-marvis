@@ -48,10 +48,10 @@
         </div>
       </div>
       <div id="status-panel-wrap">
-        <button id="status-panel-capture-btn" type="button" title="Capture area as image" aria-label="Capture area as image">&#9986;</button>
-        <button id="status-panel-dismiss-btn" type="button" title="Close panel" aria-label="Close panel">&times;</button>
         <div id="status-panel"></div>
       </div>
+      <button id="status-panel-capture-btn" type="button" title="Capture area as image" aria-label="Capture area as image">&#9986;</button>
+      <button id="status-panel-dismiss-btn" type="button" title="Close panel" aria-label="Close panel">&times;</button>
     </div>
   </div>
   <div id="news-detail-modal" class="hidden">
@@ -91,21 +91,21 @@
         <h2>Tell us about yourself</h2>
         <p>This helps Jarvis personalize news and recommendations for you:</p>
         <div class="welcome-profile-choice">
-          <div class="profile-option" data-profile="robotics">
-            <h3>🤖 Robotics Educator</h3>
-            <p>Technology, humanoid robots, drones</p>
+          <div class="profile-option" data-profile="ceo">
+            <h3>CEO / Founder</h3>
+            <p>Vision, growth strategy, fundraising, market leadership</p>
           </div>
-          <div class="profile-option" data-profile="developer">
-            <h3>💻 Software Developer</h3>
-            <p>Programming, software engineering, tech trends</p>
+          <div class="profile-option" data-profile="cto">
+            <h3>Technology Director</h3>
+            <p>Engineering teams, architecture, product innovation, AI adoption</p>
           </div>
-          <div class="profile-option" data-profile="business">
-            <h3>📊 Business & Finance</h3>
-            <p>Markets, business strategy, economics</p>
+          <div class="profile-option" data-profile="ops">
+            <h3>Operations Director</h3>
+            <p>Efficiency, supply chain, process optimization, P&amp;L</p>
           </div>
           <div class="profile-option" data-profile="custom">
-            <h3>✏️ Custom Profile</h3>
-            <p>Tell Jarvis what you're interested in</p>
+            <h3>Custom Profile</h3>
+            <p>Define your own role, focus areas, and priorities</p>
           </div>
         </div>
         <div id="welcome-custom-profile" class="welcome-custom-profile hidden">
@@ -119,75 +119,158 @@
   </div>
 
   <div id="settings-modal" class="hidden">
+    <div class="settings-page-header">
+      <span class="settings-page-title">SETTINGS</span>
+    </div>
     <p id="setup-banner" class="hidden">Welcome, sir. Please add an API key to get started.</p>
-    <label>AI Provider: <select id="provider-select"><option value="deepseek">DeepSeek</option><option value="gemini">Gemini</option></select></label>
-    <div id="deepseek-api-group" class="provider-api-group">
-      <label>DeepSeek API Key: <input id="deepseek-api-key-input" type="password"></label>
-    </div>
-    <div id="gemini-api-group" class="provider-api-group hidden">
-      <label>Gemini API Key: <input id="gemini-api-key-input" type="password"></label>
-    </div>
-    <label>ElevenLabs API Key (optional, for natural voice): <input id="elevenlabs-api-key-input" type="password"></label>
-    <label>ElevenLabs Voice: <select id="elevenlabs-voice-select"><option value="">Adam (default)</option></select></label>
-    <div id="elevenlabs-voice-manage">
-      <input id="elevenlabs-voice-name-input" type="text" placeholder="Voice name (e.g. Mark - Natural Conversations)">
-      <input id="elevenlabs-voice-id-input" type="text" placeholder="Voice ID (e.g. UgBBYS2sOqTuMpoF3BR0)">
-      <button id="elevenlabs-voice-add-btn" type="button">Add Voice</button>
-      <button id="elevenlabs-voice-remove-btn" type="button">Remove Selected</button>
-    </div>
-    <label>Voice Volume: <input id="voice-volume-input" type="range" min="0" max="1" step="0.05"> <span id="voice-volume-value">100%</span></label>
-    <label>Music Volume: <input id="music-volume-input" type="range" min="0" max="1" step="0.05"> <span id="music-volume-value">60%</span></label>
-    <label><input id="wakeword-enabled-input" type="checkbox"> Enable wake word (always listens for "Jarvis")</label>
-    <label>Personality: <textarea id="personality-input"></textarea></label>
-    <label>User Profile (background &amp; interests): <textarea id="user-profile-input" placeholder="Robotics educator. Interests focus on technology, especially humanoid robots, drones, and robotics."></textarea></label>
-    <label>Geolocation: <input id="user-profile-geolocation-input" type="text" placeholder="e.g. Bayan Lepas"></label>
-    <label>Avatar Style: <select id="avatar-select"><option value="rings">Rings/HUD</option><option value="brain">Electrical Brain</option></select></label>
-    <button id="voice-words-toggle-btn" type="button">Voice Words</button>
-    <div id="voice-words-panel" class="hidden">
-      <label>User Name: <input id="user-name-input" type="text" placeholder="Zan"></label>
-      <div id="voice-phrase-tabs">
-        <button type="button" class="voice-phrase-tab active" data-phrase-tab="morning">Morning</button>
-        <button type="button" class="voice-phrase-tab" data-phrase-tab="afternoon">Afternoon</button>
-        <button type="button" class="voice-phrase-tab" data-phrase-tab="evening">Evening</button>
-        <button type="button" class="voice-phrase-tab" data-phrase-tab="processing">Processing</button>
-      </div>
-      <label id="voice-phrase-editor-label">Morning phrases: <textarea id="voice-phrase-editor" placeholder="Good morning [user]&#10;Hi, [user]"></textarea></label>
-      <p class="settings-hint">Use one phrase per line. [user] becomes the user name when spoken.</p>
-    </div>
-    <button id="music-toggle-btn" type="button">Music</button>
-    <div id="music-panel" class="hidden">
-      <div id="music-tabs">
-        <button type="button" class="music-tab active" data-music-tab="library">Library</button>
-        <button type="button" class="music-tab" data-music-tab="playlists">Playlists</button>
-        <button type="button" class="music-tab" data-music-tab="schedule">Schedule</button>
-      </div>
 
-      <div id="music-library-tab" class="music-tab-panel">
-        <button id="music-import-btn" type="button">Import Files</button>
-        <ul id="music-track-list"></ul>
+    <!-- AI Provider -->
+    <div class="settings-section">
+      <div class="settings-section-header">AI Provider</div>
+      <label>Provider
+        <select id="provider-select"><option value="deepseek">DeepSeek</option><option value="gemini">Gemini</option></select>
+      </label>
+      <div id="deepseek-api-group" class="provider-api-group">
+        <label>DeepSeek API Key <input id="deepseek-api-key-input" type="password"></label>
       </div>
-
-      <div id="music-playlists-tab" class="music-tab-panel hidden">
-        <input id="music-playlist-name-input" type="text" placeholder="Playlist name (e.g. Focus)">
-        <button id="music-playlist-create-btn" type="button">Create Playlist</button>
-        <label>Edit Playlist: <select id="music-playlist-select"></select></label>
-        <button id="music-playlist-delete-btn" type="button">Delete Selected Playlist</button>
-        <ul id="music-playlist-track-checklist"></ul>
-      </div>
-
-      <div id="music-schedule-tab" class="music-tab-panel hidden">
-        <div id="music-schedule-day-tabs"></div>
-        <div id="music-schedule-rows"></div>
+      <div id="gemini-api-group" class="provider-api-group hidden">
+        <label>Gemini API Key <input id="gemini-api-key-input" type="password"></label>
       </div>
     </div>
-    <label>Voice Briefing Frequency: <select id="briefing-voice-frequency-select"><option value="1h">Every 1 hour</option><option value="6h">Every 6 hours</option><option value="12h">Every 12 hours</option><option value="1d">Once a day</option><option value="never">Never</option></select></label>
-    <label>Preferred CLI: <select id="preferred-cli-select"><option value="">None (use chat)</option><option value="code">Claude Code</option><option value="codex">Codex</option></select></label>
-    <p class="settings-hint">Claude Code CLI uses its own logged-in subscription session ("claude login" in a terminal) - no API key needed here.</p>
-    <label>Active Project: <input id="project-input" placeholder="/path/to/project"></label>
-    <button id="project-browse-btn" type="button">Browse Folder</button>
-    <label>Max HTML Panels to Keep: <input id="max-html-panels-input" type="number" min="1" step="1" placeholder="50"></label>
-    <button id="settings-save-btn">Save</button>
-    <p id="setup-status"></p>
+
+    <!-- Voice -->
+    <div class="settings-section">
+      <div class="settings-section-header">Voice</div>
+      <label>ElevenLabs API Key <span class="settings-optional">optional — for natural voice</span>
+        <input id="elevenlabs-api-key-input" type="password">
+      </label>
+      <label>ElevenLabs Voice
+        <select id="elevenlabs-voice-select"><option value="">Adam (default)</option></select>
+      </label>
+      <div id="elevenlabs-voice-manage">
+        <input id="elevenlabs-voice-name-input" type="text" placeholder="Voice name (e.g. Mark - Natural Conversations)">
+        <input id="elevenlabs-voice-id-input" type="text" placeholder="Voice ID (e.g. UgBBYS2sOqTuMpoF3BR0)">
+        <button id="elevenlabs-voice-add-btn" type="button">Add Voice</button>
+        <button id="elevenlabs-voice-remove-btn" type="button">Remove Selected</button>
+      </div>
+      <label>Voice Volume
+        <div class="settings-range-row">
+          <input id="voice-volume-input" type="range" min="0" max="1" step="0.05">
+          <span id="voice-volume-value">100%</span>
+        </div>
+      </label>
+      <label class="settings-checkbox-label">
+        <input id="wakeword-enabled-input" type="checkbox"> Enable wake word (always listens for "Jarvis")
+      </label>
+      <label>Personality
+        <textarea id="personality-input"></textarea>
+      </label>
+      <label>Voice Briefing Frequency
+        <select id="briefing-voice-frequency-select">
+          <option value="1h">Every 1 hour</option>
+          <option value="6h">Every 6 hours</option>
+          <option value="12h">Every 12 hours</option>
+          <option value="1d">Once a day</option>
+          <option value="never">Never</option>
+        </select>
+      </label>
+      <button id="voice-words-toggle-btn" type="button">&#9654; Voice Words</button>
+      <div id="voice-words-panel" class="hidden">
+        <label>User Name <input id="user-name-input" type="text" placeholder="Zan"></label>
+        <div id="voice-phrase-tabs">
+          <button type="button" class="voice-phrase-tab active" data-phrase-tab="morning">Morning</button>
+          <button type="button" class="voice-phrase-tab" data-phrase-tab="afternoon">Afternoon</button>
+          <button type="button" class="voice-phrase-tab" data-phrase-tab="evening">Evening</button>
+          <button type="button" class="voice-phrase-tab" data-phrase-tab="processing">Processing</button>
+        </div>
+        <label id="voice-phrase-editor-label">Morning phrases
+          <textarea id="voice-phrase-editor" placeholder="Good morning [user]&#10;Hi, [user]"></textarea>
+        </label>
+        <p class="settings-hint">One phrase per line. <code>[user]</code> is replaced with the user name when spoken.</p>
+      </div>
+    </div>
+
+    <!-- Music & Briefing -->
+    <div class="settings-section">
+      <div class="settings-section-header">Music &amp; Briefing</div>
+      <label>Music Volume
+        <div class="settings-range-row">
+          <input id="music-volume-input" type="range" min="0" max="1" step="0.05">
+          <span id="music-volume-value">60%</span>
+        </div>
+      </label>
+      <button id="music-toggle-btn" type="button">&#9654; Music Library</button>
+      <div id="music-panel" class="hidden">
+        <div id="music-tabs">
+          <button type="button" class="music-tab active" data-music-tab="library">Library</button>
+          <button type="button" class="music-tab" data-music-tab="playlists">Playlists</button>
+          <button type="button" class="music-tab" data-music-tab="schedule">Schedule</button>
+        </div>
+        <div id="music-library-tab" class="music-tab-panel">
+          <button id="music-import-btn" type="button">Import Files</button>
+          <ul id="music-track-list"></ul>
+        </div>
+        <div id="music-playlists-tab" class="music-tab-panel hidden">
+          <input id="music-playlist-name-input" type="text" placeholder="Playlist name (e.g. Focus)">
+          <button id="music-playlist-create-btn" type="button">Create Playlist</button>
+          <label>Edit Playlist <select id="music-playlist-select"></select></label>
+          <button id="music-playlist-delete-btn" type="button">Delete Selected Playlist</button>
+          <ul id="music-playlist-track-checklist"></ul>
+        </div>
+        <div id="music-schedule-tab" class="music-tab-panel hidden">
+          <div id="music-schedule-day-tabs"></div>
+          <div id="music-schedule-rows"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Profile -->
+    <div class="settings-section">
+      <div class="settings-section-header">Profile</div>
+      <label>Background &amp; Interests
+        <textarea id="user-profile-input" placeholder="Robotics educator. Interests focus on technology, especially humanoid robots, drones, and robotics."></textarea>
+      </label>
+      <label>Geolocation
+        <input id="user-profile-geolocation-input" type="text" placeholder="e.g. Bayan Lepas">
+      </label>
+    </div>
+
+    <!-- Appearance -->
+    <div class="settings-section">
+      <div class="settings-section-header">Appearance</div>
+      <label>Avatar Style
+        <select id="avatar-select"><option value="rings">Rings / HUD</option><option value="brain">Electrical Brain</option></select>
+      </label>
+    </div>
+
+    <!-- System -->
+    <div class="settings-section">
+      <div class="settings-section-header">System</div>
+      <div class="settings-2col">
+        <label>Preferred CLI
+          <select id="preferred-cli-select">
+            <option value="">None (use chat)</option>
+            <option value="code">Claude Code</option>
+            <option value="codex">Codex</option>
+          </select>
+        </label>
+        <label>Max HTML Panels to Keep
+          <input id="max-html-panels-input" type="number" min="1" step="1" placeholder="50">
+        </label>
+      </div>
+      <p class="settings-hint">Claude Code CLI uses its own logged-in subscription session ("claude login" in a terminal) — no API key needed here.</p>
+      <label>Active Project
+        <div class="settings-browse-row">
+          <input id="project-input" placeholder="/path/to/project">
+          <button id="project-browse-btn" type="button">Browse</button>
+        </div>
+      </label>
+    </div>
+
+    <div class="settings-footer">
+      <button id="settings-save-btn">Save Settings</button>
+      <p id="setup-status"></p>
+    </div>
   </div>
   <script src="avatar/musicVisualizerRing.js"></script>
   <script src="avatar/ringsAvatar.js"></script>

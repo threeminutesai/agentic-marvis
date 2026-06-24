@@ -3,6 +3,7 @@ let avatarController = null;
 let currentSettings = null;
 let onboarding = false;
 let isMuted = false;
+let isMusicMuted = false;
 let isBusy = false;
 let isSpeaking = false;
 let isProcessingResponse = false;
@@ -450,6 +451,9 @@ async function init() {
     currentSettings = await window.jarvis.getSettings();
     populateSettingsForm(currentSettings);
 
+    if (currentSettings.voiceMuted) setVoiceMuted(true);
+    if (currentSettings.musicMuted) isMusicMuted = true; // applied after music starts
+
     if (isFirstRun(currentSettings)) {
       onboarding = true;
       document.getElementById('welcome-modal').classList.remove('hidden');
@@ -460,6 +464,7 @@ async function init() {
     try {
       const musicCatalog = await musicPanel.load();
       musicController.start(musicCatalog);
+      if (isMusicMuted) musicController.pause();
       if (nowPlayingWidgetTimer) clearInterval(nowPlayingWidgetTimer);
       nowPlayingWidgetTimer = setInterval(updateNowPlayingWidget, 5000);
       updateNowPlayingWidget();
@@ -483,9 +488,9 @@ function updateAppClock() {
 function setupWelcomeModal() {
   let selectedProfile = null;
   const PROFILE_TEMPLATES = {
-    robotics: 'Robotics educator. Interests focus on technology, especially humanoid robots, drones, and robotics.',
-    developer: 'Software developer. Interested in programming languages, software architecture, and emerging tech.',
-    business: 'Business professional. Interested in markets, finance, business strategy, and economics.',
+    ceo: 'CEO / Founder. Focused on vision, growth strategy, fundraising, competitive landscape, market leadership, and company culture.',
+    cto: 'Technology Director. Focused on engineering teams, software architecture, product innovation, AI adoption, and technical decision-making.',
+    ops: 'Operations Director. Focused on operational efficiency, supply chain, process optimization, cost management, and P&L performance.',
   };
 
   // Step 1: API Key Setup
@@ -1333,9 +1338,10 @@ function applyMuteCommand({ target, action }) {
 }
 
 async function routeUserMessage(text) {
-  // /html <path> - open HTML file directly without Claude delegation
-  if (text.toLowerCase().startsWith('/html ')) {
-    const pathMatch = text.slice(6).trim();
+  // /html <path> or html <path> - open HTML file directly without Claude delegation
+  const htmlCmdMatch = text.match(/^\/html\s+(.+)/i) || text.match(/^html\s+(.+)/i);
+  if (htmlCmdMatch) {
+    const pathMatch = htmlCmdMatch[1].trim();
     const filePath = pathMatch.startsWith('"') && pathMatch.endsWith('"')
       ? pathMatch.slice(1, -1)
       : pathMatch;
@@ -1666,6 +1672,12 @@ document.getElementById('send-btn').addEventListener('click', async (e) => {
 
 document.getElementById('audio-input-btn').addEventListener('click', toggleAudioInput);
 
+function persistStateSetting(key, value) {
+  if (!currentSettings) return;
+  currentSettings[key] = value;
+  window.jarvis.saveSettings(currentSettings).catch(() => {});
+}
+
 function setVoiceMuted(muted) {
   isMuted = muted;
   document.getElementById('mute-toggle-btn').textContent = isMuted ? 'Unmute' : 'Mute';
@@ -1673,12 +1685,15 @@ function setVoiceMuted(muted) {
     stopCachedVoice();
     ttsController.stop();
   }
+  persistStateSetting('voiceMuted', isMuted);
 }
 
 function setMusicMuted(muted) {
+  isMusicMuted = muted;
   if (muted) musicController.pause();
   else musicController.resume();
   updateNowPlayingWidget();
+  persistStateSetting('musicMuted', isMusicMuted);
 }
 
 document.getElementById('mute-toggle-btn').addEventListener('click', () => {
@@ -1710,6 +1725,8 @@ document.getElementById('settings-save-btn').addEventListener('click', async () 
     briefingVoiceFrequency: document.getElementById('briefing-voice-frequency-select').value,
     lastBriefingVoiceAt: currentSettings?.lastBriefingVoiceAt || null,
     maxHtmlPanels: Math.max(1, parseInt(document.getElementById('max-html-panels-input').value, 10) || 50),
+    voiceMuted: isMuted,
+    musicMuted: isMusicMuted,
   };
   const setupStatus = document.getElementById('setup-status');
 

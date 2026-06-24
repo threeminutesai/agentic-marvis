@@ -304,19 +304,118 @@ button:active { transform: scale(0.97); }
   white-space: nowrap;
 }
 
-/* === Settings page (full-screen overlay, own scroll, no page-level scroll bleed) === */
+/* === Settings page === */
 #settings-modal {
   position: fixed;
   inset: 0;
   z-index: 50;
   overflow-y: auto;
   box-sizing: border-box;
-  padding: 60px max(20px, calc((100% - 480px) / 2)) 60px;
+  padding: 40px max(20px, calc((100% - 720px) / 2)) 60px;
   background: radial-gradient(ellipse 120% 80% at 50% -10%, var(--nebula) 0%, var(--night) 45%, var(--void) 100%);
 }
+
+.settings-page-header {
+  margin-bottom: 28px;
+}
+.settings-page-title {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  font-size: 20px;
+  letter-spacing: 0.18em;
+  color: var(--ion-bright);
+}
+
+.settings-section {
+  background: rgba(14, 21, 48, 0.55);
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  padding: 18px 22px 20px;
+  margin-bottom: 14px;
+  backdrop-filter: blur(6px);
+}
+.settings-section-header {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ion);
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.settings-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.settings-range-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+.settings-range-row input[type="range"] {
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  width: auto;
+}
+.settings-range-row span {
+  min-width: 38px;
+  text-align: right;
+  font-size: 12px;
+  color: var(--ion);
+}
+
+.settings-browse-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+.settings-browse-row input {
+  flex: 1;
+  margin-top: 0 !important;
+}
+.settings-browse-row button {
+  flex-shrink: 0;
+}
+
+.settings-optional {
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-left: 6px;
+  opacity: 0.7;
+}
+
+.settings-checkbox-label {
+  display: flex !important;
+  align-items: center;
+  gap: 0;
+}
+
+.settings-footer {
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.settings-footer #settings-save-btn {
+  margin: 0;
+  padding: 11px 28px;
+  font-size: 13px;
+}
+.settings-footer #setup-status {
+  margin: 0;
+  flex: 1;
+}
+
 #settings-modal label {
   display: block;
-  margin: 14px 0;
+  margin: 10px 0;
   font-size: 13px;
   color: var(--text-dim);
 }
@@ -334,12 +433,14 @@ button:active { transform: scale(0.97); }
   width: 100%;
   max-width: 100%;
   font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
 }
 #settings-modal input:focus,
 #settings-modal select:focus,
 #settings-modal textarea:focus { outline: none; border-color: var(--ion); box-shadow: 0 0 0 3px var(--ion-soft); }
 #settings-modal input[type="checkbox"] { margin-right: 6px; width: auto; display: inline; }
 #settings-modal textarea { min-height: 60px; }
+#settings-modal code { font-family: 'JetBrains Mono', monospace; color: var(--ion); font-size: 11px; }
 .provider-api-group.hidden { display: none; }
 #elevenlabs-voice-manage { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 4px; }
 #elevenlabs-voice-manage input { flex: 1; min-width: 160px; margin-top: 0 !important; }
@@ -780,7 +881,7 @@ button:active { transform: scale(0.97); }
   transform: translateY(-2px);
   box-shadow: 0 0 25px var(--ion-soft);
 }
-#settings-save-btn { margin-top: 8px; padding: 10px 20px; }
+#settings-save-btn { padding: 10px 20px; }
 
 /* === Rings preset (audio-reactive) === */
 .ring-stage {
@@ -913,6 +1014,7 @@ button:active { transform: scale(0.97); }
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
+  position: relative;
 }
 
 #chat-column {
@@ -978,7 +1080,7 @@ button:active { transform: scale(0.97); }
   position: absolute;
   top: 10px;
   right: 60px;
-  z-index: 10;
+  z-index: 20;
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -987,7 +1089,7 @@ button:active { transform: scale(0.97); }
   color: #e8edf5;
   font-size: 15px;
   cursor: pointer;
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
   transition: background-color 0.2s;
@@ -1006,7 +1108,7 @@ button:active { transform: scale(0.97); }
   position: absolute;
   top: 10px;
   right: 20px;
-  z-index: 10;
+  z-index: 20;
   width: 32px;
   height: 32px;
   padding: 0;
@@ -1015,6 +1117,15 @@ button:active { transform: scale(0.97); }
   font-size: 18px;
   line-height: 1;
   border-radius: 50%;
+}
+
+#app-body.panel-active #status-panel-capture-btn {
+  display: flex;
+}
+
+/* Hide capture button on briefing page */
+#app-body.interaction-mode:not(.phase-3) #status-panel-capture-btn {
+  display: none;
 }
 
 #app-body.panel-active #status-panel-dismiss-btn {
