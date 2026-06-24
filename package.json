@@ -1,6 +1,6 @@
 {
   "name": "agentic-jarvis",
-  "version": "0.2.0",
+  "version": "0.4.0",
   "description": "Dashboard-oriented Jarvis interface for bridging Codex and Claude Code",
   "main": "src/main/main.js",
   "scripts": {
@@ -20,7 +20,8 @@
     "productName": "Jarvis",
     "files": [
       "src/**/*",
-      "package.json"
+      "package.json",
+      "data/music/**/*"
     ],
     "directories": {
       "output": "release"
