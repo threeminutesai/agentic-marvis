@@ -15,16 +15,14 @@ function createMusicLibraryStore({ filePath, musicDir, fsImpl = fs }) {
   function copyIntoLibrary(sourcePath, originalName) {
     const ext = path.extname(originalName).toLowerCase();
     const slug = slugifyOriginalName(originalName);
-    let id;
-    let fileName;
+    let id; // id IS the filename on disk
     let destPath;
     do {
-      id = `trk_${crypto.randomBytes(4).toString('hex')}`;
-      fileName = `${id}-${slug}${ext}`;
-      destPath = path.join(musicDir, fileName);
+      id = `trk_${crypto.randomBytes(4).toString('hex')}-${slug}${ext}`;
+      destPath = path.join(musicDir, id);
     } while (fsImpl.existsSync(destPath));
     fsImpl.copyFileSync(sourcePath, destPath);
-    return { id, fileName, originalName, addedAt: new Date().toISOString() };
+    return { id, originalName, addedAt: new Date().toISOString() };
   }
 
   function load() {
@@ -69,11 +67,8 @@ function createMusicLibraryStore({ filePath, musicDir, fsImpl = fs }) {
 
   function deleteTrack(trackId) {
     const catalog = load();
-    const track = catalog.tracks.find((t) => t.id === trackId);
-    if (track) {
-      const onDiskPath = path.join(musicDir, track.fileName);
-      if (fsImpl.existsSync(onDiskPath)) fsImpl.unlinkSync(onDiskPath);
-    }
+    const onDiskPath = path.join(musicDir, trackId); // id IS the filename
+    if (fsImpl.existsSync(onDiskPath)) fsImpl.unlinkSync(onDiskPath);
     catalog.tracks = catalog.tracks.filter((t) => t.id !== trackId);
     catalog.playlists = catalog.playlists.map((p) => ({
       ...p,

@@ -13,7 +13,7 @@ const { delegateCodexTask } = require('./codex/delegate');
 const { readStatusRows, ensureStatusFile } = require('./status/statusFile');
 const { ensureCaptureDir, getNextCapturePath, pruneCaptures } = require('./status/captureFile');
 const { DEFAULT_TEMPLATE_HTML } = require('./status/htmlPanelTemplate');
-const { DEFAULT_MUSIC_TRACKS, DEFAULT_MUSIC_SCHEDULE } = require('./music/defaultMusic');
+const { DEFAULT_MUSIC_TRACKS, DEFAULT_MUSIC_SCHEDULE, WEEKDAY_SLOTS, WEEKEND_SLOTS } = require('./music/defaultMusic');
 const { synthesizeGreetingWithCache } = require('./voice/greetingVoiceCache');
 const { createMusicLibraryStore, SUPPORTED_EXTENSIONS } = require('./music');
 const { pathToFileURL } = require('node:url');
@@ -133,46 +133,39 @@ function initDevMusicLibraryIfNeeded(musicDir, musicLibraryFilePath) {
   );
   if (!present.length) return;
 
-  const presentIds = new Set(present.map((t) => t.id));
-
-  const weekdaySlots = ['early-morning', 'morning', 'afternoon', 'evening', 'mid-night'];
+  // Weekday playlists — one per slot, trackId = fileName
   const playlists = present
-    .filter((t) => weekdaySlots.includes(t.id))
-    .map((t) => ({ id: `pl_${t.id}`, name: t.id, trackIds: [t.id] }));
+    .filter((t) => WEEKDAY_SLOTS.includes(t.slot))
+    .map((t) => ({ id: `pl_${t.slot}`, name: t.slot, trackIds: [t.fileName] }));
 
-  const weekendTracks = present.filter((t) => ['weekend-chill', 'weekend-work'].includes(t.id));
+  // Weekend playlist — all weekend tracks combined
+  const weekendTracks = present.filter((t) => WEEKEND_SLOTS.includes(t.slot));
   if (weekendTracks.length) {
-    playlists.push({ id: 'pl_weekend', name: 'weekend', trackIds: weekendTracks.map((t) => t.id) });
+    playlists.push({ id: 'pl_weekend', name: 'weekend', trackIds: weekendTracks.map((t) => t.fileName) });
   }
 
+  // Schedule: only reference playlists that were actually created
   const playlistIds = new Set(playlists.map((p) => p.id));
-
-  // Build schedule referencing only playlists that actually exist.
-  const SLOT_TO_PLAYLIST = {
-    earlyMorning: 'pl_early-morning',
-    morning: 'pl_morning',
-    afternoon: 'pl_afternoon',
-    evening: 'pl_evening',
-    midnight: 'pl_mid-night',
-  };
-  const WEEKEND_PLAYLIST = 'pl_weekend';
+  const allSlots = ['earlyMorning', 'morning', 'afternoon', 'evening', 'midnight'];
   const weekdays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
   const weekend = ['saturday', 'sunday'];
   const schedule = {};
   for (const day of weekdays) {
     schedule[day] = {};
-    for (const [slot, plId] of Object.entries(SLOT_TO_PLAYLIST)) {
+    for (const slot of allSlots) {
+      const plId = `pl_${slot}`;
       if (playlistIds.has(plId)) schedule[day][slot] = plId;
     }
   }
   for (const day of weekend) {
-    schedule[day] = playlistIds.has(WEEKEND_PLAYLIST)
-      ? Object.fromEntries(Object.keys(SLOT_TO_PLAYLIST).map((s) => [s, WEEKEND_PLAYLIST]))
+    schedule[day] = playlistIds.has('pl_weekend')
+      ? Object.fromEntries(allSlots.map((s) => [s, 'pl_weekend']))
       : {};
   }
 
+  // id IS the fileName — no separate fileName field
   const library = {
-    tracks: present.map((t) => ({ id: t.id, fileName: t.fileName, title: t.title, artist: t.artist, duration: t.duration || 0 })),
+    tracks: present.map((t) => ({ id: t.fileName, title: t.title, artist: t.artist, duration: 0 })),
     playlists,
     schedule,
   };
@@ -406,7 +399,7 @@ function registerIpcHandlers() {
       ...catalog,
       tracks: catalog.tracks.map((track) => ({
         ...track,
-        fileUrl: pathToFileURL(path.join(musicDir, track.fileName)).toString(),
+        fileUrl: pathToFileURL(path.join(musicDir, track.id)).toString(),
       })),
     };
   }
