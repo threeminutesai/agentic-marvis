@@ -26,11 +26,9 @@ function createProviderFor(providerName, apiKey) {
 // Packaged (portable exe): data lives next to the exe so the whole app is
 // self-contained in one folder. PORTABLE_EXECUTABLE_DIR is set by the
 // Electron portable launcher; fall back to dirname(execPath) if absent.
-// Dev (unpackaged): use Electron's userData path (%APPDATA%\agentic-jarvis
-// on Windows) so user settings never land inside the source-code directory
-// where they could be accidentally committed or shared.
+// Dev (unpackaged): data lives in the project root's data/ folder (gitignored).
 function getDataDir() {
-  if (!app.isPackaged) return app.getPath('userData');
+  if (!app.isPackaged) return path.join(path.resolve(__dirname, '../..'), 'data');
   let exeDir = process.env.PORTABLE_EXECUTABLE_DIR;
   if (!exeDir && process.execPath) {
     exeDir = path.dirname(process.execPath);
