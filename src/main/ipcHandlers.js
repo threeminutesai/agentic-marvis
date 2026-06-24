@@ -279,6 +279,79 @@ function ensureHtmlPanelDir() {
   return dir;
 }
 
+// Calculate string similarity score (0-1) using normalized Levenshtein distance
+function calculateSimilarity(str1, str2) {
+  const s1 = String(str1).toLowerCase();
+  const s2 = String(str2).toLowerCase();
+  const longer = s1.length > s2.length ? s1 : s2;
+  const shorter = s1.length > s2.length ? s2 : s1;
+  if (longer.length === 0) return 1;
+  const distance = levenshteinDistance(longer, shorter);
+  return (longer.length - distance) / longer.length;
+}
+
+// Calculate Levenshtein distance between two strings
+function levenshteinDistance(s1, s2) {
+  const costs = [];
+  for (let i = 0; i <= s1.length; i++) {
+    let lastValue = i;
+    for (let j = 0; j <= s2.length; j++) {
+      if (i === 0) {
+        costs[j] = j;
+      } else if (j > 0) {
+        let newValue = costs[j - 1];
+        if (s1.charAt(i - 1) !== s2.charAt(j - 1)) {
+          newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
+        }
+        costs[j - 1] = lastValue;
+        lastValue = newValue;
+      }
+    }
+    if (i > 0) costs[s2.length] = lastValue;
+  }
+  return costs[s2.length];
+}
+
+// Search HTML files in the html-panels folder by keyword with fuzzy matching
+function searchHtmlPanels(keyword, minSimilarity = 0.4) {
+  const dir = ensureHtmlPanelDir();
+  if (!keyword || !String(keyword).trim()) {
+    return [];
+  }
+
+  const query = String(keyword).toLowerCase().trim();
+  const files = fs.readdirSync(dir);
+
+  const results = files
+    .filter((file) => file.endsWith('.html') && file !== '_template.html')
+    .map((file) => {
+      const baseName = file.replace(/\.html$/, '');
+      const baseNameLower = baseName.toLowerCase();
+      const isExactMatch = baseNameLower === query;
+      const containsKeyword = baseNameLower.includes(query);
+      const similarity = calculateSimilarity(query, baseName);
+
+      return {
+        file,
+        baseName,
+        similarity,
+        isExactMatch,
+        containsKeyword,
+        // Priority: exact match (1.5) > contains keyword (1.0) > fuzzy similarity
+        score: isExactMatch ? 1.5 : (containsKeyword ? 1.0 : similarity),
+        filePath: path.join(dir, file),
+      };
+    })
+    // Filter: keep exact matches or substring matches, or high similarity fuzzy matches
+    .filter((result) => result.isExactMatch || result.containsKeyword || result.score >= minSimilarity)
+    .sort((a, b) => {
+      // Sort by score descending (highest match first)
+      return b.score - a.score;
+    });
+
+  return results;
+}
+
 // Regenerates _template.html when missing or emptied out, same "found
 // empty" rule as ensureStatusFile, so delegated report tasks always have a
 // style/structure reference to match instead of silently losing it.
@@ -521,12 +594,13 @@ function registerIpcHandlers() {
   });
 
   ipcMain.handle('tts:synthesize', async (_event, text) => {
-    const settings = settingsStore.load();
-    const apiKey = settings.apiKeys?.elevenlabs;
+    const envKeys = loadEnvFile();
+    const apiKey = envKeys.elevenlabs;
     if (!apiKey) {
       console.log('[TTS] No ElevenLabs API key configured, will fall back to Web Speech.');
       return { ok: false };
     }
+    const settings = settingsStore.load();
     const voiceId = settings.elevenLabsVoiceId || undefined;
     console.log(`[TTS] Attempting ElevenLabs with voiceId: "${voiceId || 'default (Adam)'}"`);
     try {
@@ -542,9 +616,11 @@ function registerIpcHandlers() {
 
   ipcMain.handle('tts:synthesize-greeting', async (_event, text) => {
     const settings = settingsStore.load();
+    const envKeys = loadEnvFile();
     return synthesizeGreetingWithCache({
       text,
       settings,
+      apiKey: envKeys.elevenlabs,
       cacheDir: voiceCacheDir,
       fsImpl: fs,
       createProvider: createElevenLabsProvider,
@@ -553,9 +629,11 @@ function registerIpcHandlers() {
 
   ipcMain.handle('tts:synthesize-cached', async (_event, { text, category }) => {
     const settings = settingsStore.load();
+    const envKeys = loadEnvFile();
     return synthesizeGreetingWithCache({
       text,
       settings,
+      apiKey: envKeys.elevenlabs,
       cacheDir: voiceCacheDir,
       fsImpl: fs,
       createProvider: createElevenLabsProvider,
@@ -564,8 +642,8 @@ function registerIpcHandlers() {
   });
 
   ipcMain.handle('stt:transcribe', async (_event, { audioBase64, mimeType }) => {
-    const settings = settingsStore.load();
-    const apiKey = settings.apiKeys?.elevenlabs;
+    const envKeys = loadEnvFile();
+    const apiKey = envKeys.elevenlabs;
     if (!apiKey) {
       return { ok: false, error: 'No ElevenLabs API key configured, sir.' };
     }
@@ -672,6 +750,29 @@ function registerIpcHandlers() {
   ipcMain.handle('html-panel:read', (_event, filePath) => {
     try {
       return { ok: true, html: readHtmlPanelFile(filePath), filePath };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle('html-panel:search', (_event, keyword) => {
+    try {
+      const results = searchHtmlPanels(keyword);
+      return { ok: true, results };
+    } catch (err) {
+      return { ok: false, error: err.message, results: [] };
+    }
+  });
+
+  ipcMain.handle('html-panel:openByKeyword', (_event, keyword) => {
+    try {
+      const results = searchHtmlPanels(keyword);
+      if (!results.length) {
+        return { ok: false, error: `No HTML panel found matching "${keyword}".` };
+      }
+      const topMatch = results[0];
+      const html = readHtmlPanelFile(topMatch.filePath);
+      return { ok: true, html, filePath: topMatch.filePath, fileName: topMatch.file };
     } catch (err) {
       return { ok: false, error: err.message };
     }

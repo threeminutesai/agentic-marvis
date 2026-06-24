@@ -24,6 +24,8 @@ contextBridge.exposeInMainWorld('jarvis', {
   readHtmlPanel: (filePath) => ipcRenderer.invoke('html-panel:read', filePath),
   readExternalHtml: (filePath) => ipcRenderer.invoke('html:read-external', filePath),
   discardHtmlPanel: (filePath) => ipcRenderer.invoke('html-panel:discard', filePath),
+  searchHtmlPanels: (keyword) => ipcRenderer.invoke('html-panel:search', keyword),
+  openHtmlPanelByKeyword: (keyword) => ipcRenderer.invoke('html-panel:openByKeyword', keyword),
   captureRegion: (rect) => ipcRenderer.invoke('panel:captureRegion', rect),
   readCapture: (filePath) => ipcRenderer.invoke('capture:read', filePath),
   onCliProgress: (callback) => {

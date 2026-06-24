@@ -12,6 +12,48 @@ function showHTML(html) {
   showPanel(wrapped);
 }
 
+// Safely display HTML in an isolated iframe to prevent CSS/script conflicts
+function showHTMLSafe(html) {
+  const appBody = document.getElementById('app-body');
+  const panel = document.getElementById('status-panel');
+
+  // Create iframe container with safe styling
+  const iframeContainer = document.createElement('div');
+  iframeContainer.style.gridColumn = '1 / -1';
+  iframeContainer.style.height = '100%';
+  iframeContainer.style.overflow = 'auto';
+
+  // Create iframe with sandbox restrictions
+  const iframe = document.createElement('iframe');
+  iframe.style.width = '100%';
+  iframe.style.height = '100%';
+  iframe.style.border = 'none';
+  iframe.style.borderRadius = '8px';
+  iframe.sandbox.add('allow-same-origin');
+  iframe.sandbox.add('allow-scripts');
+
+  iframeContainer.appendChild(iframe);
+  panel.innerHTML = '';
+  panel.appendChild(iframeContainer);
+  appBody.classList.add('panel-active');
+
+  // Write content to iframe document
+  const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+  iframeDoc.open();
+  iframeDoc.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { margin: 0; padding: 16px; font-family: inherit; background: transparent; }
+  </style>
+</head>
+<body>${html}</body>
+</html>`);
+  iframeDoc.close();
+}
+
 function hidePanel() {
   const appBody = document.getElementById('app-body');
   appBody.classList.remove('panel-active');

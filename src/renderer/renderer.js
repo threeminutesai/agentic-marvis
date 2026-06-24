@@ -1349,7 +1349,7 @@ async function routeUserMessage(text) {
     try {
       const result = await window.jarvis.readExternalHtml(filePath);
       if (result?.ok) {
-        showPanel(result.html);
+        showHTMLSafe(result.html);
         currentHtmlPath = filePath; // Track for joint analysis with screenshots
         appendChatLine('Jarvis', `Displaying ${filePath}`);
       } else {
@@ -1357,6 +1357,26 @@ async function routeUserMessage(text) {
       }
     } catch (err) {
       appendChatLine('Jarvis', `I couldn't read that file, sir: ${err.message}`);
+    }
+    return;
+  }
+
+  // /open <keyword> or open <keyword> - search and open HTML panel by keyword
+  const openCmdMatch = text.match(/^\/open\s+(.+)/i) || text.match(/^open\s+(.+)/i);
+  if (openCmdMatch) {
+    const keyword = openCmdMatch[1].trim();
+    appendChatLine('You', text);
+    try {
+      const result = await window.jarvis.openHtmlPanelByKeyword(keyword);
+      if (result?.ok) {
+        showHTMLSafe(result.html);
+        currentHtmlPath = result.filePath; // Track for joint analysis with screenshots
+        appendChatLine('Jarvis', `Displaying ${result.fileName}`);
+      } else {
+        appendChatLine('Jarvis', result?.error || `I couldn't find an HTML panel matching "${keyword}", sir.`);
+      }
+    } catch (err) {
+      appendChatLine('Jarvis', `I couldn't open that panel, sir: ${err.message}`);
     }
     return;
   }
