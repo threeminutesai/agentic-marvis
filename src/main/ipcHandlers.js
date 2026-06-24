@@ -13,7 +13,6 @@ const { delegateCodexTask } = require('./codex/delegate');
 const { readStatusRows, ensureStatusFile } = require('./status/statusFile');
 const { ensureCaptureDir, getNextCapturePath, pruneCaptures } = require('./status/captureFile');
 const { DEFAULT_TEMPLATE_HTML } = require('./status/htmlPanelTemplate');
-const { DEFAULT_MUSIC_TRACKS, DEFAULT_MUSIC_SCHEDULE } = require('./music/defaultMusic');
 const { synthesizeGreetingWithCache } = require('./voice/greetingVoiceCache');
 const { createMusicLibraryStore, SUPPORTED_EXTENSIONS } = require('./music');
 const { pathToFileURL } = require('node:url');
@@ -110,44 +109,6 @@ function migrateLegacyMusicFilesIfNeeded(newMusicDir) {
   }
 }
 
-// Initialize music library based on available tracks in the music folder.
-// If music folder is empty, the library stays empty. If pre-packaged tracks exist,
-// they're detected and the default schedule is activated.
-function initializeMusicLibraryIfNeeded(musicDir, musicLibraryFilePath) {
-  fs.mkdirSync(musicDir, { recursive: true });
-
-  // Check if music library already exists
-  if (fs.existsSync(musicLibraryFilePath)) {
-    try {
-      const existing = JSON.parse(fs.readFileSync(musicLibraryFilePath, 'utf8'));
-      if (existing.tracks && existing.tracks.length > 0) {
-        return;
-      }
-    } catch {
-      // Continue with initialization if file is corrupt
-    }
-  }
-
-  // Detect available music tracks (pre-packaged in data/music/)
-  const availableTracks = [];
-  for (const trackTemplate of DEFAULT_MUSIC_TRACKS) {
-    const trackPath = path.join(musicDir, trackTemplate.fileName);
-    if (fs.existsSync(trackPath)) {
-      availableTracks.push(trackTemplate);
-    }
-  }
-
-  // Only create library if tracks are present
-  if (availableTracks.length > 0) {
-    const defaultLibrary = {
-      tracks: availableTracks,
-      playlists: [],
-      schedule: DEFAULT_MUSIC_SCHEDULE,
-    };
-    fs.writeFileSync(musicLibraryFilePath, JSON.stringify(defaultLibrary, null, 2));
-    console.log(`[Music] Initialized music library with ${availableTracks.length} pre-packaged tracks`);
-  }
-}
 
 // One-time migration for dev machines that already have a pre-existing
 // ~/.jarvis-settings.json from before settings.json moved into the
@@ -157,80 +118,7 @@ function initializeMusicLibraryIfNeeded(musicDir, musicLibraryFilePath) {
 // Ensure music library has individual playlists per track and schedule
 function ensureDataFilesExist(dataDir) {
   fs.mkdirSync(dataDir, { recursive: true });
-
-  const musicLibraryPath = path.join(dataDir, 'music-library.json');
-  if (!fs.existsSync(musicLibraryPath)) {
-    try {
-      // Copy the bundled royalty-free sample tracks into data/music/ so the
-      // fileName each DEFAULT_MUSIC_TRACKS entry references actually exists
-      // on disk (music-library.json alone is just metadata).
-      const musicDir = path.join(dataDir, 'music');
-      fs.mkdirSync(musicDir, { recursive: true });
-      const sampleMusicDir = path.join(__dirname, 'assets', 'sample-music');
-      for (const t of DEFAULT_MUSIC_TRACKS) {
-        const src = path.join(sampleMusicDir, t.fileName);
-        const dest = path.join(musicDir, t.fileName);
-        if (!fs.existsSync(dest) && fs.existsSync(src)) {
-          fs.copyFileSync(src, dest);
-        }
-      }
-
-      // One playlist per weekday slot (single track each), plus one combined
-      // weekend playlist holding both weekend tracks (played all day Sat/Sun).
-      // Playlist names use the slot id (early-morning, morning, ...) so the
-      // Edit Playlist dropdown reads as a schedule slot, not a song title.
-      const weekdayTrackIds = ['early-morning', 'morning', 'afternoon', 'evening', 'mid-night'];
-      const weekendTrackIds = ['weekend-chill', 'weekend-work'];
-      const playlists = [
-        ...DEFAULT_MUSIC_TRACKS
-          .filter((t) => weekdayTrackIds.includes(t.id))
-          .map((t) => ({ id: `pl_${t.id}`, name: t.id, trackIds: [t.id] })),
-        { id: 'pl_weekend', name: 'weekend', trackIds: weekendTrackIds },
-      ];
-
-      // Build schedule keyed by full day name x camelCase bucket, matching
-      // the schema musicPanel.js / musicSchedule.js expect (see DAY_NAMES /
-      // BUCKET_KEYS in src/renderer/voice/musicSchedule.js).
-      const WEEKDAY_BUCKETS = {
-        earlyMorning: 'pl_early-morning',
-        morning: 'pl_morning',
-        afternoon: 'pl_afternoon',
-        evening: 'pl_evening',
-        midnight: 'pl_mid-night',
-      };
-      const WEEKEND_BUCKETS = {
-        earlyMorning: 'pl_weekend',
-        morning: 'pl_weekend',
-        afternoon: 'pl_weekend',
-        evening: 'pl_weekend',
-        midnight: 'pl_weekend',
-      };
-      const schedule = {
-        monday: { ...WEEKDAY_BUCKETS },
-        tuesday: { ...WEEKDAY_BUCKETS },
-        wednesday: { ...WEEKDAY_BUCKETS },
-        thursday: { ...WEEKDAY_BUCKETS },
-        friday: { ...WEEKDAY_BUCKETS },
-        saturday: { ...WEEKEND_BUCKETS },
-        sunday: { ...WEEKEND_BUCKETS },
-      };
-
-      const defaultLibrary = {
-        tracks: DEFAULT_MUSIC_TRACKS.map((t) => ({
-          id: t.id,
-          fileName: t.fileName,
-          title: t.fileName,
-          artist: t.artist,
-          duration: t.duration || 0,
-        })),
-        playlists,
-        schedule,
-      };
-      fs.writeFileSync(musicLibraryPath, JSON.stringify(defaultLibrary, null, 2));
-    } catch (err) {
-      console.error('[Init] Failed to create music-library.json:', err.message);
-    }
-  }
+  fs.mkdirSync(path.join(dataDir, 'music'), { recursive: true });
 }
 
 function copyLegacySettingsFileIfNeeded(filePath) {
@@ -447,12 +335,10 @@ function registerIpcHandlers() {
   const musicLibraryFilePath = getMusicLibraryFilePath();
   const voiceCacheDir = getVoiceCacheDir();
   migrateLegacyMusicFilesIfNeeded(musicDir);
-  initializeMusicLibraryIfNeeded(musicDir, musicLibraryFilePath);
   migrateLegacyVoiceCacheIfNeeded(voiceCacheDir);
   const musicStore = createMusicLibraryStore({
     filePath: musicLibraryFilePath,
     musicDir,
-    sampleDir: path.join(__dirname, '..', 'assets', 'sample-music'),
   });
 
   function withFileUrls(catalog) {
