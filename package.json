@@ -20,7 +20,6 @@
     "productName": "Jarvis",
     "files": [
       "src/**/*",
-      "data/**/*",
       "package.json"
     ],
     "directories": {
