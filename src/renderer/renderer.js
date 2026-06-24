@@ -1255,7 +1255,6 @@ function populateSettingsForm(settings) {
   document.getElementById('deepseek-api-key-input').value = settings.apiKeys.deepseek;
   document.getElementById('gemini-api-key-input').value = settings.apiKeys.gemini;
   document.getElementById('elevenlabs-api-key-input').value = settings.apiKeys.elevenlabs;
-  document.getElementById('openai-api-key-input').value = settings.apiKeys.openai || '';
   renderVoiceOptions(settings.elevenLabsVoices || [], settings.elevenLabsVoiceId);
   const voiceVolume = typeof settings.voiceVolume === 'number' ? settings.voiceVolume : 1;
   document.getElementById('voice-volume-input').value = voiceVolume;
@@ -1778,7 +1777,6 @@ document.getElementById('settings-save-btn').addEventListener('click', async () 
       deepseek: document.getElementById('deepseek-api-key-input').value,
       gemini: document.getElementById('gemini-api-key-input').value,
       elevenlabs: document.getElementById('elevenlabs-api-key-input').value,
-      openai: document.getElementById('openai-api-key-input').value,
     },
     elevenLabsVoiceId: document.getElementById('elevenlabs-voice-select').value,
     elevenLabsVoices: Array.from(document.getElementById('elevenlabs-voice-select').options)

@@ -8,8 +8,6 @@ const { createDeepseekProvider } = require('./providers/deepseekProvider');
 const { createGeminiProvider } = require('./providers/geminiProvider');
 const { createElevenLabsProvider } = require('./providers/elevenLabsProvider');
 const { createElevenLabsSttProvider } = require('./providers/elevenLabsSttProvider');
-const { createWhisperSttProvider } = require('./providers/whisperSttProvider');
-const { createWhisperLocalProvider, getWhisperPipeline } = require('./providers/whisperLocalProvider');
 const { delegateTask } = require('./claudeCode/delegate');
 const { delegateCodexTask } = require('./codex/delegate');
 const { readStatusRows, ensureStatusFile } = require('./status/statusFile');
@@ -234,11 +232,10 @@ const ENV_KEY_MAP = {
   GEMINI_API_KEY: 'gemini',
   ELEVENLABS_API_KEY: 'elevenlabs',
   ANTHROPIC_API_KEY: 'anthropic',
-  OPENAI_API_KEY: 'openai',
 };
 
 function loadEnvFile() {
-  const keys = { deepseek: '', gemini: '', elevenlabs: '', anthropic: '', openai: '' };
+  const keys = { deepseek: '', gemini: '', elevenlabs: '', anthropic: '' };
   const envPath = getEnvFilePath();
   if (!fs.existsSync(envPath)) return keys;
   for (const line of fs.readFileSync(envPath, 'utf8').split('\n')) {
@@ -268,7 +265,7 @@ function migrateApiKeysToEnvIfNeeded(settingsStore) {
   const { apiKeys } = settings;
   if (!apiKeys || !Object.values(apiKeys).some((v) => v)) return;
   saveEnvFile(apiKeys);
-  settingsStore.save({ ...settings, apiKeys: { deepseek: '', gemini: '', elevenlabs: '', anthropic: '', openai: '' } });
+  settingsStore.save({ ...settings, apiKeys: { deepseek: '', gemini: '', elevenlabs: '', anthropic: '' } });
   console.log('[Settings] Migrated API keys from settings.json to .env');
 }
 
@@ -508,7 +505,7 @@ function registerIpcHandlers() {
     try {
       const { apiKeys, ...rest } = settings;
       if (apiKeys) saveEnvFile(apiKeys);
-      settingsStore.save({ ...rest, apiKeys: { deepseek: '', gemini: '', elevenlabs: '', anthropic: '', openai: '' } });
+      settingsStore.save({ ...rest, apiKeys: { deepseek: '', gemini: '', elevenlabs: '', anthropic: '' } });
       return { ok: true };
     } catch (err) {
       return { ok: false, error: `I couldn't save your settings, sir: ${err.message}` };
@@ -643,36 +640,6 @@ function registerIpcHandlers() {
       createProvider: createElevenLabsProvider,
       category: category || 'general',
     });
-  });
-
-  ipcMain.handle('stt:whisper-local', async (_event, { pcmFloat32, sampleRate }) => {
-    try {
-      const provider = createWhisperLocalProvider();
-      const result = await provider.transcribe({ pcmFloat32: new Float32Array(pcmFloat32), sampleRate });
-      return { ok: true, ...result };
-    } catch (err) {
-      return { ok: false, error: err.message };
-    }
-  });
-
-  // Pre-warm disabled — local Whisper not in use
-
-  ipcMain.handle('stt:whisper', async (_event, { audioBase64, mimeType }) => {
-    const envKeys = loadEnvFile();
-    const apiKey = envKeys.openai;
-    if (!apiKey) {
-      return { ok: false, error: 'No OpenAI API key configured for Whisper, sir.' };
-    }
-    try {
-      const provider = createWhisperSttProvider({ apiKey });
-      const result = await provider.transcribe({
-        audioBuffer: Buffer.from(audioBase64, 'base64'),
-        mimeType,
-      });
-      return { ok: true, ...result };
-    } catch (err) {
-      return { ok: false, error: err.message };
-    }
   });
 
   ipcMain.handle('stt:transcribe', async (_event, { audioBase64, mimeType }) => {

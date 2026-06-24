@@ -10,8 +10,6 @@ contextBridge.exposeInMainWorld('marvis', {
   synthesizeGreeting: (text) => ipcRenderer.invoke('tts:synthesize-greeting', text),
   synthesizeCachedSpeech: (payload) => ipcRenderer.invoke('tts:synthesize-cached', payload),
   transcribeSpeech: (payload) => ipcRenderer.invoke('stt:transcribe', payload),
-  transcribeWhisper: (payload) => ipcRenderer.invoke('stt:whisper', payload),
-  transcribeWhisperLocal: (payload) => ipcRenderer.invoke('stt:whisper-local', payload),
   delegateTask: (task, operationId) => ipcRenderer.invoke('claudeCode:delegate', { task, operationId }),
   delegateCodexTask: (task, operationId) => ipcRenderer.invoke('codex:delegate', { task, operationId }),
   selectFolder: () => ipcRenderer.invoke('dialog:selectFolder'),

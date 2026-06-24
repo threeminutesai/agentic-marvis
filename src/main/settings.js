@@ -2,7 +2,7 @@
 
 const DEFAULTS = {
   provider: 'deepseek',
-  apiKeys: { deepseek: '', gemini: '', elevenlabs: '', anthropic: '', openai: '' },
+  apiKeys: { deepseek: '', gemini: '', elevenlabs: '', anthropic: '' },
   elevenLabsVoiceId: '',
   elevenLabsVoices: [],
   userName: '',
