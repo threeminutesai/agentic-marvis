@@ -23,16 +23,14 @@ function createProviderFor(providerName, apiKey) {
   return createDeepseekProvider({ apiKey });
 }
 
-// In a packaged build, __dirname resolves inside the read-only app.asar
-// archive, so data lives in a "data" folder next to the exe instead -
-// portable, no install/userData wandering. process.execPath is always the
-// actual exe being run, whether it's a launcher wrapper or direct invoke;
-// PORTABLE_EXECUTABLE_DIR is a fallback if the launcher sets it. In dev
-// (unpackaged), keep using the project's own data/ folder, which already has
-// this exact layout - jarvis-status.json, settings.json,
-// html-panels/_template.html - so dev and a packaged exe are interchangeable.
+// Packaged (portable exe): data lives next to the exe so the whole app is
+// self-contained in one folder. PORTABLE_EXECUTABLE_DIR is set by the
+// Electron portable launcher; fall back to dirname(execPath) if absent.
+// Dev (unpackaged): use Electron's userData path (%APPDATA%\agentic-jarvis
+// on Windows) so user settings never land inside the source-code directory
+// where they could be accidentally committed or shared.
 function getDataDir() {
-  if (!app.isPackaged) return path.join(path.resolve(__dirname, '../..'), 'data');
+  if (!app.isPackaged) return app.getPath('userData');
   let exeDir = process.env.PORTABLE_EXECUTABLE_DIR;
   if (!exeDir && process.execPath) {
     exeDir = path.dirname(process.execPath);
