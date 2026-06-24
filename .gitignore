@@ -11,3 +11,4 @@ docs/superpowers/
 .DS_Store
 Thumbs.db
 data/
+.env

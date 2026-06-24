@@ -283,6 +283,52 @@ function saveUserProfile(filePath, profileText, geolocation) {
   return updatedRows;
 }
 
+function getEnvFilePath() {
+  return path.join(getDataDir(), '.env');
+}
+
+const ENV_KEY_MAP = {
+  DEEPSEEK_API_KEY: 'deepseek',
+  GEMINI_API_KEY: 'gemini',
+  ELEVENLABS_API_KEY: 'elevenlabs',
+  ANTHROPIC_API_KEY: 'anthropic',
+};
+
+function loadEnvFile() {
+  const keys = { deepseek: '', gemini: '', elevenlabs: '', anthropic: '' };
+  const envPath = getEnvFilePath();
+  if (!fs.existsSync(envPath)) return keys;
+  for (const line of fs.readFileSync(envPath, 'utf8').split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eqIdx = trimmed.indexOf('=');
+    if (eqIdx < 0) continue;
+    const envKey = trimmed.slice(0, eqIdx).trim();
+    const value = trimmed.slice(eqIdx + 1).trim();
+    if (ENV_KEY_MAP[envKey] !== undefined) keys[ENV_KEY_MAP[envKey]] = value;
+  }
+  return keys;
+}
+
+function saveEnvFile(apiKeys) {
+  const lines = Object.entries(ENV_KEY_MAP).map(
+    ([envKey, settingsKey]) => `${envKey}=${apiKeys[settingsKey] || ''}`,
+  );
+  fs.writeFileSync(getEnvFilePath(), lines.join('\n') + '\n');
+}
+
+// One-time migration: if .env doesn't exist yet but settings.json already
+// has encrypted keys, decrypt them into .env and clear them from JSON.
+function migrateApiKeysToEnvIfNeeded(settingsStore) {
+  if (fs.existsSync(getEnvFilePath())) return;
+  const settings = settingsStore.load();
+  const { apiKeys } = settings;
+  if (!apiKeys || !Object.values(apiKeys).some((v) => v)) return;
+  saveEnvFile(apiKeys);
+  settingsStore.save({ ...settings, apiKeys: { deepseek: '', gemini: '', elevenlabs: '', anthropic: '' } });
+  console.log('[Settings] Migrated API keys from settings.json to .env');
+}
+
 function getHtmlPanelDir() {
   return path.join(getDataDir(), 'html-panels');
 }
@@ -390,6 +436,7 @@ function registerIpcHandlers() {
     filePath: settingsFilePath,
     crypto: safeStorage,
   });
+  migrateApiKeysToEnvIfNeeded(settingsStore);
 
   const statusFilePath = getStatusFilePath();
   copyLegacyStatusFileIfNeeded(statusFilePath);
@@ -437,11 +484,16 @@ function registerIpcHandlers() {
     cancelledOperations.delete(operationId);
   }
 
-  ipcMain.handle('settings:get', () => settingsStore.load());
+  ipcMain.handle('settings:get', () => {
+    const settings = settingsStore.load();
+    return { ...settings, apiKeys: loadEnvFile() };
+  });
 
   ipcMain.handle('settings:save', (_event, settings) => {
     try {
-      settingsStore.save(settings);
+      const { apiKeys, ...rest } = settings;
+      if (apiKeys) saveEnvFile(apiKeys);
+      settingsStore.save({ ...rest, apiKeys: { deepseek: '', gemini: '', elevenlabs: '', anthropic: '' } });
       return { ok: true };
     } catch (err) {
       return { ok: false, error: `I couldn't save your settings, sir: ${err.message}` };
