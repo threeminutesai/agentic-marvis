@@ -1,0 +1,239 @@
+{
+  "source_file": "test-data\\finance-quarterly-v2.xlsx",
+  "sheets": [
+    {
+      "sheet_name": "Finance",
+      "tables": [
+        {
+          "table_id": "Finance__t0",
+          "anchor_cell": "A1",
+          "headers": [
+            "Metric",
+            "Value"
+          ],
+          "row_count": 5,
+          "rows": [
+            {
+              "Metric": "Total Revenue",
+              "Value": 15100000
+            },
+            {
+              "Metric": "Gross Profit",
+              "Value": -900000
+            },
+            {
+              "Metric": "Marketing Spend",
+              "Value": 2200000
+            },
+            {
+              "Metric": "CAC",
+              "Value": 51200
+            },
+            {
+              "Metric": "Active Customers",
+              "Value": 102
+            }
+          ],
+          "truncated": false,
+          "columns": {
+            "Metric": {
+              "inferred_type": "text",
+              "non_null": 5
+            },
+            "Value": {
+              "inferred_type": "numeric",
+              "non_null": 5,
+              "min": -900000,
+              "max": 15100000,
+              "sum": 16451302,
+              "mean": 3290260.4
+            }
+          }
+        },
+        {
+          "table_id": "Finance__t1",
+          "anchor_cell": "A8",
+          "headers": [
+            "Month",
+            "Revenue",
+            "Cost of Goods Sold",
+            "Gross Profit",
+            "Marketing Spend"
+          ],
+          "row_count": 12,
+          "rows": [
+            {
+              "Month": "Jan",
+              "Revenue": 650000,
+              "Cost of Goods Sold": 700000,
+              "Gross Profit": -50000,
+              "Marketing Spend": 80000
+            },
+            {
+              "Month": "Feb",
+              "Revenue": 620000,
+              "Cost of Goods Sold": 680000,
+              "Gross Profit": -60000,
+              "Marketing Spend": 75000
+            },
+            {
+              "Month": "Mar",
+              "Revenue": 680000,
+              "Cost of Goods Sold": 720000,
+              "Gross Profit": -40000,
+              "Marketing Spend": 82000
+            },
+            {
+              "Month": "Apr",
+              "Revenue": 740000,
+              "Cost of Goods Sold": 760000,
+              "Gross Profit": -20000,
+              "Marketing Spend": 90000
+            },
+            {
+              "Month": "May",
+              "Revenue": 770000,
+              "Cost of Goods Sold": 790000,
+              "Gross Profit": -20000,
+              "Marketing Spend": 95000
+            },
+            {
+              "Month": "Jun",
+              "Revenue": 860000,
+              "Cost of Goods Sold": 860000,
+              "Gross Profit": 0,
+              "Marketing Spend": 105000
+            },
+            {
+              "Month": "Jul",
+              "Revenue": 950000,
+              "Cost of Goods Sold": 930000,
+              "Gross Profit": 20000,
+              "Marketing Spend": 115000
+            },
+            {
+              "Month": "Aug",
+              "Revenue": 1030000,
+              "Cost of Goods Sold": 1010000,
+              "Gross Profit": 20000,
+              "Marketing Spend": 125000
+            },
+            {
+              "Month": "Sep",
+              "Revenue": 1090000,
+              "Cost of Goods Sold": 1070000,
+              "Gross Profit": 20000,
+              "Marketing Spend": 130000
+            },
+            {
+              "Month": "Oct",
+              "Revenue": 1160000,
+              "Cost of Goods Sold": 1140000,
+              "Gross Profit": 20000,
+              "Marketing Spend": 140000
+            },
+            {
+              "Month": "Nov",
+              "Revenue": 1220000,
+              "Cost of Goods Sold": 1190000,
+              "Gross Profit": 30000,
+              "Marketing Spend": 148000
+            },
+            {
+              "Month": "Dec",
+              "Revenue": 1300000,
+              "Cost of Goods Sold": 1280000,
+              "Gross Profit": 20000,
+              "Marketing Spend": 160000
+            }
+          ],
+          "truncated": false,
+          "columns": {
+            "Month": {
+              "inferred_type": "text",
+              "non_null": 12
+            },
+            "Revenue": {
+              "inferred_type": "numeric",
+              "non_null": 12,
+              "min": 620000,
+              "max": 1300000,
+              "sum": 11070000,
+              "mean": 922500.0
+            },
+            "Cost of Goods Sold": {
+              "inferred_type": "numeric",
+              "non_null": 12,
+              "min": 680000,
+              "max": 1280000,
+              "sum": 11130000,
+              "mean": 927500.0
+            },
+            "Gross Profit": {
+              "inferred_type": "numeric",
+              "non_null": 12,
+              "min": -60000,
+              "max": 30000,
+              "sum": -60000,
+              "mean": -5000.0
+            },
+            "Marketing Spend": {
+              "inferred_type": "numeric",
+              "non_null": 12,
+              "min": 75000,
+              "max": 160000,
+              "sum": 1345000,
+              "mean": 112083.3333
+            }
+          }
+        },
+        {
+          "table_id": "Finance__t2",
+          "anchor_cell": "A22",
+          "headers": [
+            "Region",
+            "Revenue"
+          ],
+          "row_count": 5,
+          "rows": [
+            {
+              "Region": "North America",
+              "Revenue": 5600000
+            },
+            {
+              "Region": "APAC",
+              "Revenue": 3400000
+            },
+            {
+              "Region": "Europe",
+              "Revenue": 3100000
+            },
+            {
+              "Region": "LATAM",
+              "Revenue": 2200000
+            },
+            {
+              "Region": "MEA",
+              "Revenue": 800000
+            }
+          ],
+          "truncated": false,
+          "columns": {
+            "Region": {
+              "inferred_type": "text",
+              "non_null": 5
+            },
+            "Revenue": {
+              "inferred_type": "numeric",
+              "non_null": 5,
+              "min": 800000,
+              "max": 5600000,
+              "sum": 15100000,
+              "mean": 3020000.0
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

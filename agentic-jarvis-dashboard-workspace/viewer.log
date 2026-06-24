@@ -1,0 +1,253 @@
+Note: lsof not found, cannot check if port is in use
+----------------------------------------
+Exception occurred during processing of request from ('127.0.0.1', 55286)
+Traceback (most recent call last):
+  File "C:\Users\leona\miniconda3\Lib\socketserver.py", line 318, in _handle_request_noblock
+    self.process_request(request, client_address)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\leona\miniconda3\Lib\socketserver.py", line 349, in process_request
+    self.finish_request(request, client_address)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\leona\miniconda3\Lib\socketserver.py", line 362, in finish_request
+    self.RequestHandlerClass(request, client_address, self)
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\leona\.claude\plugins\cache\claude-plugins-official\skill-creator\unknown\skills\skill-creator\eval-viewer\generate_review.py", line 330, in __init__
+    super().__init__(*args, **kwargs)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\leona\miniconda3\Lib\socketserver.py", line 766, in __init__
+    self.handle()
+    ~~~~~~~~~~~^^
+  File "C:\Users\leona\miniconda3\Lib\http\server.py", line 436, in handle
+    self.handle_one_request()
+    ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\leona\miniconda3\Lib\http\server.py", line 424, in handle_one_request
+    method()
+    ~~~~~~^^
+  File "C:\Users\leona\.claude\plugins\cache\claude-plugins-official\skill-creator\unknown\skills\skill-creator\eval-viewer\generate_review.py", line 342, in do_GET
+    html = generate_html(runs, self.skill_name, self.previous, benchmark)
+  File "C:\Users\leona\.claude\plugins\cache\claude-plugins-official\skill-creator\unknown\skills\skill-creator\eval-viewer\generate_review.py", line 258, in generate_html
+    template = template_path.read_text()
+  File "C:\Users\leona\miniconda3\Lib\pathlib\_local.py", line 546, in read_text
+    return PathBase.read_text(self, encoding, errors, newline)
+           ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\leona\miniconda3\Lib\pathlib\_abc.py", line 633, in read_text
+    return f.read()
+           ~~~~~~^^
+UnicodeDecodeError: 'gbk' codec can't decode byte 0x94 in position 18795: illegal multibyte sequence
+----------------------------------------
+----------------------------------------
+Exception occurred during processing of request from ('127.0.0.1', 54682)
+Traceback (most recent call last):
+  File "C:\Users\leona\miniconda3\Lib\socketserver.py", line 318, in _handle_request_noblock
+    self.process_request(request, client_address)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\leona\miniconda3\Lib\socketserver.py", line 349, in process_request
+    self.finish_request(request, client_address)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\leona\miniconda3\Lib\socketserver.py", line 362, in finish_request
+    self.RequestHandlerClass(request, client_address, self)
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\leona\.claude\plugins\cache\claude-plugins-official\skill-creator\unknown\skills\skill-creator\eval-viewer\generate_review.py", line 330, in __init__
+    super().__init__(*args, **kwargs)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\leona\miniconda3\Lib\socketserver.py", line 766, in __init__
+    self.handle()
+    ~~~~~~~~~~~^^
+  File "C:\Users\leona\miniconda3\Lib\http\server.py", line 436, in handle
+    self.handle_one_request()
+    ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\leona\miniconda3\Lib\http\server.py", line 424, in handle_one_request
+    method()
+    ~~~~~~^^
+  File "C:\Users\leona\.claude\plugins\cache\claude-plugins-official\skill-creator\unknown\skills\skill-creator\eval-viewer\generate_review.py", line 342, in do_GET
+    html = generate_html(runs, self.skill_name, self.previous, benchmark)
+  File "C:\Users\leona\.claude\plugins\cache\claude-plugins-official\skill-creator\unknown\skills\skill-creator\eval-viewer\generate_review.py", line 258, in generate_html
+    template = template_path.read_text()
+  File "C:\Users\leona\miniconda3\Lib\pathlib\_local.py", line 546, in read_text
+    return PathBase.read_text(self, encoding, errors, newline)
+           ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\leona\miniconda3\Lib\pathlib\_abc.py", line 633, in read_text
+    return f.read()
+           ~~~~~~^^
+UnicodeDecodeError: 'gbk' codec can't decode byte 0x94 in position 18795: illegal multibyte sequence
+----------------------------------------
+----------------------------------------
+Exception occurred during processing of request from ('127.0.0.1', 52076)
+Traceback (most recent call last):
+  File "C:\Users\leona\miniconda3\Lib\socketserver.py", line 318, in _handle_request_noblock
+    self.process_request(request, client_address)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\leona\miniconda3\Lib\socketserver.py", line 349, in process_request
+    self.finish_request(request, client_address)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\leona\miniconda3\Lib\socketserver.py", line 362, in finish_request
+    self.RequestHandlerClass(request, client_address, self)
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\leona\.claude\plugins\cache\claude-plugins-official\skill-creator\unknown\skills\skill-creator\eval-viewer\generate_review.py", line 330, in __init__
+    super().__init__(*args, **kwargs)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\leona\miniconda3\Lib\socketserver.py", line 766, in __init__
+    self.handle()
+    ~~~~~~~~~~~^^
+  File "C:\Users\leona\miniconda3\Lib\http\server.py", line 436, in handle
+    self.handle_one_request()
+    ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\leona\miniconda3\Lib\http\server.py", line 424, in handle_one_request
+    method()
+    ~~~~~~^^
+  File "C:\Users\leona\.claude\plugins\cache\claude-plugins-official\skill-creator\unknown\skills\skill-creator\eval-viewer\generate_review.py", line 342, in do_GET
+    html = generate_html(runs, self.skill_name, self.previous, benchmark)
+  File "C:\Users\leona\.claude\plugins\cache\claude-plugins-official\skill-creator\unknown\skills\skill-creator\eval-viewer\generate_review.py", line 258, in generate_html
+    template = template_path.read_text()
+  File "C:\Users\leona\miniconda3\Lib\pathlib\_local.py", line 546, in read_text
+    return PathBase.read_text(self, encoding, errors, newline)
+           ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\leona\miniconda3\Lib\pathlib\_abc.py", line 633, in read_text
+    return f.read()
+           ~~~~~~^^
+UnicodeDecodeError: 'gbk' codec can't decode byte 0x94 in position 18795: illegal multibyte sequence
+----------------------------------------
+----------------------------------------
+Exception occurred during processing of request from ('127.0.0.1', 57076)
+Traceback (most recent call last):
+  File "C:\Users\leona\miniconda3\Lib\socketserver.py", line 318, in _handle_request_noblock
+    self.process_request(request, client_address)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\leona\miniconda3\Lib\socketserver.py", line 349, in process_request
+    self.finish_request(request, client_address)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\leona\miniconda3\Lib\socketserver.py", line 362, in finish_request
+    self.RequestHandlerClass(request, client_address, self)
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\leona\.claude\plugins\cache\claude-plugins-official\skill-creator\unknown\skills\skill-creator\eval-viewer\generate_review.py", line 330, in __init__
+    super().__init__(*args, **kwargs)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\leona\miniconda3\Lib\socketserver.py", line 766, in __init__
+    self.handle()
+    ~~~~~~~~~~~^^
+  File "C:\Users\leona\miniconda3\Lib\http\server.py", line 436, in handle
+    self.handle_one_request()
+    ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\leona\miniconda3\Lib\http\server.py", line 424, in handle_one_request
+    method()
+    ~~~~~~^^
+  File "C:\Users\leona\.claude\plugins\cache\claude-plugins-official\skill-creator\unknown\skills\skill-creator\eval-viewer\generate_review.py", line 342, in do_GET
+    html = generate_html(runs, self.skill_name, self.previous, benchmark)
+  File "C:\Users\leona\.claude\plugins\cache\claude-plugins-official\skill-creator\unknown\skills\skill-creator\eval-viewer\generate_review.py", line 258, in generate_html
+    template = template_path.read_text()
+  File "C:\Users\leona\miniconda3\Lib\pathlib\_local.py", line 546, in read_text
+    return PathBase.read_text(self, encoding, errors, newline)
+           ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\leona\miniconda3\Lib\pathlib\_abc.py", line 633, in read_text
+    return f.read()
+           ~~~~~~^^
+UnicodeDecodeError: 'gbk' codec can't decode byte 0x94 in position 18795: illegal multibyte sequence
+----------------------------------------
+----------------------------------------
+Exception occurred during processing of request from ('127.0.0.1', 55599)
+Traceback (most recent call last):
+  File "C:\Users\leona\miniconda3\Lib\socketserver.py", line 318, in _handle_request_noblock
+    self.process_request(request, client_address)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\leona\miniconda3\Lib\socketserver.py", line 349, in process_request
+    self.finish_request(request, client_address)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\leona\miniconda3\Lib\socketserver.py", line 362, in finish_request
+    self.RequestHandlerClass(request, client_address, self)
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\leona\.claude\plugins\cache\claude-plugins-official\skill-creator\unknown\skills\skill-creator\eval-viewer\generate_review.py", line 330, in __init__
+    super().__init__(*args, **kwargs)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\leona\miniconda3\Lib\socketserver.py", line 766, in __init__
+    self.handle()
+    ~~~~~~~~~~~^^
+  File "C:\Users\leona\miniconda3\Lib\http\server.py", line 436, in handle
+    self.handle_one_request()
+    ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\leona\miniconda3\Lib\http\server.py", line 424, in handle_one_request
+    method()
+    ~~~~~~^^
+  File "C:\Users\leona\.claude\plugins\cache\claude-plugins-official\skill-creator\unknown\skills\skill-creator\eval-viewer\generate_review.py", line 342, in do_GET
+    html = generate_html(runs, self.skill_name, self.previous, benchmark)
+  File "C:\Users\leona\.claude\plugins\cache\claude-plugins-official\skill-creator\unknown\skills\skill-creator\eval-viewer\generate_review.py", line 258, in generate_html
+    template = template_path.read_text()
+  File "C:\Users\leona\miniconda3\Lib\pathlib\_local.py", line 546, in read_text
+    return PathBase.read_text(self, encoding, errors, newline)
+           ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\leona\miniconda3\Lib\pathlib\_abc.py", line 633, in read_text
+    return f.read()
+           ~~~~~~^^
+UnicodeDecodeError: 'gbk' codec can't decode byte 0x94 in position 18795: illegal multibyte sequence
+----------------------------------------
+----------------------------------------
+Exception occurred during processing of request from ('127.0.0.1', 53958)
+Traceback (most recent call last):
+  File "C:\Users\leona\miniconda3\Lib\socketserver.py", line 318, in _handle_request_noblock
+    self.process_request(request, client_address)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\leona\miniconda3\Lib\socketserver.py", line 349, in process_request
+    self.finish_request(request, client_address)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\leona\miniconda3\Lib\socketserver.py", line 362, in finish_request
+    self.RequestHandlerClass(request, client_address, self)
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\leona\.claude\plugins\cache\claude-plugins-official\skill-creator\unknown\skills\skill-creator\eval-viewer\generate_review.py", line 330, in __init__
+    super().__init__(*args, **kwargs)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\leona\miniconda3\Lib\socketserver.py", line 766, in __init__
+    self.handle()
+    ~~~~~~~~~~~^^
+  File "C:\Users\leona\miniconda3\Lib\http\server.py", line 436, in handle
+    self.handle_one_request()
+    ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\leona\miniconda3\Lib\http\server.py", line 424, in handle_one_request
+    method()
+    ~~~~~~^^
+  File "C:\Users\leona\.claude\plugins\cache\claude-plugins-official\skill-creator\unknown\skills\skill-creator\eval-viewer\generate_review.py", line 342, in do_GET
+    html = generate_html(runs, self.skill_name, self.previous, benchmark)
+  File "C:\Users\leona\.claude\plugins\cache\claude-plugins-official\skill-creator\unknown\skills\skill-creator\eval-viewer\generate_review.py", line 258, in generate_html
+    template = template_path.read_text()
+  File "C:\Users\leona\miniconda3\Lib\pathlib\_local.py", line 546, in read_text
+    return PathBase.read_text(self, encoding, errors, newline)
+           ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\leona\miniconda3\Lib\pathlib\_abc.py", line 633, in read_text
+    return f.read()
+           ~~~~~~^^
+UnicodeDecodeError: 'gbk' codec can't decode byte 0x94 in position 18795: illegal multibyte sequence
+----------------------------------------
+----------------------------------------
+Exception occurred during processing of request from ('127.0.0.1', 56560)
+Traceback (most recent call last):
+  File "C:\Users\leona\miniconda3\Lib\socketserver.py", line 318, in _handle_request_noblock
+    self.process_request(request, client_address)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\leona\miniconda3\Lib\socketserver.py", line 349, in process_request
+    self.finish_request(request, client_address)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\leona\miniconda3\Lib\socketserver.py", line 362, in finish_request
+    self.RequestHandlerClass(request, client_address, self)
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\leona\.claude\plugins\cache\claude-plugins-official\skill-creator\unknown\skills\skill-creator\eval-viewer\generate_review.py", line 330, in __init__
+    super().__init__(*args, **kwargs)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\leona\miniconda3\Lib\socketserver.py", line 766, in __init__
+    self.handle()
+    ~~~~~~~~~~~^^
+  File "C:\Users\leona\miniconda3\Lib\http\server.py", line 436, in handle
+    self.handle_one_request()
+    ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\leona\miniconda3\Lib\http\server.py", line 424, in handle_one_request
+    method()
+    ~~~~~~^^
+  File "C:\Users\leona\.claude\plugins\cache\claude-plugins-official\skill-creator\unknown\skills\skill-creator\eval-viewer\generate_review.py", line 342, in do_GET
+    html = generate_html(runs, self.skill_name, self.previous, benchmark)
+  File "C:\Users\leona\.claude\plugins\cache\claude-plugins-official\skill-creator\unknown\skills\skill-creator\eval-viewer\generate_review.py", line 258, in generate_html
+    template = template_path.read_text()
+  File "C:\Users\leona\miniconda3\Lib\pathlib\_local.py", line 546, in read_text
+    return PathBase.read_text(self, encoding, errors, newline)
+           ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\leona\miniconda3\Lib\pathlib\_abc.py", line 633, in read_text
+    return f.read()
+           ~~~~~~^^
+UnicodeDecodeError: 'gbk' codec can't decode byte 0x94 in position 18795: illegal multibyte sequence
+----------------------------------------

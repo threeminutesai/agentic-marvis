@@ -45,6 +45,7 @@ function readSavedGreeting({ fsImpl, voicePath }) {
 async function synthesizeGreetingWithCache({
   text,
   settings,
+  apiKey,
   cacheDir,
   fsImpl,
   createProvider,
@@ -63,7 +64,6 @@ async function synthesizeGreetingWithCache({
     console.log(`[TTS] Saved voice file unreadable, will regenerate: ${err.message}`);
   }
 
-  const apiKey = settings.apiKeys?.elevenlabs;
   if (!apiKey) {
     console.log('[TTS] No ElevenLabs API key configured, will fall back to Web Speech.');
     return { ok: false };
