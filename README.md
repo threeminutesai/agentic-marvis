@@ -55,6 +55,32 @@ Settings → Music lets you import your own tracks, build playlists, and schedul
 
 On first launch, the library is seeded with three royalty-free sample tracks (in a "Sample Tracks" playlist, not assigned to any schedule slot) so the feature has something to play immediately — see [Sample Music Attribution](src/assets/sample-music/ATTRIBUTION.md) for credits. Delete them anytime; they're only seeded once, on the very first run.
 
+## HTML Panel Management
+
+Store and quickly access HTML dashboards, reports, and visualizations:
+
+### Search and Open Panels
+Use natural language commands to find and display HTML files from the `data/html-panels` folder:
+
+- `open <keyword>` or `/open <keyword>` — search for HTML panels by keyword (case-insensitive)
+- Examples:
+  - `open financial` → finds and opens "Q2 financial report.html"
+  - `open dashboard` → finds and opens the matching dashboard file
+  - `open Q2` → searches for files containing "Q2"
+
+### Search Priority
+Results are ranked by matching quality:
+1. **Exact matches** (filename exactly equals keyword)
+2. **Substring matches** (keyword found within filename)
+3. **Fuzzy matches** (similar filenames using Levenshtein distance)
+
+### Safe Display
+HTML files are rendered in a **sandboxed iframe** to prevent CSS and script conflicts:
+- CSS stays isolated inside the panel
+- Main UI remains clean and unaffected
+- Third-party HTML can't break the interface
+- JavaScript is allowed but restricted from accessing the main page
+
 ## CLI delegation channels
 
 Jarvis isn't limited to its own chat replies — it can hand a task off to the Claude Code or Codex CLI running against your active project. Set an active project folder in Settings first, then type:
