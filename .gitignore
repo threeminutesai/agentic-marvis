@@ -12,5 +12,7 @@ skills-lock.json
 .DS_Store
 Thumbs.db
 data/
+!data/music/
+!data/music-library.json
 .env
 .env.example

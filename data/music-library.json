@@ -1,0 +1,93 @@
+{
+  "tracks": [
+    {
+      "id": "johan_benitez99co-day-516015.mp3",
+      "artist": "Johan Benitez",
+      "duration": 0
+    },
+    {
+      "id": "fatbunny-working-488068.mp3",
+      "artist": "FatBunny",
+      "duration": 0
+    },
+    {
+      "id": "u_98o9hlkn7r-corporate-financial-success-272259.mp3",
+      "artist": "Corporate Music",
+      "duration": 0
+    },
+    {
+      "id": "jourinhannah-romance-234850.mp3",
+      "artist": "Jorin Hannah",
+      "duration": 0
+    },
+    {
+      "id": "the_mountain-cosmic-study-143288.mp3",
+      "artist": "The Mountain",
+      "duration": 0
+    },
+    {
+      "id": "fassounds-calm-mind-chill-lofi-beat-background-music-259700.mp3",
+      "artist": "Fassounds",
+      "duration": 0
+    },
+    {
+      "id": "openmindaudio-working-class-country-anthem-worn-hands-538391.mp3",
+      "artist": "Open Mind Audio",
+      "duration": 0
+    }
+  ],
+  "playlists": [
+    {
+      "id": "pl_earlyMorning",
+      "name": "earlyMorning",
+      "trackIds": [
+        "johan_benitez99co-day-516015.mp3"
+      ]
+    },
+    {
+      "id": "pl_morning",
+      "name": "morning",
+      "trackIds": [
+        "fatbunny-working-488068.mp3"
+      ]
+    },
+    {
+      "id": "pl_afternoon",
+      "name": "afternoon",
+      "trackIds": [
+        "u_98o9hlkn7r-corporate-financial-success-272259.mp3"
+      ]
+    },
+    {
+      "id": "pl_evening",
+      "name": "evening",
+      "trackIds": [
+        "jourinhannah-romance-234850.mp3"
+      ]
+    },
+    {
+      "id": "pl_midnight",
+      "name": "midnight",
+      "trackIds": [
+        "the_mountain-cosmic-study-143288.mp3"
+      ]
+    },
+    {
+      "id": "pl_weekend",
+      "name": "weekend",
+      "trackIds": [
+        "fassounds-calm-mind-chill-lofi-beat-background-music-259700.mp3",
+        "openmindaudio-working-class-country-anthem-worn-hands-538391.mp3"
+      ]
+    }
+  ],
+  "schedule": {
+    "monday":    { "earlyMorning": "pl_earlyMorning", "morning": "pl_morning", "afternoon": "pl_afternoon", "evening": "pl_evening", "midnight": "pl_midnight" },
+    "tuesday":   { "earlyMorning": "pl_earlyMorning", "morning": "pl_morning", "afternoon": "pl_afternoon", "evening": "pl_evening", "midnight": "pl_midnight" },
+    "wednesday": { "earlyMorning": "pl_earlyMorning", "morning": "pl_morning", "afternoon": "pl_afternoon", "evening": "pl_evening", "midnight": "pl_midnight" },
+    "thursday":  { "earlyMorning": "pl_earlyMorning", "morning": "pl_morning", "afternoon": "pl_afternoon", "evening": "pl_evening", "midnight": "pl_midnight" },
+    "friday":    { "earlyMorning": "pl_earlyMorning", "morning": "pl_morning", "afternoon": "pl_afternoon", "evening": "pl_evening", "midnight": "pl_midnight" },
+    "saturday":  { "earlyMorning": "pl_weekend", "morning": "pl_weekend", "afternoon": "pl_weekend", "evening": "pl_weekend", "midnight": "pl_weekend" },
+    "sunday":    { "earlyMorning": "pl_weekend", "morning": "pl_weekend", "afternoon": "pl_weekend", "evening": "pl_weekend", "midnight": "pl_weekend" }
+  }
+}
