@@ -11,13 +11,12 @@
     "dist:linux": "electron-builder --linux"
   },
   "devDependencies": {
+    "@xenova/transformers": "^2.17.2",
     "electron": "^31.0.0",
     "electron-builder": "26.1.0",
     "jsdom": "^24.0.0"
   },
-  "dependencies": {
-    "@xenova/transformers": "^2.17.2"
-  },
+  "dependencies": {},
   "build": {
     "appId": "ai.threeminutes.marvis",
     "productName": "Marvis",
