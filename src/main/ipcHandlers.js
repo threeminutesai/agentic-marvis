@@ -133,21 +133,48 @@ function initDevMusicLibraryIfNeeded(musicDir, musicLibraryFilePath) {
   );
   if (!present.length) return;
 
-  const weekdayIds = ['early-morning', 'morning', 'afternoon', 'evening', 'mid-night'];
-  const playlists = [
-    ...present
-      .filter((t) => weekdayIds.includes(t.id))
-      .map((t) => ({ id: `pl_${t.id}`, name: t.id, trackIds: [t.id] })),
-  ];
+  const presentIds = new Set(present.map((t) => t.id));
+
+  const weekdaySlots = ['early-morning', 'morning', 'afternoon', 'evening', 'mid-night'];
+  const playlists = present
+    .filter((t) => weekdaySlots.includes(t.id))
+    .map((t) => ({ id: `pl_${t.id}`, name: t.id, trackIds: [t.id] }));
+
   const weekendTracks = present.filter((t) => ['weekend-chill', 'weekend-work'].includes(t.id));
   if (weekendTracks.length) {
     playlists.push({ id: 'pl_weekend', name: 'weekend', trackIds: weekendTracks.map((t) => t.id) });
   }
 
+  const playlistIds = new Set(playlists.map((p) => p.id));
+
+  // Build schedule referencing only playlists that actually exist.
+  const SLOT_TO_PLAYLIST = {
+    earlyMorning: 'pl_early-morning',
+    morning: 'pl_morning',
+    afternoon: 'pl_afternoon',
+    evening: 'pl_evening',
+    midnight: 'pl_mid-night',
+  };
+  const WEEKEND_PLAYLIST = 'pl_weekend';
+  const weekdays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+  const weekend = ['saturday', 'sunday'];
+  const schedule = {};
+  for (const day of weekdays) {
+    schedule[day] = {};
+    for (const [slot, plId] of Object.entries(SLOT_TO_PLAYLIST)) {
+      if (playlistIds.has(plId)) schedule[day][slot] = plId;
+    }
+  }
+  for (const day of weekend) {
+    schedule[day] = playlistIds.has(WEEKEND_PLAYLIST)
+      ? Object.fromEntries(Object.keys(SLOT_TO_PLAYLIST).map((s) => [s, WEEKEND_PLAYLIST]))
+      : {};
+  }
+
   const library = {
     tracks: present.map((t) => ({ id: t.id, fileName: t.fileName, title: t.title, artist: t.artist, duration: t.duration || 0 })),
     playlists,
-    schedule: DEFAULT_MUSIC_SCHEDULE,
+    schedule,
   };
   fs.writeFileSync(musicLibraryFilePath, JSON.stringify(library, null, 2));
   console.log(`[Music] Dev library initialised from ${present.length} existing tracks`);
