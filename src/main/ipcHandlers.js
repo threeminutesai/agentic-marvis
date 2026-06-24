@@ -13,6 +13,7 @@ const { delegateCodexTask } = require('./codex/delegate');
 const { readStatusRows, ensureStatusFile } = require('./status/statusFile');
 const { ensureCaptureDir, getNextCapturePath, pruneCaptures } = require('./status/captureFile');
 const { DEFAULT_TEMPLATE_HTML } = require('./status/htmlPanelTemplate');
+const { DEFAULT_MUSIC_TRACKS, DEFAULT_MUSIC_SCHEDULE } = require('./music/defaultMusic');
 const { synthesizeGreetingWithCache } = require('./voice/greetingVoiceCache');
 const { createMusicLibraryStore, SUPPORTED_EXTENSIONS } = require('./music');
 const { pathToFileURL } = require('node:url');
@@ -119,6 +120,37 @@ function migrateLegacyMusicFilesIfNeeded(newMusicDir) {
 function ensureDataFilesExist(dataDir) {
   fs.mkdirSync(dataDir, { recursive: true });
   fs.mkdirSync(path.join(dataDir, 'music'), { recursive: true });
+}
+
+// Dev only: if music-library.json is missing, build it from whichever
+// DEFAULT_MUSIC_TRACKS files already exist in data/music/ — no copying.
+function initDevMusicLibraryIfNeeded(musicDir, musicLibraryFilePath) {
+  if (app.isPackaged) return;
+  if (fs.existsSync(musicLibraryFilePath)) return;
+
+  const present = DEFAULT_MUSIC_TRACKS.filter((t) =>
+    fs.existsSync(path.join(musicDir, t.fileName)),
+  );
+  if (!present.length) return;
+
+  const weekdayIds = ['early-morning', 'morning', 'afternoon', 'evening', 'mid-night'];
+  const playlists = [
+    ...present
+      .filter((t) => weekdayIds.includes(t.id))
+      .map((t) => ({ id: `pl_${t.id}`, name: t.id, trackIds: [t.id] })),
+  ];
+  const weekendTracks = present.filter((t) => ['weekend-chill', 'weekend-work'].includes(t.id));
+  if (weekendTracks.length) {
+    playlists.push({ id: 'pl_weekend', name: 'weekend', trackIds: weekendTracks.map((t) => t.id) });
+  }
+
+  const library = {
+    tracks: present.map((t) => ({ id: t.id, fileName: t.fileName, title: t.title, artist: t.artist, duration: t.duration || 0 })),
+    playlists,
+    schedule: DEFAULT_MUSIC_SCHEDULE,
+  };
+  fs.writeFileSync(musicLibraryFilePath, JSON.stringify(library, null, 2));
+  console.log(`[Music] Dev library initialised from ${present.length} existing tracks`);
 }
 
 function copyLegacySettingsFileIfNeeded(filePath) {
@@ -335,6 +367,7 @@ function registerIpcHandlers() {
   const musicLibraryFilePath = getMusicLibraryFilePath();
   const voiceCacheDir = getVoiceCacheDir();
   migrateLegacyMusicFilesIfNeeded(musicDir);
+  initDevMusicLibraryIfNeeded(musicDir, musicLibraryFilePath);
   migrateLegacyVoiceCacheIfNeeded(voiceCacheDir);
   const musicStore = createMusicLibraryStore({
     filePath: musicLibraryFilePath,
