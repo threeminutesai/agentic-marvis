@@ -35,6 +35,8 @@ Voice input uses the Mic button or wake word flow. Voice output speaks greetings
 Expected outcome:
 
 - Mic button records and transcribes user speech.
+- Mic recording should minimize self-capture by stopping Marvis voice output and pausing active music while recording, then resuming music afterward.
+- Mic capture should request echo cancellation, noise suppression, auto gain control, and mono audio when the browser supports those constraints.
 - Wake word can trigger a follow-up voice capture when enabled.
 - Voice volume applies to TTS playback.
 - Music ducks under voice and returns afterward.
@@ -139,6 +141,10 @@ Expected outcome:
 
 - Mic recordings are converted to text and sent through the normal routing path.
 - If no key is configured, the app should report that transcription is unavailable rather than silently failing.
+- Speech-to-text requests should bias expected language and important user terms when available, such as English financial vocabulary for finance-related use.
+- Non-speech audio event tags returned by STT, such as music, phone, outro, silence, or noise tags, should be removed before routing the transcript.
+- If cleanup leaves no usable words, Marvis should ask the user to try again instead of submitting the transcript as chat or a CLI command.
+- Bad STT output should not create noisy CLI prefix warnings unless the user actually spoke or typed a slash command.
 
 ### Browser Speech APIs
 

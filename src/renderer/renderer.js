@@ -15,6 +15,7 @@ let activeOperationId = null;
 let audioRecorder = null;
 let audioChunks = [];
 let isRecordingAudio = false;
+let musicPausedForMic = false;
 let temporaryNoticeTimer = null;
 let processingCueAudio = null;
 let cachedVoiceAudio = null;
@@ -165,9 +166,9 @@ async function submitTranscribedAudio(blob) {
     appendChatLine('Marvis', `I couldn't transcribe that, sir: ${result.error}`);
     return;
   }
-  const transcript = result.text.trim();
+  const transcript = (result.text || '').trim();
   if (!transcript) {
-    appendChatLine('Marvis', "I couldn't hear any speech in that recording, sir.");
+    appendChatLine('Marvis', "I couldn't hear clear speech in that recording, sir.");
     return;
   }
   document.getElementById('chat-input').value = transcript;
@@ -187,14 +188,33 @@ async function toggleAudioInput() {
     if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
       throw new Error('Audio recording is not supported in this browser.');
     }
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stopProcessingCue();
+    stopCachedVoice();
+    ttsController.stop();
+    const nowPlaying = musicController.getNowPlaying();
+    musicPausedForMic = Boolean(nowPlaying && !nowPlaying.isPaused);
+    if (musicPausedForMic) musicController.pause();
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        channelCount: 1,
+      },
+    });
     audioChunks = [];
-    audioRecorder = new MediaRecorder(stream);
+    const recorderOptions = {};
+    if (MediaRecorder.isTypeSupported?.('audio/webm;codecs=opus')) {
+      recorderOptions.mimeType = 'audio/webm;codecs=opus';
+    }
+    audioRecorder = new MediaRecorder(stream, recorderOptions);
     audioRecorder.ondataavailable = (event) => {
       if (event.data.size > 0) audioChunks.push(event.data);
     };
     audioRecorder.onstop = async () => {
       stream.getTracks().forEach((track) => track.stop());
+      if (musicPausedForMic) musicController.resume();
+      musicPausedForMic = false;
       isRecordingAudio = false;
       updateAudioInputButton();
       const blob = new Blob(audioChunks, { type: audioRecorder.mimeType || 'audio/webm' });
@@ -217,6 +237,8 @@ async function toggleAudioInput() {
     updateAudioInputButton();
     setAvatarState('listening');
   } catch (err) {
+    if (musicPausedForMic) musicController.resume();
+    musicPausedForMic = false;
     appendChatLine('Marvis', `I couldn't access the microphone, sir: ${err.message}`);
   }
 }
@@ -1062,7 +1084,9 @@ function parseCliCommand(text) {
   const prefix = (spaceIndex === -1 ? text : text.slice(0, spaceIndex)).toLowerCase();
   const channel = CLI_CHANNELS[prefix];
   if (!channel) {
-    console.log(`[CLI] Prefix "${prefix}" not recognized. Available: ${Object.keys(CLI_CHANNELS).join(', ')}`);
+    if (prefix.startsWith('/')) {
+      console.log(`[CLI] Prefix "${prefix}" not recognized. Available: ${Object.keys(CLI_CHANNELS).join(', ')}`);
+    }
     return null;
   }
   const task = spaceIndex === -1 ? '' : text.slice(spaceIndex + 1).trim();
