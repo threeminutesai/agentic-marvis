@@ -83,15 +83,25 @@ Package the ZIP with:
 
 - `release/Marvis 0.5.0.exe` copied/renamed as `Marvis.exe`
 - `data/music-library.json`
-- `data/music/`
+- `data/music/ATTRIBUTION.md`
+- `data/music/fassounds-calm-mind-chill-lofi-beat-background-music-259700.mp3`
+- `data/music/fatbunny-working-488068.mp3`
+- `data/music/johan_benitez99co-day-516015.mp3`
+- `data/music/jourinhannah-romance-234850.mp3`
+- `data/music/openmindaudio-working-class-country-anthem-worn-hands-538391.mp3`
+- `data/music/the_mountain-cosmic-study-143288.mp3`
+- `data/music/u_98o9hlkn7r-corporate-financial-success-272259.mp3`
 
 Do not package `release/win-unpacked/Marvis.exe` alone. It requires adjacent DLLs such as `ffmpeg.dll`.
+Do not treat the package as valid if only `music-library.json` is present; the full 7-track bundled music pack must ship inside `data/music`.
 
 Verify:
 
 ```powershell
 tar -tvf release\Marvis-v0.5.0-win32-x64.zip | Select-String "Marvis.exe|music-library|ATTRIBUTION"
 ```
+
+Also verify all 7 MP3 filenames are present in the ZIP listing.
 
 ### macOS
 
@@ -101,7 +111,8 @@ Verify the downloaded ZIP contains:
 
 - `Marvis.app/`
 - `data/music-library.json`
-- `data/music/`
+- `data/music/ATTRIBUTION.md`
+- all 7 bundled MP3 files under `data/music/`
 
 ### Upload
 

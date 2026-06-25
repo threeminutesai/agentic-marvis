@@ -8,9 +8,11 @@ const cacheDir = path.join(os.tmpdir(), 'agentic-marvis-cache');
 fs.mkdirSync(cacheDir, { recursive: true });
 app.commandLine.appendSwitch('disk-cache-dir', cacheDir);
 app.commandLine.appendSwitch('disable-gpu-shader-disk-cache');
+app.setName('Marvis');
 
 function createWindow() {
   const win = new BrowserWindow({
+    title: 'Marvis',
     width: 900,
     height: 700,
     webPreferences: {

@@ -2,6 +2,7 @@
   "name": "agentic-marvis",
   "version": "0.5.0",
   "description": "Dashboard-oriented Marvis interface for bridging Codex and Claude Code",
+  "author": "ThreeMinutesAI",
   "main": "src/main/main.js",
   "scripts": {
     "start": "chcp 65001 >nul & electron .",
@@ -19,6 +20,7 @@
   "build": {
     "appId": "ai.threeminutes.marvis",
     "productName": "Marvis",
+    "copyright": "Copyright © ThreeMinutesAI",
     "files": [
       "src/**/*",
       "package.json",

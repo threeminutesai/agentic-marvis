@@ -359,13 +359,21 @@ data/
   music-library.json
   music/
     ATTRIBUTION.md
-    ...
+    fassounds-calm-mind-chill-lofi-beat-background-music-259700.mp3
+    fatbunny-working-488068.mp3
+    johan_benitez99co-day-516015.mp3
+    jourinhannah-romance-234850.mp3
+    openmindaudio-working-class-country-anthem-worn-hands-538391.mp3
+    the_mountain-cosmic-study-143288.mp3
+    u_98o9hlkn7r-corporate-financial-success-272259.mp3
 ```
 
 Important:
 
 - `Marvis.exe` must be the portable build output, normally `release/Marvis 0.5.0.exe` renamed to `Marvis.exe`.
 - Do not package `release/win-unpacked/Marvis.exe` by itself because it depends on nearby DLLs such as `ffmpeg.dll`.
+- The release ZIP must include the full bundled music pack under `data/music`: `ATTRIBUTION.md` plus all 7 shipped MP3 files listed above.
+- A release is not valid if `data/music-library.json` is present but one or more of the shipped music files are missing from `data/music`.
 
 ### macOS
 
@@ -377,7 +385,13 @@ data/
   music-library.json
   music/
     ATTRIBUTION.md
-    ...
+    fassounds-calm-mind-chill-lofi-beat-background-music-259700.mp3
+    fatbunny-working-488068.mp3
+    johan_benitez99co-day-516015.mp3
+    jourinhannah-romance-234850.mp3
+    openmindaudio-working-class-country-anthem-worn-hands-538391.mp3
+    the_mountain-cosmic-study-143288.mp3
+    u_98o9hlkn7r-corporate-financial-success-272259.mp3
 ```
 
 macOS must be built on a macOS runner through GitHub Actions.
@@ -394,5 +408,6 @@ Before publishing:
 - build macOS package through GitHub Actions,
 - verify ZIP layouts,
 - verify `data/music-library.json` is present,
+- verify the full bundled `data/music` pack is present: `ATTRIBUTION.md` plus all 7 shipped MP3 files,
 - verify Windows ZIP uses portable EXE,
 - upload assets with the expected names.
