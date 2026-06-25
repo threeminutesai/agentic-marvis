@@ -402,6 +402,15 @@ function extractPlainVoiceSummary(text) {
   return cleaned.split(/\r?\n\s*\r?\n/)[0]?.trim() || cleaned || 'I found the summary, sir.';
 }
 
+function cleanTextForSpeech(text) {
+  return String(text || '')
+    .replace(/^Source:.*$/gim, '')
+    .replace(/\[[^\]]+\]\(https?:\/\/[^)]+\)/g, '')
+    .replace(/https?:\/\/\S+/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 async function formatAssistantResponse(text, { allowHtml = true } = {}) {
   const voiceBlock = extractVoiceContentBlock(text);
   if (voiceBlock) {
@@ -420,7 +429,11 @@ async function formatAssistantResponse(text, { allowHtml = true } = {}) {
   }
 
   const plainSummary = extractPlainVoiceSummary(text);
-  return { reply: plainSummary, displayReply: text, html: null };
+  return {
+    reply: allowHtml ? plainSummary : (cleanTextForSpeech(text) || plainSummary),
+    displayReply: text,
+    html: null,
+  };
 }
 
 function isFirstRun(settings) {
