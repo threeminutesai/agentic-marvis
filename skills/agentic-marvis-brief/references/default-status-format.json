@@ -1,0 +1,61 @@
+[
+  {
+    "type": "Last Updated",
+    "value": "YYYY-MM-DD HH:MM",
+    "detail": "",
+    "image": "",
+    "link": ""
+  },
+  {
+    "type": "Weather",
+    "value": "City: temperature and condition summary",
+    "detail": "Short location or trend note",
+    "image": "",
+    "link": ""
+  },
+  {
+    "type": "Unread Emails",
+    "value": "0",
+    "detail": "Unread thread summary",
+    "image": "",
+    "link": ""
+  },
+  {
+    "type": "Urgent Emails",
+    "value": "0",
+    "detail": "Urgent thread summary or action note",
+    "image": "",
+    "link": ""
+  },
+  {
+    "type": "News Briefing",
+    "value": [
+      "Headline 1",
+      "Headline 2"
+    ],
+    "detail": [
+      "Matching detail 1",
+      "Matching detail 2"
+    ],
+    "image": [
+      "",
+      ""
+    ],
+    "link": [
+      "https://example.com/story-1",
+      "https://example.com/story-2"
+    ]
+  },
+  {
+    "type": "Avatar Briefing",
+    "value": "Short spoken-style briefing based only on the news items.",
+    "detail": "",
+    "image": "",
+    "link": ""
+  },
+  {
+    "type": "User Profile",
+    "value": "Short user background or preferences",
+    "detail": "Geolocation: Washington | Language: English"
+  }
+]

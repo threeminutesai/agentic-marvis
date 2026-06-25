@@ -1,0 +1,7 @@
+interface:
+  display_name: "Agentic Marvis Dashboard"
+  short_description: "Turn spreadsheets into exec-ready HTML dashboards."
+  default_prompt: "Use $agentic-marvis-dashboard to turn this spreadsheet into a single-file dashboard."
+
+policy:
+  allow_implicit_invocation: true

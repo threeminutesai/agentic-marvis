@@ -1,0 +1,40 @@
+{
+  "expectations": [
+    {
+      "text": "Output is a single self-contained HTML file that opens in a browser with no build step",
+      "passed": true,
+      "evidence": "Single dashboard.html, CDN/link tags only."
+    },
+    {
+      "text": "Includes KPI cards for Total Sales and Customers",
+      "passed": true,
+      "evidence": "kpis[] includes Total Sales ($15,880) and Customers (20)."
+    },
+    {
+      "text": "Includes a visual showing progress toward the $16,000 sales goal (progress bar or equivalent)",
+      "passed": true,
+      "evidence": "progress[0] = 'Sales Goal Progress ($15,880 of $16,000)' at 99.25%."
+    },
+    {
+      "text": "Includes a category breakdown chart (e.g. doughnut or bar) across the 4 product categories",
+      "passed": true,
+      "evidence": "charts[1] doughnut chart, 4 categories."
+    },
+    {
+      "text": "Includes a per-store table or chart with all 4 stores, flagging Airport Kiosk as At Risk / underperforming",
+      "passed": true,
+      "evidence": "charts[0] bar chart of 4 stores + tables[0] 'Store Performance' table with status pills; Airport Kiosk flagged At Risk in both. Agent caught and fixed a 'at-risk' (hyphenated) vs 'at risk' status-string mismatch before finalizing, which would otherwise have silently rendered as a neutral gray pill."
+    },
+    {
+      "text": "Numeric values (sales, goal) are human-formatted with currency symbols",
+      "passed": true,
+      "evidence": "Values shown as '$15,880', '$16,000' etc."
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6,
+    "pass_rate": 1.0
+  }
+}

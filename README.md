@@ -1,6 +1,6 @@
-# Agentic Jarvis
+﻿# Agentic Marvis
 
-Agentic Jarvis is a dashboard-oriented desktop assistant that bridges Codex and Claude Code with a Jarvis-style voice and status interface.
+Agentic Marvis is a dashboard-oriented desktop assistant that bridges Codex and Claude Code with a Marvis-style voice and status interface.
 
 ## Download
 
@@ -16,9 +16,9 @@ macOS and Ubuntu builds are planned for a future release. Until then, Linux/macO
 
 ## AI Providers
 
-Jarvis combines three kinds of AI integration, each doing a different job:
+Marvis combines three kinds of AI integration, each doing a different job:
 
-- **Chat bot (DeepSeek or Gemini)** — powers Jarvis's own conversational replies. Pick one from the Settings panel's provider dropdown:
+- **Chat bot (DeepSeek or Gemini)** — powers Marvis's own conversational replies. Pick one from the Settings panel's provider dropdown:
   - **DeepSeek** (default) — paid, no free tier.
   - **Gemini** — has a free tier (Google AI Studio); get a key at https://aistudio.google.com/apikey.
 
@@ -26,7 +26,7 @@ Jarvis combines three kinds of AI integration, each doing a different job:
 
 - **Claude Code / Codex CLI (heavy lifting)** — not a chat provider; these are delegated to for actual work against your project (writing code, running tasks) when a plain chat reply isn't enough. See [CLI delegation channels](#cli-delegation-channels) below. Claude Code authenticates via its own CLI subscription login, not an API key.
 
-- **ElevenLabs (speech)** — powers both directions of voice: text-to-speech for Jarvis's spoken replies, and speech-to-text for transcribing what you say. See [Voice](#voice) below.
+- **ElevenLabs (speech)** — powers both directions of voice: text-to-speech for Marvis's spoken replies, and speech-to-text for transcribing what you say. See [Voice](#voice) below.
 
 ### Quick launch (Windows)
 
@@ -36,10 +36,17 @@ Double-click `run.bat` — installs dependencies on first run if needed, then st
 
 `npm test`
 
+## Bundled skills
+
+This repo also includes reusable Marvis skills under [`skills/`](skills):
+
+- `agentic-marvis-brief` — fills `marvis-status.json` with profile-aware news, weather, Gmail triage, and avatar briefing data.
+- `agentic-marvis-dashboard` — turns spreadsheets into a single-file HTML dashboard with KPI cards, charts, tables, and progress visuals.
+
 ## Voice
 
 Optional, configured in Settings:
-- **Wake word** — check "Enable wake word" to have Jarvis always listen in the background for the word "Jarvis," using the browser's built-in speech recognition. No key, signup, or usage limits required. Off by default. The follow-up command after wake-word detection is also transcribed via the browser's built-in recognition.
+- **Wake word** — check "Enable wake word" to have Marvis always listen in the background for the word "Marvis," using the browser's built-in speech recognition. No key, signup, or usage limits required. Off by default. The follow-up command after wake-word detection is also transcribed via the browser's built-in recognition.
 - **Speech-to-text (Mic button)** — recording your own messages via the Mic button is transcribed by ElevenLabs and requires an ElevenLabs API key configured in Settings; without one it reports that transcription isn't available rather than falling back.
 - **Text-to-speech** — every reply is spoken aloud. Uses ElevenLabs if a key is configured (https://elevenlabs.io/), otherwise falls back to the browser's built-in voice. Use the Mute button to silence it — muting immediately interrupts any speech currently playing. Manage ElevenLabs voices in Settings: enter a voice's name and ID (find the ID on a voice's page in the ElevenLabs Voice Library) and click "Add Voice" to save it to the dropdown; pick the active voice from the "ElevenLabs Voice" dropdown, or remove a saved one with "Remove Selected". Defaults to "Adam" if none is selected.
 
@@ -51,7 +58,7 @@ Disclosure: this is an affiliate link and may provide affiliate credit to the pr
 
 ## Music
 
-Settings → Music lets you import your own tracks, build playlists, and schedule them by day-of-week and time-of-day (e.g. focus music on weekday mornings, something calmer in the evening). Music auto-plays on schedule, ducks under Jarvis's speech, and has its own volume slider plus a loudness leveler so tracks mastered at different volumes don't require manual adjustment per track.
+Settings → Music lets you import your own tracks, build playlists, and schedule them by day-of-week and time-of-day (e.g. focus music on weekday mornings, something calmer in the evening). Music auto-plays on schedule, ducks under Marvis's speech, and has its own volume slider plus a loudness leveler so tracks mastered at different volumes don't require manual adjustment per track.
 
 On first launch, the library is seeded with three royalty-free sample tracks (in a "Sample Tracks" playlist, not assigned to any schedule slot) so the feature has something to play immediately — see [Sample Music Attribution](src/assets/sample-music/ATTRIBUTION.md) for credits. Delete them anytime; they're only seeded once, on the very first run.
 
@@ -62,7 +69,7 @@ Store and quickly access HTML dashboards, reports, and visualizations:
 ### Search and Open Panels
 Use natural language commands to find and display HTML files from the `data/html-panels` folder:
 
-- `open <keyword>` or `/open <keyword>` — search for HTML panels by keyword (case-insensitive)
+- `open <keyword>`, `show <keyword>`, or `/open <keyword>` — search for HTML panels by keyword (case-insensitive)
 - Examples:
   - `open financial` → finds and opens "Q2 financial report.html"
   - `open dashboard` → finds and opens the matching dashboard file
@@ -83,19 +90,19 @@ HTML files are rendered in a **sandboxed iframe** to prevent CSS and script conf
 
 ## CLI delegation channels
 
-Jarvis isn't limited to its own chat replies — it can hand a task off to the Claude Code or Codex CLI running against your active project. Set an active project folder in Settings first, then type:
+Marvis isn't limited to its own chat replies — it can hand a task off to the Claude Code or Codex CLI running against your active project. Set an active project folder in Settings first, then type:
 
 - `/code <task>` or `/claude <task>` — delegates to the `claude` CLI (must be installed and logged in).
 - `/codex <task>` — delegates to the `codex` CLI (must be installed and logged in).
 
-Jarvis waits for the CLI to finish (up to 10 minutes) and reads back its summary, same as a normal reply.
+Marvis waits for the CLI to finish (up to 10 minutes) and reads back its summary, same as a normal reply.
 
 ## Briefing data (Weather, News, Email)
 
-The status board and spoken greeting (Weather, Unread/Urgent Emails, News Briefing) are filled from `data/jarvis-status.json` (dev) or the equivalent packaged-build location, but Jarvis does **not** refresh that file on its own — it just reads whatever's there. Keeping it current is up to whatever process writes that file (manually, a script, or your own automation); without a periodic refresh the briefing will show stale data indefinitely.
+The status board and spoken greeting (Weather, Unread/Urgent Emails, News Briefing) are filled from `data/marvis-status.json` (dev) or the equivalent packaged-build location, but Marvis does **not** refresh that file on its own — it just reads whatever's there. Keeping it current is up to whatever process writes that file (manually, a script, or your own automation); without a periodic refresh the briefing will show stale data indefinitely.
 
 ## Status
 
 Phase 1 (complete): chat, settings, avatar, Claude Code delegation.
-Phase 2 (this build): voice — wake word ("Jarvis" via continuous browser SpeechRecognition), STT (browser SpeechRecognition), TTS (ElevenLabs + Web Speech fallback).
+Phase 2 (this build): voice — wake word ("Marvis" via continuous browser SpeechRecognition), STT (browser SpeechRecognition), TTS (ElevenLabs + Web Speech fallback).
 Phase 3 (planned): long-term memory via Mem0 + local vector store.

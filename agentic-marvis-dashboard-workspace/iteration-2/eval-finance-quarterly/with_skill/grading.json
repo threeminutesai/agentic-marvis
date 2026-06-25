@@ -1,0 +1,40 @@
+{
+  "expectations": [
+    {
+      "text": "Output is a single self-contained HTML file that opens in a browser with no build step",
+      "passed": true,
+      "evidence": "Single dashboard.html, CDN/link tags only."
+    },
+    {
+      "text": "Includes KPI cards for at least 4 of: Total Revenue, Gross Profit, Marketing Spend, CAC, Active Customers",
+      "passed": true,
+      "evidence": "All 5 present in kpis[]."
+    },
+    {
+      "text": "Includes a 12-month trend chart (line) plotting revenue and at least one other metric (COGS or gross profit) by month",
+      "passed": true,
+      "evidence": "charts[0] line chart, 12 labels, Revenue + COGS datasets each length 12."
+    },
+    {
+      "text": "Includes a region breakdown visualization (chart or table) showing North America, APAC, Europe, and LATAM",
+      "passed": true,
+      "evidence": "charts[2] doughnut chart, 4 regions, plus a detail table with the same 4 regions."
+    },
+    {
+      "text": "Monthly chart data point count matches the 12 months present in the source workbook",
+      "passed": true,
+      "evidence": "Verified directly from DASHBOARD_DATA: line chart labels length 12, each dataset length 12; gross-profit bar chart also 12."
+    },
+    {
+      "text": "Numeric KPI values are human-formatted (e.g. $13.7M) rather than raw unformatted numbers (e.g. 13700000)",
+      "passed": true,
+      "evidence": "Values shown as '$13.7M', '-$1.3M', '$2.0M', '$48.8K'."
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6,
+    "pass_rate": 1.0
+  }
+}

@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FY Finance Dashboard — Leadership Review</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#0b1220;
+    --panel:#121b2e;
+    --panel-2:#16213a;
+    --border:#26334d;
+    --text:#e8edf7;
+    --muted:#90a0bf;
+    --accent:#4f8cff;
+    --accent-2:#7ad0ff;
+    --good:#36c98f;
+    --bad:#ff5c7a;
+    --warn:#ffb74d;
+    --na:#4f8cff;
+    --apac:#7ad0ff;
+    --eu:#36c98f;
+    --latam:#ffb74d;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    background:radial-gradient(circle at top left,#101a30,#070b14 60%);
+    color:var(--text);
+    padding:32px 40px 60px;
+  }
+  header{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    flex-wrap:wrap;
+    gap:16px;
+    margin-bottom:28px;
+    border-bottom:1px solid var(--border);
+    padding-bottom:20px;
+  }
+  header h1{
+    margin:0 0 6px;
+    font-size:26px;
+    letter-spacing:0.3px;
+  }
+  header p{
+    margin:0;
+    color:var(--muted);
+    font-size:14px;
+  }
+  .badge{
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    color:var(--muted);
+    padding:8px 14px;
+    border-radius:8px;
+    font-size:13px;
+  }
+  .kpi-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:18px;
+    margin-bottom:28px;
+  }
+  .kpi-card{
+    background:linear-gradient(145deg,var(--panel),var(--panel-2));
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:20px 22px;
+    position:relative;
+    overflow:hidden;
+  }
+  .kpi-card::before{
+    content:"";
+    position:absolute;
+    top:0;left:0;right:0;
+    height:3px;
+    background:var(--accent);
+  }
+  .kpi-card.bad::before{background:var(--bad);}
+  .kpi-card.warn::before{background:var(--warn);}
+  .kpi-card.good::before{background:var(--good);}
+  .kpi-label{
+    font-size:12.5px;
+    text-transform:uppercase;
+    letter-spacing:0.6px;
+    color:var(--muted);
+    margin-bottom:10px;
+  }
+  .kpi-value{
+    font-size:30px;
+    font-weight:700;
+    line-height:1.1;
+  }
+  .kpi-sub{
+    margin-top:8px;
+    font-size:13px;
+    color:var(--muted);
+  }
+  .kpi-sub.bad{color:var(--bad);}
+  .kpi-sub.good{color:var(--good);}
+  .kpi-sub.warn{color:var(--warn);}
+
+  .grid-2{
+    display:grid;
+    grid-template-columns:2fr 1fr;
+    gap:20px;
+    margin-bottom:24px;
+  }
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:22px;
+  }
+  .panel h2{
+    margin:0 0 4px;
+    font-size:17px;
+  }
+  .panel .desc{
+    color:var(--muted);
+    font-size:13px;
+    margin:0 0 16px;
+  }
+  .chart-wrap{
+    position:relative;
+    height:320px;
+  }
+  .chart-wrap.small{height:280px;}
+
+  .region-list{
+    margin-top:18px;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+  .region-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-size:13.5px;
+  }
+  .dot{width:10px;height:10px;border-radius:50%;flex:none;}
+  .region-name{flex:0 0 110px;color:var(--text);}
+  .bar-track{
+    flex:1;
+    height:8px;
+    background:#1d2942;
+    border-radius:6px;
+    overflow:hidden;
+  }
+  .bar-fill{height:100%;border-radius:6px;}
+  .region-val{flex:0 0 90px;text-align:right;color:var(--muted);}
+
+  table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:13.5px;
+  }
+  th,td{
+    padding:9px 10px;
+    text-align:right;
+    border-bottom:1px solid var(--border);
+  }
+  th:first-child,td:first-child{text-align:left;}
+  thead th{
+    color:var(--muted);
+    font-weight:600;
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:0.4px;
+  }
+  td.neg{color:var(--bad);}
+  td.pos{color:var(--good);}
+  tbody tr:hover{background:rgba(255,255,255,0.03);}
+
+  .callout{
+    margin-top:18px;
+    background:rgba(255,92,122,0.08);
+    border:1px solid rgba(255,92,122,0.35);
+    border-radius:10px;
+    padding:14px 16px;
+    font-size:13px;
+    color:#ffc1cf;
+    line-height:1.5;
+  }
+  .callout strong{color:#fff;}
+  .callout.good{
+    background:rgba(54,201,143,0.08);
+    border-color:rgba(54,201,143,0.35);
+    color:#bdf3da;
+  }
+
+  footer{
+    margin-top:30px;
+    color:var(--muted);
+    font-size:12px;
+    text-align:center;
+  }
+
+  @media (max-width:980px){
+    .grid-2{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>FY Finance Performance — Leadership Review</h1>
+    <p>Monthly revenue, cost &amp; profitability trend · regional revenue mix · January – December</p>
+  </div>
+  <div class="badge">Source: finance-quarterly.xlsx · Finance sheet</div>
+</header>
+
+<section class="kpi-grid">
+  <div class="kpi-card">
+    <div class="kpi-label">Total Revenue (FY)</div>
+    <div class="kpi-value">$13.7M</div>
+    <div class="kpi-sub good">▲ Dec vs. Jan monthly run-rate up 107%</div>
+  </div>
+  <div class="kpi-card bad">
+    <div class="kpi-label">Gross Profit (FY)</div>
+    <div class="kpi-value">-$1.3M</div>
+    <div class="kpi-sub bad">Negative — COGS has outpaced revenue all year</div>
+  </div>
+  <div class="kpi-card warn">
+    <div class="kpi-label">Gross Margin (monthly avg.)</div>
+    <div class="kpi-value">-5.0%</div>
+    <div class="kpi-sub warn">Improving: -14.8% (Jan) → -1.6% (Dec)</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Marketing Spend (FY)</div>
+    <div class="kpi-value">$2.0M</div>
+    <div class="kpi-sub">14.6% of total revenue</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">CAC</div>
+    <div class="kpi-value">$48.8K</div>
+    <div class="kpi-sub">Across 88 active customers</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Active Customers</div>
+    <div class="kpi-value">88</div>
+    <div class="kpi-sub">$155.7K avg. revenue per customer (FY)</div>
+  </div>
+</section>
+
+<section class="grid-2">
+  <div class="panel">
+    <h2>Revenue vs. COGS — Monthly Trend</h2>
+    <p class="desc">Revenue more than doubled from Jan to Dec, and the cost gap has been steadily narrowing.</p>
+    <div class="chart-wrap">
+      <canvas id="trendChart"></canvas>
+    </div>
+  </div>
+  <div class="panel">
+    <h2>Revenue by Region</h2>
+    <p class="desc">FY revenue mix across markets, totaling $13.7M.</p>
+    <div class="chart-wrap small">
+      <canvas id="regionChart"></canvas>
+    </div>
+    <div class="region-list">
+      <div class="region-row">
+        <span class="dot" style="background:var(--na);"></span>
+        <span class="region-name">North America</span>
+        <span class="bar-track"><span class="bar-fill" style="width:38.0%;background:var(--na);"></span></span>
+        <span class="region-val">$5.2M · 38.0%</span>
+      </div>
+      <div class="region-row">
+        <span class="dot" style="background:var(--apac);"></span>
+        <span class="region-name">APAC</span>
+        <span class="bar-track"><span class="bar-fill" style="width:22.6%;background:var(--apac);"></span></span>
+        <span class="region-val">$3.1M · 22.6%</span>
+      </div>
+      <div class="region-row">
+        <span class="dot" style="background:var(--eu);"></span>
+        <span class="region-name">Europe</span>
+        <span class="bar-track"><span class="bar-fill" style="width:21.2%;background:var(--eu);"></span></span>
+        <span class="region-val">$2.9M · 21.2%</span>
+      </div>
+      <div class="region-row">
+        <span class="dot" style="background:var(--latam);"></span>
+        <span class="region-name">LATAM</span>
+        <span class="bar-track"><span class="bar-fill" style="width:18.2%;background:var(--latam);"></span></span>
+        <span class="region-val">$2.5M · 18.2%</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="grid-2">
+  <div class="panel">
+    <h2>Gross Profit by Month</h2>
+    <p class="desc">Monthly gross profit (Revenue − COGS) remains negative all year, but the loss has shrunk from -$90K in Jan to -$20K in Dec.</p>
+    <div class="chart-wrap small">
+      <canvas id="gpChart"></canvas>
+    </div>
+    <div class="callout">
+      <strong>Margin trajectory is improving</strong> but has not yet crossed into profitability. At the current rate of improvement (~$6–8K narrowing per month), break-even on a monthly basis could be reached within 2–3 months of FY-end if cost discipline holds.
+    </div>
+  </div>
+  <div class="panel">
+    <h2>Monthly Detail</h2>
+    <p class="desc">Revenue, COGS and gross profit by month ($).</p>
+    <table>
+      <thead>
+        <tr><th>Month</th><th>Revenue</th><th>COGS</th><th>Gross Profit</th></tr>
+      </thead>
+      <tbody id="monthlyTable"></tbody>
+    </table>
+  </div>
+</section>
+
+<footer>Generated for leadership review · figures in USD · FY totals reflect Finance sheet summary metrics</footer>
+
+<script>
+const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const revenue = [610000,590000,640000,700000,730000,820000,910000,990000,1050000,1120000,1180000,1260000];
+const cogs    = [700000,680000,720000,760000,790000,860000,930000,1010000,1070000,1140000,1190000,1280000];
+const gp      = revenue.map((r,i)=>r-cogs[i]);
+
+const fmt = n => '$' + (n/1000).toFixed(0) + 'K';
+const fmtSigned = n => (n<0?'-$':'$') + (Math.abs(n)/1000).toFixed(0) + 'K';
+
+Chart.defaults.color = '#90a0bf';
+Chart.defaults.font.family = "'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+
+new Chart(document.getElementById('trendChart'), {
+  type: 'line',
+  data: {
+    labels: months,
+    datasets: [
+      {
+        label: 'Revenue',
+        data: revenue,
+        borderColor: '#4f8cff',
+        backgroundColor: 'rgba(79,140,255,0.15)',
+        fill: true,
+        tension: 0.35,
+        pointRadius: 3,
+        borderWidth: 2.5
+      },
+      {
+        label: 'COGS',
+        data: cogs,
+        borderColor: '#ff5c7a',
+        backgroundColor: 'rgba(255,92,122,0.08)',
+        fill: true,
+        tension: 0.35,
+        pointRadius: 3,
+        borderWidth: 2.5
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { position: 'top', labels: { boxWidth: 12, padding: 16 } },
+      tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${fmt(ctx.raw)}` } }
+    },
+    scales: {
+      x: { grid: { color: '#1d2942' } },
+      y: { grid: { color: '#1d2942' }, ticks: { callback: v => fmt(v) } }
+    }
+  }
+});
+
+new Chart(document.getElementById('regionChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['North America','APAC','Europe','LATAM'],
+    datasets: [{
+      data: [5200000,3100000,2900000,2500000],
+      backgroundColor: ['#4f8cff','#7ad0ff','#36c98f','#ffb74d'],
+      borderColor: '#121b2e',
+      borderWidth: 3
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: '62%',
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: ctx => `${ctx.label}: ${fmt(ctx.raw)}` } }
+    }
+  }
+});
+
+new Chart(document.getElementById('gpChart'), {
+  type: 'bar',
+  data: {
+    labels: months,
+    datasets: [{
+      label: 'Gross Profit',
+      data: gp,
+      backgroundColor: gp.map(v => v < 0 ? 'rgba(255,92,122,0.75)' : 'rgba(54,201,143,0.75)'),
+      borderRadius: 4
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: ctx => `Gross Profit: ${fmtSigned(ctx.raw)}` } }
+    },
+    scales: {
+      x: { grid: { display: false } },
+      y: { grid: { color: '#1d2942' }, ticks: { callback: v => fmtSigned(v) } }
+    }
+  }
+});
+
+const tbody = document.getElementById('monthlyTable');
+months.forEach((m,i)=>{
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td>${m}</td><td>${fmt(revenue[i])}</td><td>${fmt(cogs[i])}</td><td class="${gp[i]<0?'neg':'pos'}">${fmtSigned(gp[i])}</td>`;
+  tbody.appendChild(tr);
+});
+</script>
+
+</body>
+</html>

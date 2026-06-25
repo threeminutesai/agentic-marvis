@@ -1,0 +1,68 @@
+{
+  "table_changes": {
+    "added_tables": [],
+    "removed_tables": [],
+    "matched": [
+      {
+        "old_table_id": "Finance__t0",
+        "new_table_id": "Finance__t0",
+        "headers_added": [],
+        "headers_removed": [],
+        "headers_possibly_renamed": [],
+        "row_count_old": 5,
+        "row_count_new": 5,
+        "numeric_sum_changes": {
+          "Value": {
+            "old": 14448888,
+            "new": 16451302,
+            "pct_change": 13.86
+          }
+        }
+      },
+      {
+        "old_table_id": "Finance__t1",
+        "new_table_id": "Finance__t1",
+        "headers_added": [
+          "Cost of Goods Sold"
+        ],
+        "headers_removed": [],
+        "headers_possibly_renamed": [
+          [
+            "COGS",
+            "Marketing Spend"
+          ]
+        ],
+        "row_count_old": 12,
+        "row_count_new": 12,
+        "numeric_sum_changes": {
+          "Gross Profit": {
+            "old": -530000,
+            "new": -60000,
+            "pct_change": -88.68
+          },
+          "Revenue": {
+            "old": 10600000,
+            "new": 11070000,
+            "pct_change": 4.43
+          }
+        }
+      },
+      {
+        "old_table_id": "Finance__t2",
+        "new_table_id": "Finance__t2",
+        "headers_added": [],
+        "headers_removed": [],
+        "headers_possibly_renamed": [],
+        "row_count_old": 4,
+        "row_count_new": 5,
+        "numeric_sum_changes": {
+          "Revenue": {
+            "old": 13700000,
+            "new": 15100000,
+            "pct_change": 10.22
+          }
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+interface:
+  display_name: "Agentic Marvis Brief"
+  short_description: "Build a profile-aware JSON brief from news, Gmail, and weather."
+  default_prompt: "Use $agentic-marvis-brief to fill my Marvis status JSON with profile-tailored news, an avatar briefing based on that news, unread Gmail, urgent Gmail, and local weather."
+
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "gmail"
+      description: "Gmail connector for unread and urgent unread email triage."

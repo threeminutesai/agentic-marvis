@@ -1,0 +1,40 @@
+{
+  "expectations": [
+    {
+      "text": "Output is a single self-contained HTML file that opens in a browser with no build step",
+      "passed": true,
+      "evidence": "Single dashboard.html, Chart.js via CDN only."
+    },
+    {
+      "text": "Includes KPI cards for Total Sales and Customers",
+      "passed": true,
+      "evidence": "KPI cards for Total Sales ($15,880) and Customers (20), per agent report."
+    },
+    {
+      "text": "Includes a visual showing progress toward the $16,000 sales goal (progress bar or equivalent)",
+      "passed": true,
+      "evidence": "Header badge showing 99.3% of goal plus a progress bar on the Total Sales KPI card against the $16,000 goal."
+    },
+    {
+      "text": "Includes a category breakdown chart (e.g. doughnut or bar) across the 4 product categories",
+      "passed": true,
+      "evidence": "Bar chart of revenue by the 4 product categories present (category_mentions=4 in output)."
+    },
+    {
+      "text": "Includes a per-store table or chart with all 4 stores, flagging Airport Kiosk as At Risk / underperforming",
+      "passed": true,
+      "evidence": "Store performance table with all 4 stores, share-of-total bars, and color-coded status pills; Airport Kiosk flagged At Risk."
+    },
+    {
+      "text": "Numeric values (sales, goal) are human-formatted with currency symbols",
+      "passed": true,
+      "evidence": "Values shown as '$15,880' etc with currency formatting."
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6,
+    "pass_rate": 1.0
+  }
+}

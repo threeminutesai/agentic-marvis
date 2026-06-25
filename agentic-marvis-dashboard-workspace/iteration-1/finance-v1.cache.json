@@ -1,0 +1,214 @@
+{
+  "source_file": "test-data/finance-quarterly.xlsx",
+  "sheets": [
+    {
+      "sheet_name": "Finance",
+      "tables": [
+        {
+          "table_id": "Finance__t0",
+          "anchor_cell": "A1",
+          "headers": [
+            "Metric",
+            "Value"
+          ],
+          "row_count": 5,
+          "rows": [
+            {
+              "Metric": "Total Revenue",
+              "Value": 13700000
+            },
+            {
+              "Metric": "Gross Profit",
+              "Value": -1300000
+            },
+            {
+              "Metric": "Marketing Spend",
+              "Value": 2000000
+            },
+            {
+              "Metric": "CAC",
+              "Value": 48800
+            },
+            {
+              "Metric": "Active Customers",
+              "Value": 88
+            }
+          ],
+          "truncated": false,
+          "columns": {
+            "Metric": {
+              "inferred_type": "text",
+              "non_null": 5
+            },
+            "Value": {
+              "inferred_type": "numeric",
+              "non_null": 5,
+              "min": -1300000,
+              "max": 13700000,
+              "sum": 14448888,
+              "mean": 2889777.6
+            }
+          }
+        },
+        {
+          "table_id": "Finance__t1",
+          "anchor_cell": "A8",
+          "headers": [
+            "Month",
+            "Revenue",
+            "COGS",
+            "Gross Profit"
+          ],
+          "row_count": 12,
+          "rows": [
+            {
+              "Month": "Jan",
+              "Revenue": 610000,
+              "COGS": 700000,
+              "Gross Profit": -90000
+            },
+            {
+              "Month": "Feb",
+              "Revenue": 590000,
+              "COGS": 680000,
+              "Gross Profit": -90000
+            },
+            {
+              "Month": "Mar",
+              "Revenue": 640000,
+              "COGS": 720000,
+              "Gross Profit": -80000
+            },
+            {
+              "Month": "Apr",
+              "Revenue": 700000,
+              "COGS": 760000,
+              "Gross Profit": -60000
+            },
+            {
+              "Month": "May",
+              "Revenue": 730000,
+              "COGS": 790000,
+              "Gross Profit": -60000
+            },
+            {
+              "Month": "Jun",
+              "Revenue": 820000,
+              "COGS": 860000,
+              "Gross Profit": -40000
+            },
+            {
+              "Month": "Jul",
+              "Revenue": 910000,
+              "COGS": 930000,
+              "Gross Profit": -20000
+            },
+            {
+              "Month": "Aug",
+              "Revenue": 990000,
+              "COGS": 1010000,
+              "Gross Profit": -20000
+            },
+            {
+              "Month": "Sep",
+              "Revenue": 1050000,
+              "COGS": 1070000,
+              "Gross Profit": -20000
+            },
+            {
+              "Month": "Oct",
+              "Revenue": 1120000,
+              "COGS": 1140000,
+              "Gross Profit": -20000
+            },
+            {
+              "Month": "Nov",
+              "Revenue": 1180000,
+              "COGS": 1190000,
+              "Gross Profit": -10000
+            },
+            {
+              "Month": "Dec",
+              "Revenue": 1260000,
+              "COGS": 1280000,
+              "Gross Profit": -20000
+            }
+          ],
+          "truncated": false,
+          "columns": {
+            "Month": {
+              "inferred_type": "text",
+              "non_null": 12
+            },
+            "Revenue": {
+              "inferred_type": "numeric",
+              "non_null": 12,
+              "min": 590000,
+              "max": 1260000,
+              "sum": 10600000,
+              "mean": 883333.3333
+            },
+            "COGS": {
+              "inferred_type": "numeric",
+              "non_null": 12,
+              "min": 680000,
+              "max": 1280000,
+              "sum": 11130000,
+              "mean": 927500.0
+            },
+            "Gross Profit": {
+              "inferred_type": "numeric",
+              "non_null": 12,
+              "min": -90000,
+              "max": -10000,
+              "sum": -530000,
+              "mean": -44166.6667
+            }
+          }
+        },
+        {
+          "table_id": "Finance__t2",
+          "anchor_cell": "A22",
+          "headers": [
+            "Region",
+            "Revenue"
+          ],
+          "row_count": 4,
+          "rows": [
+            {
+              "Region": "North America",
+              "Revenue": 5200000
+            },
+            {
+              "Region": "APAC",
+              "Revenue": 3100000
+            },
+            {
+              "Region": "Europe",
+              "Revenue": 2900000
+            },
+            {
+              "Region": "LATAM",
+              "Revenue": 2500000
+            }
+          ],
+          "truncated": false,
+          "columns": {
+            "Region": {
+              "inferred_type": "text",
+              "non_null": 4
+            },
+            "Revenue": {
+              "inferred_type": "numeric",
+              "non_null": 4,
+              "min": 2500000,
+              "max": 5200000,
+              "sum": 13700000,
+              "mean": 3425000.0
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
