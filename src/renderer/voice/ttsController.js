@@ -12,6 +12,7 @@ function createTtsController() {
   let dataArray = null;
   let rafId = null;
   let currentAudio = null;
+  let currentUtterance = null;
   let currentResolve = null;
   let volume = 1;
 
@@ -38,6 +39,10 @@ function createTtsController() {
       currentAudio.pause();
       currentAudio.currentTime = 0;
       currentAudio = null;
+    }
+    if (currentUtterance) {
+      window.speechSynthesis.cancel();
+      currentUtterance = null;
     }
     stopLevelLoop();
     if (currentResolve) {
@@ -75,12 +80,43 @@ function createTtsController() {
             },
           }));
         }
+        await speakWithBrowserVoice(text);
         return;
       }
       await playWithLevelAnalysis(`data:audio/mpeg;base64,${result.audioBase64}`);
     } catch {
-      // ElevenLabs unavailable — stay silent
+      await speakWithBrowserVoice(text);
     }
+  }
+
+  function speakWithBrowserVoice(text) {
+    return new Promise((resolve) => {
+      if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) {
+        resolve();
+        return;
+      }
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 0.95;
+      utterance.volume = volume;
+      currentUtterance = utterance;
+      currentResolve = resolve;
+      utterance.onend = () => {
+        currentUtterance = null;
+        if (currentResolve) {
+          currentResolve = null;
+          resolve();
+        }
+      };
+      utterance.onerror = () => {
+        currentUtterance = null;
+        if (currentResolve) {
+          currentResolve = null;
+          resolve();
+        }
+      };
+      window.speechSynthesis.speak(utterance);
+    });
   }
 
   function playWithLevelAnalysis(src) {

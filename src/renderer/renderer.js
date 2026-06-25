@@ -367,7 +367,8 @@ The user explicitly asked for this as a report - skip any classification step, t
 A short spoken summary, 1-2 sentences, no source URLs, no markdown.
 [html] ${htmlPanel.filePath}
 
-Then write ${templateSection} to this exact file path: ${htmlPanel.filePath} (keep the file name exactly as given: ${htmlPanel.fileName}).`;
+Before replying, write ${templateSection} to this exact file path: ${htmlPanel.filePath} (keep the file name exactly as given: ${htmlPanel.fileName}).
+Do not send the HTML/content inline to the app. The app will open the file from the [html] path.`;
   }
 
   return `Task: ${task}
@@ -388,7 +389,8 @@ IF AND ONLY IF YES:
 A short spoken summary, 1-2 sentences, no source URLs, no markdown.
 [html] ${htmlPanel.filePath}
 
-Then write ${templateSection} to this exact file path: ${htmlPanel.filePath} (keep the file name exactly as given: ${htmlPanel.fileName}).`;
+Before replying, write ${templateSection} to this exact file path: ${htmlPanel.filePath} (keep the file name exactly as given: ${htmlPanel.fileName}).
+Do not send the HTML/content inline to the app. The app will open the file from the [html] path.`;
 }
 
 function extractPlainVoiceSummary(text) {
@@ -400,18 +402,15 @@ function extractPlainVoiceSummary(text) {
   return cleaned.split(/\r?\n\s*\r?\n/)[0]?.trim() || cleaned || 'I found the summary, sir.';
 }
 
-async function formatAssistantResponse(text) {
+async function formatAssistantResponse(text, { allowHtml = true } = {}) {
   const voiceBlock = extractVoiceContentBlock(text);
   if (voiceBlock) {
-    // The right panel is for actual HTML/content blocks only - a voice-only
-    // reply (no [html] file, no [content] block) must never open it, even
-    // though displayText would otherwise fall back to the voice text.
+    // The right panel only opens from an explicit HTML file path returned by
+    // Claude Code/Codex. Inline content is chat text, not panel content.
     let html = null;
-    if (voiceBlock.htmlPath) {
+    if (allowHtml && voiceBlock.htmlPath) {
       const result = await window.marvis.readHtmlPanel(voiceBlock.htmlPath);
       if (result.ok) html = result.html;
-    } else if (voiceBlock.displayText) {
-      html = renderContentBlock(voiceBlock.displayText);
     }
     return {
       reply: voiceBlock.voiceText || extractPlainVoiceSummary(voiceBlock.displayText),
@@ -420,26 +419,7 @@ async function formatAssistantResponse(text) {
     };
   }
 
-  const extracted = extractHtmlBlock(text);
-  if (extracted) {
-    return {
-      reply: [extracted.before, extracted.after].filter(Boolean).join(' ') || "Here's the report, sir.",
-      displayReply: [extracted.before, extracted.after].filter(Boolean).join(' ') || "Here's the report, sir.",
-      html: extracted.html,
-    };
-  }
-
-  // CLI ignored the [voice]/[html] contract and returned raw content directly.
-  // Route long-form output to the panel instead of dumping it into the chat bubble.
   const plainSummary = extractPlainVoiceSummary(text);
-  if (text && text.trim().length > plainSummary.length + 40) {
-    return {
-      reply: plainSummary,
-      displayReply: plainSummary,
-      html: renderContentBlock(text),
-    };
-  }
-
   return { reply: plainSummary, displayReply: text, html: null };
 }
 
@@ -1056,9 +1036,12 @@ const CLI_CHANNELS = {
 // word "report" alone isn't enough) to avoid misfiring on unrelated uses
 // like "I need to report a bug" or "did you see that report from yesterday".
 const REPORT_REQUEST_RE = /^(?:in|as)\s+(?:a\s+)?report\b|\b(?:make|generate|create|write|produce|compile|prepare)\s+(?:me\s+)?(?:a|the)\s+report\b|\breport\s+(?:on|about|for)\b/i;
-
 function isReportRequest(text) {
   return REPORT_REQUEST_RE.test(text.trim());
+}
+
+function shouldSpeakReturnedMessage(text) {
+  return Boolean(text.trim() || pendingAttachments.length > 0);
 }
 
 function parseCliCommand(text) {
@@ -1074,19 +1057,19 @@ function parseCliCommand(text) {
   return { channel, task };
 }
 
-async function sendToCli(text, channel, task, { forceReport = false } = {}) {
+async function sendToCli(text, channel, task, { forceReport = false, voiceAllowed = true } = {}) {
   appendChatLine('You', text);
   if (!task) {
     const prompt = `What would you like me to ask ${channel.label} to do, sir?`;
     appendChatLine('Marvis', prompt);
-    await speakReply(prompt);
+    if (voiceAllowed) await speakReply(prompt);
     return;
   }
   const operationId = createOperationId();
   activeOperationId = operationId;
   setProcessingResponse(true);
   setAvatarState('processing');
-  speakProcessingCue();
+  if (voiceAllowed) speakProcessingCue();
   // Placeholder bubble updated in place (no speech) as progress events stream
   // in from the CLI, then overwritten with the real reply once it resolves.
   appendChatLine('Marvis', 'Thinking...');
@@ -1114,13 +1097,14 @@ async function sendToCli(text, channel, task, { forceReport = false } = {}) {
     const summary = result.summary || `${channel.label} finished, sir.`;
     const formatted = await formatAssistantResponse(summary);
     if (formatted.html) showHTML(formatted.html);
+    else hidePanel();
     const reply = formatted.reply;
     console.log(`[CLI] Displaying reply: "${reply}"`);
     setAvatarHeadline(formatted.displayReply);
     stopProcessingCue();
     stopCachedVoice();
     ttsController.stop();
-    await speakReply(reply);
+    if (voiceAllowed) await speakReply(reply);
   } catch (err) {
     console.log(`[CLI] Error:`, err);
     unsubscribeProgress();
@@ -1158,7 +1142,7 @@ function onWakeWordDetected() {
       async (transcript) => {
         isRecordingAudio = false;
         updateAudioInputButton();
-        await sendToMarvis(transcript);
+        await sendToMarvis(transcript, { voiceAllowed: shouldSpeakReturnedMessage(transcript) });
         isBusy = false;
         startWakeWordIfConfigured();
       },
@@ -1174,26 +1158,27 @@ function onWakeWordDetected() {
   }, 300);
 }
 
-async function sendToMarvis(text) {
+async function sendToMarvis(text, { voiceAllowed = true } = {}) {
   appendChatLine('You', text);
   const operationId = createOperationId();
   activeOperationId = operationId;
   setProcessingResponse(true);
   setAvatarState('processing');
-  speakProcessingCue();
+  if (voiceAllowed) speakProcessingCue();
   try {
     const { reply, cancelled } = await window.marvis.sendMessage(text, operationId);
     if (activeOperationId !== operationId && shouldAbortResponse) return;
     activeOperationId = null;
     setProcessingResponse(false);
     if (shouldAbortResponse || cancelled) return;
-    const formatted = await formatAssistantResponse(reply);
+    const formatted = await formatAssistantResponse(reply, { allowHtml: false });
     if (formatted.html) showHTML(formatted.html);
+    else hidePanel();
     appendChatLine('Marvis', formatted.displayReply);
     stopProcessingCue();
     stopCachedVoice();
     ttsController.stop();
-    await speakReply(formatted.reply);
+    if (voiceAllowed) await speakReply(formatted.reply);
   } catch (err) {
     if (activeOperationId === operationId) activeOperationId = null;
     setProcessingResponse(false);
@@ -1387,6 +1372,7 @@ function applyMuteCommand({ target, action }) {
 }
 
 async function routeUserMessage(text) {
+  const voiceAllowed = shouldSpeakReturnedMessage(text);
   // /html <path> or html <path> - open HTML file directly without Claude delegation
   const htmlCmdMatch = text.match(/^\/html\s+(.+)/i) || text.match(/^html\s+(.+)/i);
   if (htmlCmdMatch) {
@@ -1410,8 +1396,8 @@ async function routeUserMessage(text) {
     return;
   }
 
-  // /open <keyword> or open <keyword> - search and open HTML panel by keyword
-  const openCmdMatch = text.match(/^\/open\s+(.+)/i) || text.match(/^open\s+(.+)/i);
+  // /open <keyword>, open <keyword>, or show <keyword> - search and open HTML panel by keyword
+  const openCmdMatch = text.match(/^\/open\s+(.+)/i) || text.match(/^(?:open|show)\s+(.+)/i);
   if (openCmdMatch) {
     const keyword = openCmdMatch[1].trim();
     appendChatLine('You', text);
@@ -1447,7 +1433,7 @@ async function routeUserMessage(text) {
       lines.push(`[screenshot] ${att.filePath}`);
     }
     const fullTask = lines.join('\n');
-    await sendToCli(text, channel, fullTask, { forceReport: isReportRequest(taskText) });
+    await sendToCli(text, channel, fullTask, { forceReport: isReportRequest(taskText), voiceAllowed });
     clearAttachments();
     return;
   }
@@ -1456,7 +1442,7 @@ async function routeUserMessage(text) {
     appendChatLine('You', text);
     const reply = await applyMuteCommand(muteCommand);
     appendChatLine('Marvis', reply);
-    await speakReply(reply);
+    if (voiceAllowed) await speakReply(reply);
     return;
   }
   const detailRow = matchStatusDetailRequest(text, statusRows);
@@ -1464,12 +1450,15 @@ async function routeUserMessage(text) {
     appendChatLine('You', text);
     const reply = detailRow.detail || `I don't have further detail on ${detailRow.type.toLowerCase()}, sir.`;
     appendChatLine('Marvis', reply);
-    await speakReply(reply);
+    if (voiceAllowed) await speakReply(reply);
     return;
   }
   const cliCommand = parseCliCommand(text);
   if (cliCommand) {
-    await sendToCli(text, cliCommand.channel, cliCommand.task, { forceReport: isReportRequest(cliCommand.task) });
+    await sendToCli(text, cliCommand.channel, cliCommand.task, {
+      forceReport: isReportRequest(cliCommand.task),
+      voiceAllowed,
+    });
   } else if (currentSettings.preferredCliChannel) {
     const channel = CLI_CHANNELS[`/${currentSettings.preferredCliChannel}`];
     if (channel) {
@@ -1477,9 +1466,9 @@ async function routeUserMessage(text) {
       // own self-classification step can still judge a report-phrased
       // request as a quick factual answer and skip writing the file - force
       // the report branch whenever the user's own wording asked for one.
-      await sendToCli(text, channel, text, { forceReport: isReportRequest(text) });
+      await sendToCli(text, channel, text, { forceReport: isReportRequest(text), voiceAllowed });
     } else {
-      await sendToMarvis(text);
+      await sendToMarvis(text, { voiceAllowed });
     }
   } else if (isReportRequest(text)) {
     // No explicit /code prefix and no sticky CLI preference, but the
@@ -1487,9 +1476,9 @@ async function routeUserMessage(text) {
     // general-purpose "heavy lifting" channel) so it can actually write
     // the HTML file and hand back a clickable panel, which the plain chat
     // providers have no file-write access to produce.
-    await sendToCli(text, CLI_CHANNELS['/code'], text, { forceReport: true });
+    await sendToCli(text, CLI_CHANNELS['/code'], text, { forceReport: true, voiceAllowed });
   } else {
-    await sendToMarvis(text);
+    await sendToMarvis(text, { voiceAllowed });
   }
 }
 

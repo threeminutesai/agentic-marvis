@@ -7,9 +7,7 @@ function showPanel(html) {
 }
 
 function showHTML(html) {
-  // Wrap HTML to span full width of grid (replaces status cards)
-  const wrapped = `<div style="grid-column: 1 / -1;">${html}</div>`;
-  showPanel(wrapped);
+  showHTMLSafe(html);
 }
 
 // Safely display HTML in an isolated iframe to prevent CSS/script conflicts
@@ -29,6 +27,8 @@ function showHTMLSafe(html) {
   iframe.style.height = '100%';
   iframe.style.border = 'none';
   iframe.style.borderRadius = '8px';
+  iframe.style.display = 'block';
+  iframe.style.background = '#ffffff';
   iframe.sandbox.add('allow-same-origin');
   iframe.sandbox.add('allow-scripts');
 
@@ -39,14 +39,17 @@ function showHTMLSafe(html) {
 
   // Write content to iframe document
   const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+  const source = String(html || '');
+  const isFullDocument = /<!doctype\s+html|<html[\s>]/i.test(source);
   iframeDoc.open();
-  iframeDoc.write(`<!DOCTYPE html>
+  iframeDoc.write(isFullDocument ? source : `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { margin: 0; padding: 16px; font-family: inherit; background: transparent; }
+    html, body { min-height: 100%; }
+    body { margin: 0; padding: 16px; font-family: inherit; background: #ffffff; }
   </style>
 </head>
 <body>${html}</body>
@@ -191,10 +194,11 @@ function extractHtmlBlock(text) {
 function extractVoiceContentBlock(text) {
   const voiceText = extractTaggedSection(text, ['voice', 'voice content']);
   if (voiceText !== null) {
+    const htmlPath = extractTaggedSection(text, ['html', 'html file']) || '';
     return {
       voiceText: voiceText.trim(),
       displayText: extractTaggedSection(text, ['content', 'display content']) || '',
-      htmlPath: extractTaggedSection(text, ['html', 'html file']) || '',
+      htmlPath: normalizeHtmlPath(htmlPath),
     };
   }
 
@@ -208,6 +212,14 @@ function extractVoiceContentBlock(text) {
     displayText: parts.join('\n\n').trim(),
     htmlPath: '',
   };
+}
+
+function normalizeHtmlPath(value) {
+  const firstLine = String(value || '')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find(Boolean) || '';
+  return firstLine.replace(/^["']|["']$/g, '');
 }
 
 function extractTaggedSection(text, tags) {
