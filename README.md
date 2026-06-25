@@ -4,7 +4,7 @@ Agentic Marvis is a dashboard-oriented desktop assistant that bridges Codex and 
 
 ## Download
 
-A packaged Windows build is available on the [Releases page](https://github.com/threeminutesai/agentic-jarvis/releases) — download the portable `.exe` and run it directly, no installation or Node.js required.
+A packaged Windows build is available on the [Releases page](https://github.com/threeminutesai/agentic-marvis/releases) — download the portable `.exe` and run it directly, no installation or Node.js required.
 
 macOS and Ubuntu builds are planned for a future release. Until then, Linux/macOS users can run from source via the [Setup](#setup) instructions below.
 
