@@ -62,6 +62,26 @@ function hidePanel() {
   appBody.classList.remove('panel-active');
 }
 
+function getCurrentLanguage() {
+  return window.__marvisLanguage === 'zh' ? 'zh' : 'en';
+}
+
+function localizeStatusLabel(label) {
+  const zh = {
+    Weather: '天气',
+    'Unread Emails': '未读邮件',
+    'Urgent Emails': '紧急邮件',
+    'Email Content': '邮件内容',
+    'Latest News': '最新新闻',
+    'News Briefing': '新闻简报',
+    'Avatar Briefing': '语音简报',
+    'User Profile': '用户档案',
+    'Last Updated': '最后更新',
+  };
+  if (getCurrentLanguage() !== 'zh') return label;
+  return zh[label] || label;
+}
+
 // How long each News Briefing item stays the focus, in ms. Shared with
 // renderer.js so the avatar headline cycle and the stacked card entrances
 // land in sync.
@@ -132,7 +152,7 @@ function renderStatusBoard(rows) {
     const weatherClass = row.type === 'Weather' ? ' status-card-weather' : '';
     html += `
       <div class="status-card status-card-compact${weatherClass}">
-        <div class="status-card-type">${escapeHtml(row.type)}</div>
+        <div class="status-card-type">${escapeHtml(localizeStatusLabel(row.type))}</div>
         <div class="status-card-value">${escapeHtml(row.value)}</div>
       </div>
     `;
@@ -142,7 +162,7 @@ function renderStatusBoard(rows) {
   if (emailContent) {
     html += `
       <div class="status-card status-card-email-content">
-        <div class="status-card-type">Email Content</div>
+        <div class="status-card-type">${escapeHtml(localizeStatusLabel('Email Content'))}</div>
         <div class="status-card-body">
           ${escapeHtml(emailContentDetail)}
         </div>
@@ -174,7 +194,7 @@ function renderStatusBoard(rows) {
       .join('');
     html += `
       <div class="status-card status-card-latest-news">
-        <div class="status-card-type">Latest News</div>
+        <div class="status-card-type">${escapeHtml(localizeStatusLabel('Latest News'))}</div>
         <div class="status-card-body" id="news-briefing-stack">${stackHtml}</div>
       </div>
     `;

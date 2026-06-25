@@ -23,6 +23,12 @@ function createProviderFor(providerName, apiKey) {
   return createDeepseekProvider({ apiKey });
 }
 
+function getUserFacingLanguageInstruction(language) {
+  return language === 'zh'
+    ? 'Reply in Simplified Chinese for all user-facing output unless the user explicitly asks for another language.'
+    : 'Reply in English for all user-facing output unless the user explicitly asks for another language.';
+}
+
 // Packaged (portable exe): data lives next to the exe so the whole app is
 // self-contained in one folder. PORTABLE_EXECUTABLE_DIR is set by the
 // Electron portable launcher; fall back to dirname(execPath) if absent.
@@ -136,12 +142,12 @@ function initDevMusicLibraryIfNeeded(musicDir, musicLibraryFilePath) {
   // Weekday playlists — one per slot, trackId = fileName
   const playlists = present
     .filter((t) => WEEKDAY_SLOTS.includes(t.slot))
-    .map((t) => ({ id: `pl_${t.slot}`, name: t.slot, trackIds: [t.fileName] }));
+    .map((t) => ({ id: `pl_${t.slot}`, name: getDefaultPlaylistName(t.slot), trackIds: [t.fileName] }));
 
   // Weekend playlist — all weekend tracks combined
   const weekendTracks = present.filter((t) => WEEKEND_SLOTS.includes(t.slot));
   if (weekendTracks.length) {
-    playlists.push({ id: 'pl_weekend', name: 'weekend', trackIds: weekendTracks.map((t) => t.fileName) });
+    playlists.push({ id: 'pl_weekend', name: getDefaultPlaylistName('weekend'), trackIds: weekendTracks.map((t) => t.fileName) });
   }
 
   // Schedule: only reference playlists that were actually created
@@ -184,7 +190,42 @@ function copyLegacySettingsFileIfNeeded(filePath) {
 }
 
 const DEFAULT_USER_PROFILE = 'Robotics educator. Interests focus on technology, especially humanoid robots, drones, and robotics.';
-const DEFAULT_USER_PROFILE_DETAIL = 'Geolocation: Bayan Lepas';
+const DEFAULT_USER_PROFILE_DETAIL = 'Geolocation: Washington | Language: English';
+
+function getDefaultPlaylistName(slot) {
+  return {
+    earlyMorning: 'Early Morning',
+    morning: 'Morning Focus',
+    afternoon: 'Afternoon Drive',
+    evening: 'Evening Wind Down',
+    midnight: 'Midnight Deep Work',
+    weekend: 'Weekend Mix',
+  }[slot] || slot;
+}
+
+function formatLanguageLabel(language) {
+  return language === 'zh' ? '中文' : 'English';
+}
+
+function buildUserProfileDetail(geolocation, language) {
+  const parts = [];
+  const geo = String(geolocation || '').trim();
+  const lang = String(language || '').trim();
+  if (geo) parts.push(`Geolocation: ${geo}`);
+  if (lang) parts.push(`Language: ${formatLanguageLabel(lang)}`);
+  return parts.join(' | ');
+}
+
+function parseUserProfileDetail(detail) {
+  const text = String(detail || '');
+  const geoMatch = text.match(/Geolocation:\s*([^|]+)/i);
+  const languageMatch = text.match(/Language:\s*([^|]+)/i);
+  const languageRaw = (languageMatch?.[1] || '').trim();
+  return {
+    geolocation: (geoMatch?.[1] || '').trim(),
+    language: /中文/i.test(languageRaw) ? 'zh' : (languageRaw ? 'en' : ''),
+  };
+}
 
 function ensureUserProfileRow(filePath, rows) {
   const existing = rows.find((row) => row.type === 'User Profile');
@@ -211,14 +252,28 @@ function ensureUserProfileRow(filePath, rows) {
   return { rows: updatedRows, wasDefaulted: true };
 }
 
-function saveUserProfile(filePath, profileText, geolocation) {
+function saveUserProfile(filePath, profileText, geolocation, language) {
   const rows = readStatusRows(filePath);
   const value = String(profileText || '').trim();
   const geo = String(geolocation || '').trim();
-  const detail = geo ? `Geolocation: ${geo}` : '';
+  const detail = buildUserProfileDetail(geo, language);
   const updatedRows = rows.some((row) => row.type === 'User Profile')
     ? rows.map((row) => (row.type === 'User Profile' ? { ...row, value, detail } : row))
     : [...rows, { type: 'User Profile', value, detail }];
+  fs.writeFileSync(filePath, JSON.stringify(updatedRows, null, 2));
+  return updatedRows;
+}
+
+function syncUserProfileLanguage(filePath, language) {
+  const rows = readStatusRows(filePath);
+  const updatedRows = rows.map((row) => {
+    if (row.type !== 'User Profile') return row;
+    const parsed = parseUserProfileDetail(row.detail);
+    return {
+      ...row,
+      detail: buildUserProfileDetail(parsed.geolocation, language),
+    };
+  });
   fs.writeFileSync(filePath, JSON.stringify(updatedRows, null, 2));
   return updatedRows;
 }
@@ -506,13 +561,14 @@ function registerIpcHandlers() {
       const { apiKeys, ...rest } = settings;
       if (apiKeys) saveEnvFile(apiKeys);
       settingsStore.save({ ...rest, apiKeys: { deepseek: '', gemini: '', elevenlabs: '', anthropic: '' } });
+      syncUserProfileLanguage(getStatusFilePath(), settings.language || 'en');
       return { ok: true };
     } catch (err) {
       return { ok: false, error: `I couldn't save your settings, sir: ${err.message}` };
     }
   });
 
-  ipcMain.handle('profile:update', (_event, profileText, geolocation) => {
+  ipcMain.handle('profile:update', (_event, profileText, geolocation, language) => {
     try {
       const statusFilePath = getStatusFilePath();
       const rows = readStatusRows(statusFilePath);
@@ -521,7 +577,7 @@ function registerIpcHandlers() {
           return {
             ...row,
             value: profileText,
-            detail: geolocation ? `Geolocation: ${geolocation}` : '',
+            detail: buildUserProfileDetail(geolocation, language),
           };
         }
         return row;
@@ -530,7 +586,7 @@ function registerIpcHandlers() {
         updated.push({
           type: 'User Profile',
           value: profileText,
-          detail: geolocation ? `Geolocation: ${geolocation}` : '',
+          detail: buildUserProfileDetail(geolocation, language),
         });
       }
       fs.writeFileSync(statusFilePath, JSON.stringify(updated, null, 2));
@@ -581,7 +637,7 @@ function registerIpcHandlers() {
     const client = createProviderFor(settings.provider, apiKey);
     try {
       const reply = await client.chat({
-        systemPrompt: settings.personality,
+        systemPrompt: `${settings.personality}\n\n${getUserFacingLanguageInstruction(settings.language)}`,
         messages: [{ role: 'user', content: text }],
         signal: controller?.signal,
       });
@@ -728,8 +784,9 @@ function registerIpcHandlers() {
     const filePath = getStatusFilePath();
     const profileText = typeof payload === 'string' ? payload : payload?.profileText;
     const geolocation = typeof payload === 'string' ? '' : payload?.geolocation;
+    const language = typeof payload === 'string' ? 'en' : payload?.language;
     try {
-      const rows = saveUserProfile(filePath, profileText, geolocation);
+      const rows = saveUserProfile(filePath, profileText, geolocation, language);
       return { ok: true, rows };
     } catch (err) {
       console.log(`[Status] Failed to save user profile: ${err.message}`);

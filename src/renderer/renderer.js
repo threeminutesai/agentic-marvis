@@ -52,6 +52,295 @@ const DEFAULT_VOICE_PHRASES = {
   processing: ['Working on it', 'Processing', 'Got it. Checking now', 'On it [user]', 'Give me a moment'],
 };
 
+const I18N = {
+  en: {
+    chatPlaceholder: 'Talk to Marvis...',
+    mic: 'Mic',
+    stop: 'Stop',
+    send: 'Send',
+    pause: 'Pause',
+    mute: 'Mute',
+    unmute: 'Unmute',
+    settings: 'Settings',
+    continue: 'Continue',
+    selectProject: 'Select Project',
+    noProjectSelected: 'No project selected',
+    readFullArticle: 'Read full article ↗',
+    welcomeNeedApiKey: 'Please enter your API key.',
+    welcomeNeedProfile: 'Please select a profile.',
+    testingConnection: 'Testing connection, sir...',
+    displayFile: 'Displaying {name}',
+    readFileError: "I couldn't read that file, sir: {error}",
+    openPanelError: "I couldn't open that panel, sir: {error}",
+    noPanelMatch: 'I could not find an HTML panel matching "{keyword}", sir.',
+    askChannelTask: 'What would you like me to ask {channel} to do, sir?',
+    thinking: 'Thinking...',
+    defaultProfileNotice: "I don't have your profile yet, sir - I've set a default. Update it anytime under Settings > User Profile.",
+    introTime: 'the time is {time}',
+    introWeather: "it's {weather} out",
+    todaysBriefing: "today's briefing: {news}",
+    onlineReady: "I'm online and ready.",
+    noFurtherDetail: "I don't have further detail on {type}, sir.",
+    voiceMusicMuted: 'Voice and music muted, sir.',
+    voiceMusicUnmuted: 'Voice and music unmuted, sir.',
+    voiceMuted: 'Voice muted, sir.',
+    voiceUnmuted: 'Voice unmuted, sir.',
+    musicMuted: 'Music muted, sir.',
+    musicUnmuted: 'Music unmuted, sir.',
+    soundSample: 'This is how I sound, sir.',
+    settingsTitle: 'SETTINGS',
+    settingsAiHeader: 'AI Provider',
+    settingsProviderLabel: 'Provider',
+    settingsVoiceHeader: 'Voice',
+    settingsElevenlabsKeyLabel: 'ElevenLabs API Key',
+    settingsElevenlabsOptional: 'optional - for natural voice',
+    settingsElevenlabsVoiceLabel: 'ElevenLabs Voice',
+    settingsVoiceVolumeLabel: 'Voice Volume',
+    settingsBotNameLabel: 'Bot Name',
+    settingsWakewordLabel: 'Enable wake word (always listens for "{name}")',
+    settingsPersonalityLabel: 'Personality',
+    settingsBriefingFrequencyLabel: 'Voice Briefing Frequency',
+    settingsUserNameLabel: 'User Name',
+    settingsMusicHeader: 'Music & Briefing',
+    settingsMusicVolumeLabel: 'Music Volume',
+    settingsProfileHeader: 'Profile',
+    settingsBackgroundLabel: 'Background & Interests',
+    settingsGeolocationLabel: 'Geolocation',
+    settingsLanguageLabel: 'Language',
+    settingsAppearanceHeader: 'Appearance',
+    settingsAvatarStyleLabel: 'Avatar Style',
+    settingsSystemHeader: 'System',
+    settingsPreferredCliLabel: 'Preferred CLI',
+    settingsMaxPanelsLabel: 'Max HTML Panels to Keep',
+    settingsActiveProjectLabel: 'Active Project',
+    settingsCliHint: 'Claude Code CLI uses its own logged-in subscription session ("claude login" in a terminal) - no API key needed here.',
+    saveSettings: 'Save Settings',
+    voiceWords: 'Voice Words',
+    musicLibrary: 'Music Library',
+    importFiles: 'Import Files',
+    createPlaylist: 'Create Playlist',
+    editPlaylist: 'Edit Playlist',
+    deleteSelectedPlaylist: 'Delete Selected Playlist',
+    browse: 'Browse',
+    libraryTab: 'Library',
+    playlistsTab: 'Playlists',
+    scheduleTab: 'Schedule',
+    addVoice: 'Add Voice',
+    removeSelected: 'Remove Selected',
+  },
+  zh: {
+    chatPlaceholder: '和 Marvis 说点什么...',
+    mic: '麦克风',
+    stop: '停止',
+    send: '发送',
+    pause: '暂停',
+    mute: '静音',
+    unmute: '取消静音',
+    settings: '设置',
+    continue: '继续',
+    selectProject: '选择项目',
+    noProjectSelected: '尚未选择项目',
+    readFullArticle: '阅读全文 ↗',
+    welcomeNeedApiKey: '请输入你的 API Key。',
+    welcomeNeedProfile: '请选择一个档案。',
+    testingConnection: '正在测试连接...',
+    displayFile: '正在显示 {name}',
+    readFileError: '无法读取该文件：{error}',
+    openPanelError: '无法打开该面板：{error}',
+    noPanelMatch: '找不到匹配 “{keyword}” 的 HTML 面板。',
+    askChannelTask: '你想让我请 {channel} 做什么？',
+    thinking: '思考中...',
+    defaultProfileNotice: '我还没有你的档案，已先套用默认值。你可以随时到 设置 > Profile 里修改。',
+    introTime: '现在时间是 {time}',
+    introWeather: '目前天气：{weather}',
+    todaysBriefing: '今日简报：{news}',
+    onlineReady: '我已上线并准备好了。',
+    noFurtherDetail: '我暂时没有更多关于 {type} 的细节。',
+    voiceMusicMuted: '语音和音乐已静音。',
+    voiceMusicUnmuted: '语音和音乐已恢复。',
+    voiceMuted: '语音已静音。',
+    voiceUnmuted: '语音已恢复。',
+    musicMuted: '音乐已静音。',
+    musicUnmuted: '音乐已恢复。',
+    soundSample: '这就是我现在的声音。',
+    settingsTitle: '设置',
+    settingsAiHeader: 'AI 提供商',
+    settingsProviderLabel: '提供商',
+    settingsVoiceHeader: '语音',
+    settingsElevenlabsKeyLabel: 'ElevenLabs API Key',
+    settingsElevenlabsOptional: '可选 - 用于更自然的语音',
+    settingsElevenlabsVoiceLabel: 'ElevenLabs 声音',
+    settingsVoiceVolumeLabel: '语音音量',
+    settingsBotNameLabel: '助手名称',
+    settingsWakewordLabel: '启用唤醒词（始终监听 “{name}”）',
+    settingsPersonalityLabel: '性格设定',
+    settingsBriefingFrequencyLabel: '语音简报频率',
+    settingsUserNameLabel: '用户名',
+    settingsMusicHeader: '音乐与简报',
+    settingsMusicVolumeLabel: '音乐音量',
+    settingsProfileHeader: '档案',
+    settingsBackgroundLabel: '背景与兴趣',
+    settingsGeolocationLabel: '地理位置',
+    settingsLanguageLabel: '语言',
+    settingsAppearanceHeader: '外观',
+    settingsAvatarStyleLabel: '头像风格',
+    settingsSystemHeader: '系统',
+    settingsPreferredCliLabel: '首选 CLI',
+    settingsMaxPanelsLabel: '最多保留的 HTML 面板数',
+    settingsActiveProjectLabel: '当前项目',
+    settingsCliHint: 'Claude Code CLI 使用它自己的登录订阅会话（终端里执行 "claude login"），这里不需要 API Key。',
+    saveSettings: '保存设置',
+    voiceWords: '语音短语',
+    musicLibrary: '音乐库',
+    importFiles: '导入文件',
+    createPlaylist: '创建播放列表',
+    editPlaylist: '编辑播放列表',
+    deleteSelectedPlaylist: '删除所选播放列表',
+    browse: '浏览',
+    libraryTab: '曲库',
+    playlistsTab: '播放列表',
+    scheduleTab: '排程',
+    addVoice: '添加声音',
+    removeSelected: '移除所选',
+  },
+};
+
+const STATUS_TYPE_LABELS = {
+  Weather: { en: 'Weather', zh: '天气' },
+  'Unread Emails': { en: 'Unread Emails', zh: '未读邮件' },
+  'Urgent Emails': { en: 'Urgent Emails', zh: '紧急邮件' },
+  'News Briefing': { en: 'News Briefing', zh: '新闻简报' },
+  'Avatar Briefing': { en: 'Avatar Briefing', zh: '语音简报' },
+  'User Profile': { en: 'User Profile', zh: '用户档案' },
+};
+
+window.__marvisLanguage = 'en';
+
+function getCurrentLanguage() {
+  return currentSettings?.language === 'zh' ? 'zh' : 'en';
+}
+
+function t(key, vars = {}) {
+  const language = getCurrentLanguage();
+  const template = (I18N[language] && I18N[language][key]) || I18N.en[key] || key;
+  return template.replace(/\{(\w+)\}/g, (_m, name) => String(vars[name] ?? ''));
+}
+
+function localizeStatusType(type) {
+  const language = getCurrentLanguage();
+  const entry = STATUS_TYPE_LABELS[type];
+  return entry ? entry[language] : type;
+}
+
+function extractGeolocationFromProfileDetail(detail) {
+  const match = String(detail || '').match(/Geolocation:\s*([^|]+)/i);
+  return (match?.[1] || '').trim();
+}
+
+function setCurrentLanguage(language) {
+  const next = language === 'zh' ? 'zh' : 'en';
+  if (!currentSettings) currentSettings = {};
+  currentSettings.language = next;
+  window.__marvisLanguage = next;
+  applyLanguageToUi();
+  if (statusRows.length && document.getElementById('app-body')?.classList.contains('panel-active')) {
+    showPanel(renderStatusBoard(statusRows));
+  }
+  if (typeof window.__marvisRefreshMusicPanel === 'function') {
+    window.__marvisRefreshMusicPanel();
+  }
+}
+
+function applyLanguageToUi() {
+  const setText = (id, text) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  };
+  const setWakewordLabelText = (name) => {
+    const el = document.getElementById('settings-wakeword-label');
+    if (!el) return;
+    const language = getCurrentLanguage();
+    const safeName = String(name || 'MARVIS')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+    if (language === 'zh') {
+      el.innerHTML = `启用唤醒词（始终监听 “<span id="wake-word-label">${safeName}</span>”）`;
+      return;
+    }
+    el.innerHTML = `Enable wake word (always listens for "<span id="wake-word-label">${safeName}</span>")`;
+  };
+  const chatInput = document.getElementById('chat-input');
+  if (chatInput) chatInput.placeholder = t('chatPlaceholder');
+  const settingsBtn = document.getElementById('settings-btn');
+  if (settingsBtn) settingsBtn.textContent = t('settings');
+  setText('settings-page-title', t('settingsTitle'));
+  setText('settings-ai-header', t('settingsAiHeader'));
+  setText('settings-provider-label', t('settingsProviderLabel'));
+  setText('settings-voice-header', t('settingsVoiceHeader'));
+  setText('settings-elevenlabs-key-label', t('settingsElevenlabsKeyLabel'));
+  setText('settings-elevenlabs-optional', t('settingsElevenlabsOptional'));
+  setText('settings-elevenlabs-voice-label', t('settingsElevenlabsVoiceLabel'));
+  setText('settings-voice-volume-label', t('settingsVoiceVolumeLabel'));
+  setText('settings-bot-name-label', t('settingsBotNameLabel'));
+  setText('settings-personality-label', t('settingsPersonalityLabel'));
+  setText('settings-briefing-frequency-label', t('settingsBriefingFrequencyLabel'));
+  setText('settings-user-name-label', t('settingsUserNameLabel'));
+  setText('settings-music-header', t('settingsMusicHeader'));
+  setText('settings-music-volume-label', t('settingsMusicVolumeLabel'));
+  setText('settings-profile-header', t('settingsProfileHeader'));
+  setText('settings-background-label', t('settingsBackgroundLabel'));
+  setText('settings-geolocation-label', t('settingsGeolocationLabel'));
+  setText('settings-language-label', t('settingsLanguageLabel'));
+  setText('settings-appearance-header', t('settingsAppearanceHeader'));
+  setText('settings-avatar-style-label', t('settingsAvatarStyleLabel'));
+  setText('settings-system-header', t('settingsSystemHeader'));
+  setText('settings-preferred-cli-label', t('settingsPreferredCliLabel'));
+  setText('settings-max-panels-label', t('settingsMaxPanelsLabel'));
+  setText('settings-active-project-label', t('settingsActiveProjectLabel'));
+  setText('settings-cli-hint', t('settingsCliHint'));
+  setText('settings-save-btn', t('saveSettings'));
+  setText('settings-edit-playlist-label', t('editPlaylist'));
+  const selectProjectBtn = document.getElementById('select-project-btn');
+  if (selectProjectBtn) selectProjectBtn.textContent = t('selectProject');
+  const continueBtn = document.getElementById('continue-btn');
+  if (continueBtn) continueBtn.textContent = t('continue');
+  const musicToggleBtn = document.getElementById('music-toggle-btn');
+  if (musicToggleBtn) musicToggleBtn.textContent = `▶ ${t('musicLibrary')}`;
+  const voiceWordsBtn = document.getElementById('voice-words-toggle-btn');
+  if (voiceWordsBtn) voiceWordsBtn.textContent = `▶ ${t('voiceWords')}`;
+  const newsDetailLink = document.getElementById('news-detail-link');
+  if (newsDetailLink) newsDetailLink.textContent = t('readFullArticle');
+  const welcomeGeo = document.getElementById('welcome-geolocation-input');
+  if (welcomeGeo) welcomeGeo.placeholder = getCurrentLanguage() === 'zh' ? '例如：北京' : 'E.g., Washington';
+  const profileGeo = document.getElementById('user-profile-geolocation-input');
+  if (profileGeo) profileGeo.placeholder = getCurrentLanguage() === 'zh' ? '例如：北京' : 'e.g. Washington';
+  const wakeWordLabel = document.getElementById('wake-word-label')?.textContent || 'MARVIS';
+  setWakewordLabelText(wakeWordLabel);
+  const importBtn = document.getElementById('music-import-btn');
+  if (importBtn) importBtn.textContent = t('importFiles');
+  const createPlaylistBtn = document.getElementById('music-playlist-create-btn');
+  if (createPlaylistBtn) createPlaylistBtn.textContent = t('createPlaylist');
+  const deletePlaylistBtn = document.getElementById('music-playlist-delete-btn');
+  if (deletePlaylistBtn) deletePlaylistBtn.textContent = t('deleteSelectedPlaylist');
+  const browseBtn = document.getElementById('project-browse-btn');
+  if (browseBtn) browseBtn.textContent = t('browse');
+  const addVoiceBtn = document.getElementById('elevenlabs-voice-add-btn');
+  if (addVoiceBtn) addVoiceBtn.textContent = t('addVoice');
+  const removeVoiceBtn = document.getElementById('elevenlabs-voice-remove-btn');
+  if (removeVoiceBtn) removeVoiceBtn.textContent = t('removeSelected');
+  document.querySelectorAll('.music-tab').forEach((btn) => {
+    if (btn.dataset.musicTab === 'library') btn.textContent = t('libraryTab');
+    if (btn.dataset.musicTab === 'playlists') btn.textContent = t('playlistsTab');
+    if (btn.dataset.musicTab === 'schedule') btn.textContent = t('scheduleTab');
+  });
+  updateHud(currentSettings || {});
+  updateAudioInputButton();
+  updateSendButton();
+  setVoiceMuted(isMuted);
+}
+
 function showStartupProblem(message) {
   const setupStatus = document.getElementById('setup-status');
   if (setupStatus) setupStatus.textContent = `Startup problem: ${message}`;
@@ -88,6 +377,7 @@ const sttController = createSttController();
 const ttsController = createTtsController();
 const musicController = createMusicController();
 const musicPanel = createMusicPanel({ musicController });
+window.__marvisRefreshMusicPanel = () => musicPanel.load().catch(() => {});
 ttsController.setOnLevel((level) => {
   if (avatarController) avatarController.setLevel(level);
 });
@@ -99,12 +389,12 @@ function updateSendButton() {
   const btn = document.getElementById('send-btn');
   if (isProcessingResponse) {
     btn.classList.add('speaking');
-    btn.textContent = 'Pause';
-    btn.title = 'Pause response';
+    btn.textContent = t('pause');
+    btn.title = getCurrentLanguage() === 'zh' ? '暂停回应' : 'Pause response';
   } else {
     btn.classList.remove('speaking');
-    btn.textContent = 'Send';
-    btn.title = 'Send message';
+    btn.textContent = t('send');
+    btn.title = getCurrentLanguage() === 'zh' ? '发送消息' : 'Send message';
   }
 }
 
@@ -117,8 +407,10 @@ function updateAudioInputButton() {
   const btn = document.getElementById('audio-input-btn');
   if (!btn) return;
   btn.classList.toggle('recording', isRecordingAudio);
-  btn.textContent = isRecordingAudio ? 'Stop' : 'Mic';
-  btn.title = isRecordingAudio ? 'Stop recording' : 'Record voice input';
+  btn.textContent = isRecordingAudio ? t('stop') : t('mic');
+  btn.title = isRecordingAudio
+    ? (getCurrentLanguage() === 'zh' ? '停止录音' : 'Stop recording')
+    : (getCurrentLanguage() === 'zh' ? '录制语音输入' : 'Record voice input');
 }
 
 function createOperationId() {
@@ -372,6 +664,9 @@ async function speakBriefing(text) {
 
 function buildCliTaskWithHtmlContract(task, htmlPanel, { forceReport = false } = {}) {
   if (!htmlPanel?.filePath) return task;
+  const outputLanguageRule = getCurrentLanguage() === 'zh'
+    ? 'All user-facing output must be in Simplified Chinese. This includes the [voice] text and any HTML content written for the user.'
+    : 'All user-facing output must be in English. This includes the [voice] text and any HTML content written for the user.';
   const templateSection = htmlPanel.templatePath
     ? `a style/structure reference template at ${htmlPanel.templatePath} (read it only now, inside this branch) - you don't need to follow it strictly, just keep a similar look and feel (no inline styles or extra <style>/<script> tags beyond what's needed)`
     : `a standalone HTML fragment (no <script> or <style> tags) with the full display content - title, body, source links, image/placeholder area`;
@@ -384,6 +679,8 @@ function buildCliTaskWithHtmlContract(task, htmlPanel, { forceReport = false } =
     return `Task: ${task}
 
 The user explicitly asked for this as a report - skip any classification step, this IS a genuine on-screen document. Do not just give a short spoken answer.
+
+${outputLanguageRule}
 
 [voice]
 A short spoken summary, 1-2 sentences, no source URLs, no markdown.
@@ -400,6 +697,8 @@ Step 1 - classify this task before doing anything else: is it genuinely a report
 - YES only for genuine on-screen documents. Examples: "give me a report on X", "summarize this week's news with sources", "make a slide deck about Y", "draw a diagram of Z".
 
 Step 2 - respond accordingly. This is the common case - assume NO unless you are confident it's YES.
+
+${outputLanguageRule}
 
 IF NO:
 Output ONLY this, then stop. Do not write any file, do not add an [html] line, do not print markdown/bullets/sources/links in the response:
@@ -466,6 +765,7 @@ function isFirstRun(settings) {
 async function init() {
   try {
     currentSettings = await window.marvis.getSettings();
+    setCurrentLanguage(currentSettings.language || 'en');
     populateSettingsForm(currentSettings);
 
     if (currentSettings.voiceMuted) setVoiceMuted(true);
@@ -504,6 +804,9 @@ function updateAppClock() {
 
 function setupWelcomeModal() {
   let selectedProfile = null;
+  const getDefaultOnboardingGeolocation = () => (
+    (document.getElementById('welcome-language-select')?.value || 'en') === 'zh' ? '北京' : 'Washington'
+  );
   const PROFILE_TEMPLATES = {
     ceo: 'CEO / Founder. Focused on vision, growth strategy, fundraising, competitive landscape, market leadership, and company culture.',
     cto: 'Technology Director. Focused on engineering teams, software architecture, product innovation, AI adoption, and technical decision-making.',
@@ -529,7 +832,7 @@ function setupWelcomeModal() {
     const apiKey = document.getElementById('welcome-api-key-input').value.trim();
 
     if (!apiKey) {
-      showTemporaryNotice('Please enter your API key.');
+      showTemporaryNotice(t('welcomeNeedApiKey'));
       return;
     }
 
@@ -555,8 +858,19 @@ function setupWelcomeModal() {
   // Step 2: Profile Selection
   const profileOptions = document.querySelectorAll('.profile-option');
   const customProfileInput = document.getElementById('welcome-custom-profile');
+  const welcomeLanguageSelect = document.getElementById('welcome-language-select');
+  const welcomeGeolocationInput = document.getElementById('welcome-geolocation-input');
   const step2BackBtn = document.getElementById('welcome-step2-back-btn');
   const step2FinishBtn = document.getElementById('welcome-step2-finish-btn');
+
+  welcomeLanguageSelect?.addEventListener('change', () => {
+    const nextLanguage = welcomeLanguageSelect.value || 'en';
+    currentSettings.language = nextLanguage;
+    setCurrentLanguage(nextLanguage);
+    if (welcomeGeolocationInput && !welcomeGeolocationInput.value.trim()) {
+      welcomeGeolocationInput.value = getDefaultOnboardingGeolocation();
+    }
+  });
 
   profileOptions.forEach((option) => {
     option.addEventListener('click', () => {
@@ -579,23 +893,25 @@ function setupWelcomeModal() {
 
   step2FinishBtn.addEventListener('click', async () => {
     if (!selectedProfile) {
-      showTemporaryNotice('Please select a profile.');
+      showTemporaryNotice(t('welcomeNeedProfile'));
       return;
     }
 
     try {
       let profileText = '';
-      let geolocation = '';
+      let geolocation = getDefaultOnboardingGeolocation();
+      currentSettings.language = document.getElementById('welcome-language-select')?.value || 'en';
+      setCurrentLanguage(currentSettings.language);
 
       if (selectedProfile === 'custom') {
         profileText = document.getElementById('welcome-profile-input').value.trim();
-        geolocation = document.getElementById('welcome-geolocation-input').value.trim();
+        geolocation = document.getElementById('welcome-geolocation-input').value.trim() || getDefaultOnboardingGeolocation();
       } else {
         profileText = PROFILE_TEMPLATES[selectedProfile];
       }
 
       await window.marvis.saveSettings(currentSettings);
-      await window.marvis.updateProfile(profileText, geolocation);
+      await window.marvis.updateProfile(profileText, geolocation, currentSettings.language || 'en');
 
       currentSettings = await window.marvis.getSettings();
       populateSettingsForm(currentSettings);
@@ -668,7 +984,9 @@ function updateNowPlayingWidget() {
     // run before web fonts finish loading, which would otherwise measure a
     // narrower fallback-font width and permanently miss a real overflow.
     trackLabel.classList.toggle('scrolling', trackText.scrollWidth > trackLabel.clientWidth);
-    toggleBtn.textContent = nowPlaying.isPaused ? 'Play' : 'Pause';
+    toggleBtn.textContent = nowPlaying.isPaused
+      ? (getCurrentLanguage() === 'zh' ? '播放' : 'Play')
+      : t('pause');
   });
 }
 
@@ -704,8 +1022,8 @@ function buildIntroFragments(rows) {
   const byType = Object.fromEntries(rows.map((r) => [r.type, r.value]));
   const fragments = [];
   const timeStr = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-  fragments.push(`the time is ${timeStr}`);
-  if (byType['Weather']) fragments.push(`it's ${byType['Weather']} out`);
+  fragments.push(t('introTime', { time: timeStr }));
+  if (byType['Weather']) fragments.push(t('introWeather', { weather: byType['Weather'] }));
   return fragments;
 }
 
@@ -728,8 +1046,8 @@ function buildBriefing(rows) {
   const newsDetails = getRowFieldList(rows, 'News Briefing', 'detail');
   const newsHeadlines = getRowFieldList(rows, 'News Briefing', 'value');
   const spokenNews = newsDetails.length ? newsDetails.join('. ') : newsHeadlines.join(', ');
-  if (spokenNews) fragments.push(`today's briefing: ${spokenNews}`);
-  if (!fragments.length) return `I'm online and ready.`;
+  if (spokenNews) fragments.push(t('todaysBriefing', { news: spokenNews }));
+  if (!fragments.length) return t('onlineReady');
   return joinFragments(fragments);
 }
 
@@ -747,11 +1065,13 @@ function buildGreeting(rows) {
 
 function matchStatusDetailRequest(text, rows) {
   const lower = text.toLowerCase();
-  const asksForDetail = /\b(detail|more info|elaborate|explain more|tell me more)\b/.test(lower);
+  const asksForDetail = /\b(detail|more info|elaborate|explain more|tell me more)\b/.test(lower)
+    || /更多|细节|詳情|详情|说明|說明/.test(text);
   if (!asksForDetail) return null;
   for (const row of rows) {
     const typeWords = row.type.toLowerCase().split(/\s+/);
-    if (typeWords.some((w) => lower.includes(w))) return row;
+    const localized = localizeStatusType(row.type).toLowerCase();
+    if (typeWords.some((w) => lower.includes(w)) || localized && text.toLowerCase().includes(localized)) return row;
   }
   return null;
 }
@@ -764,13 +1084,19 @@ const MUTE_COMMAND_PATTERNS = [
   { target: 'music', re: /^(mute|unmute)\s+(the\s+)?music$/ },
   { target: 'voice', re: /^(mute|unmute)\s+(the\s+)?(bot|voice|marvis)$/ },
   { target: 'all', re: /^(mute|unmute)$/ },
+  { target: 'music', re: /^(音乐|音樂)(静音|靜音|取消静音|取消靜音)$/ },
+  { target: 'voice', re: /^(语音|語音|marvis)(静音|靜音|取消静音|取消靜音)$/i },
+  { target: 'all', re: /^(静音|靜音|取消静音|取消靜音)$/ },
 ];
 
 function parseMuteCommand(text) {
   const normalized = text.trim().toLowerCase();
   for (const { target, re } of MUTE_COMMAND_PATTERNS) {
     const match = normalized.match(re);
-    if (match) return { target, action: match[1] === 'mute' ? 'mute' : 'unmute' };
+    if (match) {
+      const action = match[1] === 'mute' || /静音|靜音/.test(match[0]) && !/取消/.test(match[0]) ? 'mute' : 'unmute';
+      return { target, action };
+    }
   }
   return null;
 }
@@ -980,14 +1306,14 @@ async function greetUser() {
   }
   const userProfileGeolocationInput = document.getElementById('user-profile-geolocation-input');
   if (userProfileGeolocationInput) {
-    userProfileGeolocationInput.value = (userProfileRow?.detail || '').replace(/^Geolocation:\s*/i, '');
+    userProfileGeolocationInput.value = extractGeolocationFromProfileDetail(userProfileRow?.detail || '');
   }
   // Stage 1: Speak simple greeting only (with caching)
   const simpleGreeting = buildSimpleGreeting(statusRows);
   appendChatLine('Marvis', simpleGreeting);
   await speakGreeting(simpleGreeting);
   if (userProfileWasDefaulted) {
-    appendChatLine('Marvis', "I don't have your profile yet, sir - I've set a default. Update it anytime under Settings > User Profile.");
+    appendChatLine('Marvis', t('defaultProfileNotice'));
   }
 
   // Stage 2: Enter interaction mode and speak briefing
@@ -1097,7 +1423,7 @@ function parseCliCommand(text) {
 async function sendToCli(text, channel, task, { forceReport = false, voiceAllowed = true } = {}) {
   appendChatLine('You', text);
   if (!task) {
-    const prompt = `What would you like me to ask ${channel.label} to do, sir?`;
+    const prompt = t('askChannelTask', { channel: channel.label });
     appendChatLine('Marvis', prompt);
     if (voiceAllowed) await speakReply(prompt);
     return;
@@ -1109,7 +1435,7 @@ async function sendToCli(text, channel, task, { forceReport = false, voiceAllowe
   if (voiceAllowed) speakProcessingCue();
   // Placeholder bubble updated in place (no speech) as progress events stream
   // in from the CLI, then overwritten with the real reply once it resolves.
-  appendChatLine('Marvis', 'Thinking...');
+  appendChatLine('Marvis', t('thinking'));
   const unsubscribeProgress = window.marvis.onCliProgress(({ operationId: progressOperationId, text: progressText }) => {
     if (progressOperationId !== operationId) return;
     setAvatarHeadline(progressText);
@@ -1236,8 +1562,8 @@ function mountAvatar(style) {
 function updateHud(settings) {
   const projectDisplay = document.getElementById('project-path-display');
   if (!projectDisplay) return;
-  projectDisplay.textContent = settings.activeProject || 'No project selected';
-  projectDisplay.title = settings.activeProject || 'No project selected';
+  projectDisplay.textContent = settings.activeProject || t('noProjectSelected');
+  projectDisplay.title = settings.activeProject || t('noProjectSelected');
 }
 
 function setAvatarState(state) {
@@ -1252,7 +1578,7 @@ function appendChatLine(role, text) {
   line.className = `chat-line ${role === 'You' ? 'role-user' : 'role-marvis'}`;
   const roleEl = document.createElement('span');
   roleEl.className = 'chat-role';
-  roleEl.textContent = role;
+  roleEl.textContent = getCurrentLanguage() === 'zh' && role === 'You' ? '你' : role;
   const timeEl = document.createElement('span');
   timeEl.className = 'chat-time';
   timeEl.textContent = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -1272,6 +1598,7 @@ function updateProviderApiFields(provider) {
 }
 
 function populateSettingsForm(settings) {
+  setCurrentLanguage(settings.language || 'en');
   document.getElementById('provider-select').value = settings.provider;
   updateProviderApiFields(settings.provider);
   document.getElementById('deepseek-api-key-input').value = settings.apiKeys.deepseek;
@@ -1292,13 +1619,17 @@ function populateSettingsForm(settings) {
   document.getElementById('user-name-input').value = settings.userName || '';
   const botNameVal = settings.botName || 'MARVIS';
   document.getElementById('bot-name-input').value = botNameVal;
-  document.getElementById('wake-word-label').textContent = botNameVal;
+  const wakeWordLabelEl = document.getElementById('wake-word-label');
+  if (wakeWordLabelEl) wakeWordLabelEl.textContent = botNameVal;
   voicePhraseDraft = normalizeVoicePhrases(settings);
   renderVoicePhraseEditor('morning');
   document.getElementById('preferred-cli-select').value = settings.preferredCliChannel || '';
   document.getElementById('project-input').value = settings.activeProject;
   document.getElementById('briefing-voice-frequency-select').value = settings.briefingVoiceFrequency || '1h';
   document.getElementById('max-html-panels-input').value = settings.maxHtmlPanels || 50;
+  document.getElementById('language-select').value = settings.language || 'en';
+  const welcomeLanguage = document.getElementById('welcome-language-select');
+  if (welcomeLanguage) welcomeLanguage.value = settings.language || 'en';
 }
 
 function renderVoiceOptions(voices, selectedId) {
@@ -1381,7 +1712,7 @@ document.getElementById('music-volume-input').addEventListener('input', (e) => {
 document.getElementById('voice-volume-input').addEventListener('change', (e) => {
   ttsController.setVolume(parseFloat(e.target.value));
   ttsController.stop();
-  ttsController.speak('This is how I sound, sir.');
+  ttsController.speak(t('soundSample'));
 });
 
 document.getElementById('voice-words-toggle-btn').addEventListener('click', () => {
@@ -1390,7 +1721,8 @@ document.getElementById('voice-words-toggle-btn').addEventListener('click', () =
 
 document.getElementById('bot-name-input').addEventListener('input', (e) => {
   const val = e.target.value.trim() || 'MARVIS';
-  document.getElementById('wake-word-label').textContent = val;
+  const wakeWordLabelEl = document.getElementById('wake-word-label');
+  if (wakeWordLabelEl) wakeWordLabelEl.textContent = val;
 });
 
 document.querySelectorAll('.voice-phrase-tab').forEach((button) => {
@@ -1404,8 +1736,9 @@ function applyMuteCommand({ target, action }) {
   const muted = action === 'mute';
   if (target === 'all' || target === 'voice') setVoiceMuted(muted);
   if (target === 'all' || target === 'music') setMusicMuted(muted);
-  const label = target === 'all' ? 'Voice and music' : target === 'voice' ? 'Voice' : 'Music';
-  return `${label} ${muted ? 'muted' : 'unmuted'}, sir.`;
+  if (target === 'all') return muted ? t('voiceMusicMuted') : t('voiceMusicUnmuted');
+  if (target === 'voice') return muted ? t('voiceMuted') : t('voiceUnmuted');
+  return muted ? t('musicMuted') : t('musicUnmuted');
 }
 
 async function routeUserMessage(text) {
@@ -1423,32 +1756,34 @@ async function routeUserMessage(text) {
       if (result?.ok) {
         showHTMLSafe(result.html);
         currentHtmlPath = filePath; // Track for joint analysis with screenshots
-        appendChatLine('Marvis', `Displaying ${filePath}`);
+        appendChatLine('Marvis', t('displayFile', { name: filePath }));
       } else {
-        appendChatLine('Marvis', `I couldn't read that file, sir: ${result?.error || 'unknown error'}`);
+        appendChatLine('Marvis', t('readFileError', { error: result?.error || 'unknown error' }));
       }
     } catch (err) {
-      appendChatLine('Marvis', `I couldn't read that file, sir: ${err.message}`);
+      appendChatLine('Marvis', t('readFileError', { error: err.message }));
     }
     return;
   }
 
   // /open <keyword>, open <keyword>, or show <keyword> - search and open HTML panel by keyword
-  const openCmdMatch = text.match(/^\/open\s+(.+)/i) || text.match(/^(?:open|show)\s+(.+)/i);
+  const openCmdMatch = text.match(/^\/open\s+(.+)/i)
+    || text.match(/^(?:open|show)\s+(.+)/i)
+    || text.match(/^\/?(?:打开|打開|显示|顯示)\s+(.+)/i);
   if (openCmdMatch) {
     const keyword = openCmdMatch[1].trim();
     appendChatLine('You', text);
     try {
-      const result = await window.marvis.openHtmlPanelByKeyword(keyword);
+        const result = await window.marvis.openHtmlPanelByKeyword(keyword);
       if (result?.ok) {
         showHTMLSafe(result.html);
         currentHtmlPath = result.filePath; // Track for joint analysis with screenshots
-        appendChatLine('Marvis', `Displaying ${result.fileName}`);
+        appendChatLine('Marvis', t('displayFile', { name: result.fileName }));
       } else {
-        appendChatLine('Marvis', result?.error || `I couldn't find an HTML panel matching "${keyword}", sir.`);
+        appendChatLine('Marvis', result?.error || t('noPanelMatch', { keyword }));
       }
     } catch (err) {
-      appendChatLine('Marvis', `I couldn't open that panel, sir: ${err.message}`);
+      appendChatLine('Marvis', t('openPanelError', { error: err.message }));
     }
     return;
   }
@@ -1485,7 +1820,7 @@ async function routeUserMessage(text) {
   const detailRow = matchStatusDetailRequest(text, statusRows);
   if (detailRow) {
     appendChatLine('You', text);
-    const reply = detailRow.detail || `I don't have further detail on ${detailRow.type.toLowerCase()}, sir.`;
+    const reply = detailRow.detail || t('noFurtherDetail', { type: localizeStatusType(detailRow.type).toLowerCase() });
     appendChatLine('Marvis', reply);
     if (voiceAllowed) await speakReply(reply);
     return;
@@ -1775,7 +2110,7 @@ function persistStateSetting(key, value) {
 
 function setVoiceMuted(muted) {
   isMuted = muted;
-  document.getElementById('mute-toggle-btn').textContent = isMuted ? 'Unmute' : 'Mute';
+  document.getElementById('mute-toggle-btn').textContent = isMuted ? t('unmute') : t('mute');
   if (isMuted) {
     stopCachedVoice();
     ttsController.stop();
@@ -1793,6 +2128,10 @@ function setMusicMuted(muted) {
 
 document.getElementById('mute-toggle-btn').addEventListener('click', () => {
   setVoiceMuted(!isMuted);
+});
+
+document.getElementById('language-select')?.addEventListener('change', (e) => {
+  setCurrentLanguage(e.target.value);
 });
 
 document.getElementById('settings-save-btn').addEventListener('click', async () => {
@@ -1817,6 +2156,7 @@ document.getElementById('settings-save-btn').addEventListener('click', async () 
     botName: document.getElementById('bot-name-input').value.trim() || 'MARVIS',
     voicePhrases: voicePhraseDraft || normalizeVoicePhrases(),
     preferredCliChannel: document.getElementById('preferred-cli-select').value || null,
+    language: document.getElementById('language-select').value || 'en',
     activeProject: document.getElementById('project-input').value,
     briefingVoiceFrequency: document.getElementById('briefing-voice-frequency-select').value,
     lastBriefingVoiceAt: currentSettings?.lastBriefingVoiceAt || null,
@@ -1828,7 +2168,8 @@ document.getElementById('settings-save-btn').addEventListener('click', async () 
 
   const userProfileResult = await window.marvis.saveUserProfile(
     document.getElementById('user-profile-input').value,
-    document.getElementById('user-profile-geolocation-input').value
+    document.getElementById('user-profile-geolocation-input').value,
+    document.getElementById('language-select').value || 'en'
   );
   if (userProfileResult.ok) statusRows = userProfileResult.rows;
 
@@ -1843,9 +2184,10 @@ document.getElementById('settings-save-btn').addEventListener('click', async () 
     return;
   }
   currentSettings = settings;
+  setCurrentLanguage(settings.language || 'en');
 
   if (onboarding) {
-    setupStatus.textContent = 'Testing connection, sir...';
+    setupStatus.textContent = t('testingConnection');
     const test = await window.marvis.testConnection({ provider: settings.provider, apiKey: settings.apiKeys[settings.provider] });
     if (!test.ok) {
       setupStatus.textContent = `I couldn't verify that key, sir: ${test.error}`;

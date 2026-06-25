@@ -22,7 +22,9 @@ Use this checklist when validating Marvis changes, especially before pushing or 
 - Report HTML renders in an iframe and does not leak CSS into Marvis.
 - Crop and close controls stay above report iframe content.
 - Attachments route to Claude Code/Codex, not Gemini/DeepSeek.
-- Briefing uses status rows, news item arrays, voice frequency, and mute state correctly.
+- Briefing uses status rows, parallel news string arrays (`value[]`, `detail[]`, thumbnail `image[]`, optional `link[]`), voice frequency, and mute state correctly.
+- `User Profile.detail` preserves metadata such as `Geolocation: ... | Language: ...` and language changes update the saved JSON.
+- Generated briefing content follows the language stored in the status JSON metadata.
 - Settings save and restore provider, API keys, voice, music, profile, CLI, and panel retention values.
 
 ## Required Local Verification

@@ -18,6 +18,7 @@ const DEFAULTS = {
   musicVolume: 0.6,
   personality: 'You are Marvis: calm, witty, formal, loyal. Address the user respectfully.',
   avatarStyle: 'rings',
+  language: 'en',
   activeProject: '',
   preferredCliChannel: null,
   briefingVoiceFrequency: '1h',

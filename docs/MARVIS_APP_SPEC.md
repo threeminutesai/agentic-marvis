@@ -273,17 +273,47 @@ Include:
 - Avatar briefing summary.
 - User profile context when useful.
 
+### User Profile Metadata
+
+The `User Profile` row may carry metadata in `detail`, including:
+
+- `Geolocation: <place>`
+- `Language: English`
+- `Language: 中文`
+
+Expected behavior:
+
+- The app should preserve that metadata format when saving profile changes.
+- Changing the app language should update the `Language:` value in the status JSON.
+- Profile editing should not discard `Language:` metadata when saving geolocation or background text.
+- Generated briefing content should follow the language stored in the JSON metadata.
+
 ### News Briefing
 
-News items should include:
+News Briefing uses parallel string arrays on the status row:
 
-- headline,
-- concise detail,
-- source link,
-- image URL when available,
-- why it matters for the user when profile context is available.
+- `value[]` holds one short headline per story.
+- `detail[]` holds the matching longer summary for each story.
+- `image[]` should hold one thumbnail URL per story when a thumbnail is available.
+- `link[]` should hold one source URL per story when available.
+- Keep the same item order across all arrays so the renderer can reveal and speak each story news-by-news.
+- Do not store objects in these arrays; the renderer expects strings and will show `[object Object]` if objects are written.
+- Include a concise "why it matters" angle in each detail string, especially when user profile context is available.
 
 News should be current and source-aware. If the status file is stale, Marvis should not pretend it refreshed the news itself. The app reads whatever is in the status file; external automation is responsible for keeping it fresh.
+
+### Briefing Language
+
+If `User Profile.detail` includes a language value such as `Language: English` or `Language: 中文`, Marvis and its briefing generation workflow should treat that as the output-language requirement for generated user-facing briefing content.
+
+This applies to:
+
+- weather summary text,
+- unread and urgent email summaries,
+- news headlines and news detail blurbs,
+- avatar briefing text.
+
+The app should preserve JSON structure and card type names while changing only the generated content language.
 
 ### Briefing Voice Behavior
 
@@ -310,7 +340,7 @@ Settings should include and preserve:
 - User name.
 - Music volume.
 - Music library, playlists, and schedule.
-- User profile and geolocation.
+- User profile, geolocation, and language.
 - Avatar style.
 - Preferred CLI channel: none, Claude Code, or Codex.
 - Active project path.

@@ -56,6 +56,7 @@ Supported types:
 - `Unread Emails` - Email count
 - `Urgent Emails` - Priority emails
 - `Email Content` - Full email details
+- `User Profile` - Background, geolocation, and language metadata
 - `Custom` - Any custom briefing
 
 ## Usage
@@ -80,7 +81,14 @@ Configure in `data/marvis-status.json`:
   {
     "type": "News Briefing",
     "value": ["Breaking News 1", "Breaking News 2"],
-    "detail": ["Summary 1", "Summary 2"]
+    "detail": ["Summary 1", "Summary 2"],
+    "image": ["", ""],
+    "link": ["https://example.com/story-1", "https://example.com/story-2"]
+  },
+  {
+    "type": "User Profile",
+    "value": "Short user background or preferences",
+    "detail": "Geolocation: Washington | Language: English"
   }
 ]
 ```
@@ -171,9 +179,28 @@ Example flow:
   "detail": [
     "Full story about AI development...",
     "Market analysis and implications..."
+  ],
+  "image": [
+    "https://example.com/image-1.jpg",
+    "https://example.com/image-2.jpg"
+  ],
+  "link": [
+    "https://example.com/story-1",
+    "https://example.com/story-2"
   ]
 }
 ```
+
+### User Profile Metadata
+```json
+{
+  "type": "User Profile",
+  "value": "Robotics educator. Interests focus on technology, especially humanoid robots, drones, and robotics.",
+  "detail": "Geolocation: Washington | Language: English"
+}
+```
+
+If `Language:` is present in `User Profile.detail`, generated weather, news, email summaries, and avatar briefing text should follow that language while preserving the existing JSON structure.
 
 ### Email Integration
 ```json

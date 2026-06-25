@@ -4,6 +4,14 @@
   let previewAudio = null;
   let previewingTrackId = null;
 
+  function getCurrentLanguage() {
+    return window.__marvisLanguage === 'zh' ? 'zh' : 'en';
+  }
+
+  function t(en, zh) {
+    return getCurrentLanguage() === 'zh' ? zh : en;
+  }
+
   function stopPreview() {
     if (previewAudio) {
       previewAudio.pause();
@@ -24,27 +32,45 @@
     if (musicController?.applyLeveling) musicController.applyLeveling(audio);
     audio.addEventListener('ended', () => {
       if (previewingTrackId === track.id) stopPreview();
-      if (button) button.textContent = 'Play';
+      if (button) button.textContent = t('Play', '播放');
     });
     audio.play().catch(() => {
       if (previewingTrackId === track.id) stopPreview();
-      if (button) button.textContent = 'Play';
+      if (button) button.textContent = t('Play', '播放');
     });
     previewAudio = audio;
     previewingTrackId = track.id;
   }
 
-  const DAY_LABELS = {
-    sunday: 'Sun', monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed',
-    thursday: 'Thu', friday: 'Fri', saturday: 'Sat',
-  };
-  const BUCKET_LABELS = {
-    earlyMorning: 'Early Morning (5-8am)',
-    morning: 'Morning (8am-12pm)',
-    afternoon: 'Afternoon (12-5pm)',
-    evening: 'Evening (5-9pm)',
-    midnight: 'Midnight (9pm-5am)',
-  };
+  function getDayLabels() {
+    return getCurrentLanguage() === 'zh'
+      ? {
+          sunday: '周日', monday: '周一', tuesday: '周二', wednesday: '周三',
+          thursday: '周四', friday: '周五', saturday: '周六',
+        }
+      : {
+          sunday: 'Sun', monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed',
+          thursday: 'Thu', friday: 'Fri', saturday: 'Sat',
+        };
+  }
+
+  function getBucketLabels() {
+    return getCurrentLanguage() === 'zh'
+      ? {
+          earlyMorning: '清晨 (5-8am)',
+          morning: '上午 (8am-12pm)',
+          afternoon: '下午 (12-5pm)',
+          evening: '晚上 (5-9pm)',
+          midnight: '深夜 (9pm-5am)',
+        }
+      : {
+          earlyMorning: 'Early Morning (5-8am)',
+          morning: 'Morning (8am-12pm)',
+          afternoon: 'Afternoon (12-5pm)',
+          evening: 'Evening (5-9pm)',
+          midnight: 'Midnight (9pm-5am)',
+        };
+  }
   const DAY_ORDER = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
   const BUCKET_ORDER = ['earlyMorning', 'morning', 'afternoon', 'evening', 'midnight'];
 
@@ -75,7 +101,7 @@
       name.textContent = track.originalName || track.id || 'Unknown Track';
       const removeBtn = document.createElement('button');
       removeBtn.type = 'button';
-      removeBtn.textContent = 'Delete';
+      removeBtn.textContent = t('Delete', '删除');
       removeBtn.addEventListener('click', async () => {
         const result = await window.marvis.deleteMusicTrack(track.id);
         if (result.ok) {
@@ -132,18 +158,18 @@
       label.append(checkbox, document.createTextNode(' ' + (track.originalName || track.id || 'Unknown Track')));
       const playBtn = document.createElement('button');
       playBtn.type = 'button';
-      playBtn.textContent = 'Play';
+      playBtn.textContent = t('Play', '播放');
       playBtn.addEventListener('click', () => {
         if (previewingTrackId === track.id) {
           stopPreview();
-          playBtn.textContent = 'Play';
+          playBtn.textContent = t('Play', '播放');
         } else {
           document.querySelectorAll('#music-playlist-track-checklist button.previewing').forEach((b) => {
-            b.textContent = 'Play';
+            b.textContent = t('Play', '播放');
             b.classList.remove('previewing');
           });
           playPreview(track, playBtn);
-          playBtn.textContent = 'Stop';
+          playBtn.textContent = t('Stop', '停止');
           playBtn.classList.add('previewing');
         }
       });
@@ -156,6 +182,8 @@
     const dayTabsEl = document.getElementById('music-schedule-day-tabs');
     const rowsEl = document.getElementById('music-schedule-rows');
     if (!dayTabsEl || !rowsEl) return;
+    const DAY_LABELS = getDayLabels();
+    const BUCKET_LABELS = getBucketLabels();
 
     dayTabsEl.innerHTML = '';
     for (const day of DAY_ORDER) {
