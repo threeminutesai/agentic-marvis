@@ -1,0 +1,4 @@
+interface:
+  display_name: "Marvis Release Validator"
+  short_description: "Validate Marvis behavior, packaging, and explicit releases."
+  default_prompt: "Use $marvis-release-validator to validate Marvis against its app spec before publishing."

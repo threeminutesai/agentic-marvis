@@ -118,11 +118,18 @@ body {
   overflow-y: auto;
   margin: 0 28px 14px;
   padding: 16px 18px;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(165, 239, 255, 0.45) transparent;
 }
 #chat-log::-webkit-scrollbar {
-  display: none;
+  width: 8px;
+}
+#chat-log::-webkit-scrollbar-thumb {
+  background: rgba(165, 239, 255, 0.35);
+  border-radius: 999px;
+}
+#chat-log::-webkit-scrollbar-track {
+  background: transparent;
 }
 .chat-line {
   display: flex;
@@ -1227,7 +1234,8 @@ button:active { transform: scale(0.97); }
   overflow-x: hidden;
   margin: 0 28px;
   opacity: 1;
-  justify-content: flex-end;
+  justify-content: flex-start;
+  overscroll-behavior: contain;
 }
 
 /* Stage 2 briefing (interaction-mode, pre-Continue): center the avatar and
@@ -1336,6 +1344,8 @@ button:active { transform: scale(0.97); }
   flex: 1 1 auto;
   overflow-y: auto;
   overflow-x: hidden;
+  justify-content: flex-start;
+  overscroll-behavior: contain;
 }
 
 #app-body.phase-3 #chat-bar {
