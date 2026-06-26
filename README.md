@@ -37,7 +37,7 @@ Marvis 结合了三类 AI 能力，每一类负责不同的工作：
   - **Gemini** - 提供免费额度（Google AI Studio）；可在 https://aistudio.google.com/apikey 获取密钥。
 - 每个 provider 的密钥都会单独存储（静态加密），因此切换下拉选项时不会丢失另一边的密钥。未来还会继续加入更多 provider。
 - **Claude Code / Codex CLI（重任务执行）** - 这不是聊天 provider；当普通对话回复不够时，Marvis 会把真正的项目工作（写代码、执行任务）委派给它们。详见下方的 [CLI delegation channels](#cli-delegation-channels)。Claude Code 使用自己的 CLI 订阅登录，而不是 API key。
-- **ElevenLabs（语音）** - 负责双向语音能力，包括 Marvis 回复的文字转语音，以及将你的语音转写为文字。API获取 https://elevenlabs.io/app/home。 详见下方的 [Voice](#voice)。
+- **ElevenLabs（语音）** - 负责双向语音能力，包括 Marvis 回复的文字转语音，以及将你的语音转写为文字。API获取 [https://elevenlabs.io/app/home](https://elevenlabs.io/app/home)。 详见下方的 [Voice](#voice)。
 
 ### Quick launch (Windows)
 
