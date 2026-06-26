@@ -91,10 +91,13 @@ When the target JSON is an array of cards with `type`, `value`, and `detail` fie
 - For `News Briefing`, use parallel string arrays.
   - `value` must be an array of short headline strings.
   - `detail` must be an array of matching longer detail strings.
-  - `image` should be an array of thumbnail URLs, one per story when available.
-  - `link` should be an array of matching source URLs, one per story when available.
+  - `image` must be an array of thumbnail image URL strings, one per story, in the same order as `value`.
+  - `link` must be an array of matching source URL strings, one per story, in the same order as `value`.
   - Keep the same item order in both arrays so the UI can reveal each story news-by-news.
   - Do not put objects in `value` or `detail`; the renderer expects strings and will display `[object Object]` if you do.
+  - Do not leave `image` empty for news items unless a source truly provides no usable image after checking the article page or its metadata.
+  - Prefer article thumbnail or social preview images such as Open Graph or Twitter image metadata when the page exposes them.
+  - If one story has no usable thumbnail after checking available metadata, replace that story with another current story that does have a usable thumbnail unless the user explicitly asked to keep the original source.
 - For `Unread Emails`, put only the unread count in `value` and the unread summary in `detail`.
 - For `Urgent Emails`, put only the urgent count in `value` and the urgent-email summary or titles in `detail`.
 - Remove `Email Content` from the output if the existing format allows it.
@@ -113,7 +116,7 @@ For news:
 - Keep the selected items current and high-signal.
 - For the Marvis app, write `value` as an array of short headlines and `detail` as the matching array of richer story blurbs.
   - Each pair should cover one story, one takeaway, and one reason it matters.
-  - When possible, include a thumbnail URL in the parallel `image` array for each story.
+  - Include a thumbnail URL in the parallel `image` array for each story.
   - Keep the same order in both arrays so the dashboard can animate or voice each story in sequence.
   - Use compact bullets only when the target field is plain text and cannot hold arrays.
 
@@ -147,7 +150,7 @@ Do not mark newsletters, promos, social notifications, routine digests, or low-v
 ## Output Guidelines
 
 Prefer concise summaries suitable for a dashboard:
-- News items: output each story as parallel headline/detail strings in the News Briefing card, with one item per array slot and a thumbnail URL in the matching `image` slot when available.
+- News items: output each story as parallel headline/detail strings in the News Briefing card, with one item per array slot and a thumbnail URL in the matching `image` slot.
 - Unread email items: keep only the unread count in `value` and put thread titles or a short summary in `detail`.
 - Urgent email items: keep only the urgent count in `value` and put urgent email titles or a short action note in `detail`.
 - Weather: location, temperature, and a simple condition label with a short near-term rain outlook when available.
