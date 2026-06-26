@@ -115,6 +115,12 @@ const I18N = {
     settingsActiveProjectLabel: 'Active Project',
     settingsCliHint: 'Claude Code CLI uses its own logged-in subscription session ("claude login" in a terminal) - no API key needed here.',
     saveSettings: 'Save Settings',
+    checkForUpdates: 'Check for Updates',
+    checkingForUpdates: 'Checking GitHub for a newer Marvis build...',
+    updateAvailable: 'Update available: v{latestVersion} is ready. You are on v{currentVersion}.',
+    upToDate: 'You are already on the latest version: v{currentVersion}.',
+    updateCheckFailed: "I couldn't check for updates, sir: {error}",
+    openUpdatePrompt: 'A newer version is available. Open the download page now?',
     voiceWords: 'Voice Words',
     musicLibrary: 'Music Library',
     importFiles: 'Import Files',
@@ -189,6 +195,12 @@ const I18N = {
     settingsActiveProjectLabel: '当前项目',
     settingsCliHint: 'Claude Code CLI 使用它自己的登录订阅会话（终端里执行 "claude login"），这里不需要 API Key。',
     saveSettings: '保存设置',
+    checkForUpdates: '检查更新',
+    checkingForUpdates: '正在检查 GitHub 上是否有新版本...',
+    updateAvailable: '发现新版本：v{latestVersion}。你当前是 v{currentVersion}。',
+    upToDate: '你目前已经是最新版本：v{currentVersion}。',
+    updateCheckFailed: '无法检查更新：{error}',
+    openUpdatePrompt: '已有新版本。现在打开下载页面吗？',
     voiceWords: '语音短语',
     musicLibrary: '音乐库',
     importFiles: '导入文件',
@@ -299,6 +311,7 @@ function applyLanguageToUi() {
   setText('settings-active-project-label', t('settingsActiveProjectLabel'));
   setText('settings-cli-hint', t('settingsCliHint'));
   setText('settings-save-btn', t('saveSettings'));
+  setText('check-updates-btn', t('checkForUpdates'));
   setText('settings-edit-playlist-label', t('editPlaylist'));
   const selectProjectBtn = document.getElementById('select-project-btn');
   if (selectProjectBtn) selectProjectBtn.textContent = t('selectProject');
@@ -2238,6 +2251,47 @@ document.getElementById('settings-save-btn').addEventListener('click', async () 
   document.getElementById('avatar-mount').classList.remove('avatar-paused');
   await wakeWordController.stop();
   startWakeWordIfConfigured();
+});
+
+document.getElementById('check-updates-btn')?.addEventListener('click', async () => {
+  const button = document.getElementById('check-updates-btn');
+  const setupStatus = document.getElementById('setup-status');
+  if (!button || !setupStatus) return;
+
+  const originalLabel = t('checkForUpdates');
+  button.disabled = true;
+  button.textContent = '...';
+  setupStatus.textContent = t('checkingForUpdates');
+
+  try {
+    const result = await window.marvis.checkForUpdates();
+    if (!result.ok) {
+      setupStatus.textContent = t('updateCheckFailed', { error: result.error || 'Unknown error' });
+      return;
+    }
+
+    if (!result.updateAvailable) {
+      setupStatus.textContent = t('upToDate', { currentVersion: result.currentVersion });
+      return;
+    }
+
+    setupStatus.textContent = t('updateAvailable', {
+      latestVersion: result.latestVersion,
+      currentVersion: result.currentVersion,
+    });
+
+    if (window.confirm(t('openUpdatePrompt'))) {
+      const openResult = await window.marvis.openExternalUrl(result.downloadUrl || result.releasePageUrl);
+      if (!openResult?.ok) {
+        setupStatus.textContent = openResult?.error || t('updateCheckFailed', { error: 'Unable to open release page' });
+      }
+    }
+  } catch (err) {
+    setupStatus.textContent = t('updateCheckFailed', { error: err.message || String(err) });
+  } finally {
+    button.disabled = false;
+    button.textContent = originalLabel;
+  }
 });
 
 init();

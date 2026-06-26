@@ -1,5 +1,5 @@
 ﻿// src/main/ipcHandlers.js
-const { ipcMain, dialog, safeStorage, app, BrowserWindow, nativeImage } = require('electron');
+const { ipcMain, dialog, safeStorage, app, BrowserWindow, nativeImage, shell } = require('electron');
 const path = require('node:path');
 const os = require('node:os');
 const fs = require('node:fs');
@@ -70,6 +70,78 @@ function getMusicLibraryFilePath() {
 
 function getVoiceCacheDir() {
   return path.join(getDataDir(), 'voice-cache');
+}
+
+const RELEASES_API_URL = 'https://api.github.com/repos/threeminutesai/agentic-marvis/releases/latest';
+const RELEASES_PAGE_URL = 'https://github.com/threeminutesai/agentic-marvis/releases';
+
+function normalizeVersion(version) {
+  return String(version || '')
+    .trim()
+    .replace(/^v/i, '')
+    .split('-')[0];
+}
+
+function compareVersions(a, b) {
+  const left = normalizeVersion(a).split('.').map((part) => Number.parseInt(part, 10) || 0);
+  const right = normalizeVersion(b).split('.').map((part) => Number.parseInt(part, 10) || 0);
+  const length = Math.max(left.length, right.length);
+  for (let index = 0; index < length; index += 1) {
+    const diff = (left[index] || 0) - (right[index] || 0);
+    if (diff !== 0) return diff;
+  }
+  return 0;
+}
+
+function chooseReleaseAsset(assets = []) {
+  const platform = process.platform;
+  const arch = process.arch;
+  const names = [];
+
+  if (platform === 'win32') {
+    names.push('win32-x64.zip');
+    names.push('.exe');
+  } else if (platform === 'darwin') {
+    if (arch === 'arm64') names.push('arm64.dmg', 'arm64-mac.zip');
+    names.push('.dmg', '-mac.zip', '.zip');
+  } else if (platform === 'linux') {
+    names.push('.AppImage', '.deb');
+  }
+
+  for (const token of names) {
+    const match = assets.find((asset) => asset?.name?.includes(token));
+    if (match) return match;
+  }
+  return assets[0] || null;
+}
+
+async function fetchLatestReleaseInfo() {
+  const response = await fetch(RELEASES_API_URL, {
+    headers: {
+      'Accept': 'application/vnd.github+json',
+      'User-Agent': `Marvis/${app.getVersion()}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`GitHub returned ${response.status} ${response.statusText}`);
+  }
+
+  const release = await response.json();
+  const selectedAsset = chooseReleaseAsset(Array.isArray(release.assets) ? release.assets : []);
+  const currentVersion = normalizeVersion(app.getVersion());
+  const latestVersion = normalizeVersion(release.tag_name || release.name || '');
+
+  return {
+    currentVersion,
+    latestVersion,
+    updateAvailable: compareVersions(latestVersion, currentVersion) > 0,
+    releaseName: release.name || release.tag_name || `v${latestVersion}`,
+    publishedAt: release.published_at || null,
+    releasePageUrl: release.html_url || RELEASES_PAGE_URL,
+    downloadUrl: selectedAsset?.browser_download_url || release.html_url || RELEASES_PAGE_URL,
+    assetName: selectedAsset?.name || null,
+  };
 }
 
 // One-time migration for voice cache from the legacy ~/.marvis-voices location
@@ -573,6 +645,26 @@ function registerIpcHandlers() {
       return { ok: true };
     } catch (err) {
       return { ok: false, error: `I couldn't save your settings, sir: ${err.message}` };
+    }
+  });
+
+  ipcMain.handle('settings:checkForUpdates', async () => {
+    try {
+      return { ok: true, ...(await fetchLatestReleaseInfo()) };
+    } catch (err) {
+      return { ok: false, error: `I couldn't check GitHub releases, sir: ${err.message}`, releasePageUrl: RELEASES_PAGE_URL };
+    }
+  });
+
+  ipcMain.handle('shell:openExternal', async (_event, targetUrl) => {
+    if (!targetUrl) {
+      return { ok: false, error: 'No URL provided, sir.' };
+    }
+    try {
+      await shell.openExternal(targetUrl);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: `I couldn't open that link, sir: ${err.message}` };
     }
   });
 

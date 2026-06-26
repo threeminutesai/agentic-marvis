@@ -6,6 +6,8 @@ contextBridge.exposeInMainWorld('marvis', {
   getSettings: () => ipcRenderer.invoke('settings:get'),
   saveSettings: (settings) => ipcRenderer.invoke('settings:save', settings),
   testConnection: (payload) => ipcRenderer.invoke('settings:testConnection', payload),
+  checkForUpdates: () => ipcRenderer.invoke('settings:checkForUpdates'),
+  openExternalUrl: (url) => ipcRenderer.invoke('shell:openExternal', url),
   synthesizeSpeech: (text) => ipcRenderer.invoke('tts:synthesize', text),
   synthesizeGreeting: (text) => ipcRenderer.invoke('tts:synthesize-greeting', text),
   synthesizeCachedSpeech: (payload) => ipcRenderer.invoke('tts:synthesize-cached', payload),

@@ -410,9 +410,20 @@ button:active { transform: scale(0.97); }
   align-items: center;
   gap: 16px;
 }
+.settings-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
 .settings-footer #settings-save-btn {
   margin: 0;
   padding: 11px 28px;
+  font-size: 13px;
+}
+.settings-footer #check-updates-btn {
+  margin: 0;
+  padding: 11px 20px;
   font-size: 13px;
 }
 .settings-footer #setup-status {
