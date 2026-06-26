@@ -2,7 +2,7 @@
 
 Agentic Marvis is a dashboard-oriented desktop assistant that bridges Codex and Claude Code with a Jarvis-style voice and status interface.
 
-Agentic Marvis 是一个面向仪表板场景的桌面助理，通过 Marvis 风格的语音与状态界面连接 Codex 和 Claude Code。
+Agentic Marvis 是一个面向仪表板场景的桌面助理，通过 Jarvis 风格的语音与状态界面连接 Codex 和 Claude Code。
 
 ## Download
 
