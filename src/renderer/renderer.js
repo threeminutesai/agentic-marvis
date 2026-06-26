@@ -100,7 +100,6 @@ const I18N = {
     settingsBotNameLabel: 'Bot Name',
     settingsWakewordLabel: 'Enable wake word (always listens for "{name}")',
     settingsPersonalityLabel: 'Personality',
-    settingsBriefingFrequencyLabel: 'Voice Briefing Frequency',
     settingsUserNameLabel: 'User Name',
     settingsMusicHeader: 'Music & Briefing',
     settingsMusicVolumeLabel: 'Music Volume',
@@ -175,7 +174,6 @@ const I18N = {
     settingsBotNameLabel: '助手名称',
     settingsWakewordLabel: '启用唤醒词（始终监听 “{name}”）',
     settingsPersonalityLabel: '性格设定',
-    settingsBriefingFrequencyLabel: '语音简报频率',
     settingsUserNameLabel: '用户名',
     settingsMusicHeader: '音乐与简报',
     settingsMusicVolumeLabel: '音乐音量',
@@ -286,7 +284,6 @@ function applyLanguageToUi() {
   setText('settings-voice-volume-label', t('settingsVoiceVolumeLabel'));
   setText('settings-bot-name-label', t('settingsBotNameLabel'));
   setText('settings-personality-label', t('settingsPersonalityLabel'));
-  setText('settings-briefing-frequency-label', t('settingsBriefingFrequencyLabel'));
   setText('settings-user-name-label', t('settingsUserNameLabel'));
   setText('settings-music-header', t('settingsMusicHeader'));
   setText('settings-music-volume-label', t('settingsMusicVolumeLabel'));
@@ -967,8 +964,6 @@ function showAppScreen({ keepSettingsOpen = false } = {}) {
   updateAppClock();
   if (appClockTimer) clearInterval(appClockTimer);
   appClockTimer = setInterval(updateAppClock, 30 * 1000);
-  if (briefingCheckTimer) clearInterval(briefingCheckTimer);
-  briefingCheckTimer = setInterval(checkPeriodicBriefing, 60 * 1000);
 }
 
 function buildSimpleGreeting(rows) {
@@ -1141,94 +1136,16 @@ function parseMuteCommand(text) {
 
 let newsBriefingTimer = null;
 let newsBriefingToken = 0;
-let briefingCheckTimer = null;
 
 function shouldTriggerBriefingForStatusHash(statusHash, newsItems) {
   if (!statusHash || !Array.isArray(newsItems) || !newsItems.length) return false;
   return currentSettings?.lastBriefingStatusHash !== statusHash;
 }
 
-function getBriefingFrequencyMs() {
-  const value = currentSettings?.briefingVoiceFrequency || '1h';
-  switch (value) {
-    case '1h':
-      return 60 * 60 * 1000;
-    case '6h':
-      return 6 * 60 * 60 * 1000;
-    case '12h':
-      return 12 * 60 * 60 * 1000;
-    case '1d':
-      return 24 * 60 * 60 * 1000;
-    case 'never':
-      return Number.POSITIVE_INFINITY;
-    default:
-      return 60 * 60 * 1000;
-  }
-}
-
-function shouldTriggerFallbackBriefingVoice(statusHash, briefingText) {
-  if (!statusHash || !String(briefingText || '').trim()) return false;
-  if (currentSettings?.briefingVoiceFrequency === 'never') return false;
-  if (currentSettings?.lastBriefingStatusHash === statusHash) return false;
-
-  const intervalMs = getBriefingFrequencyMs();
-  if (!Number.isFinite(intervalMs)) return false;
-
-  const lastVoiceAt = Date.parse(currentSettings?.lastBriefingVoiceAt || '');
-  if (!Number.isFinite(lastVoiceAt)) return true;
-  return (Date.now() - lastVoiceAt) >= intervalMs;
-}
-
 async function markBriefingStatusHashPlayed(statusHash) {
   if (!currentSettings || !statusHash) return;
   currentSettings.lastBriefingStatusHash = statusHash;
-  currentSettings.lastBriefingVoiceAt = new Date().toISOString();
   await window.marvis.saveSettings(currentSettings);
-}
-
-async function markFallbackBriefingVoicePlayed() {
-  if (!currentSettings) return;
-  currentSettings.lastBriefingVoiceAt = new Date().toISOString();
-  await window.marvis.saveSettings(currentSettings);
-}
-
-async function checkPeriodicBriefing() {
-  if (isMuted || isSpeaking) return;
-  try {
-    const result = await window.marvis.getStatus();
-    if (!result?.ok) return;
-    const nextRows = result.rows || [];
-    const nextHash = result.statusHash || '';
-    const nextNewsItems = getCleanNewsSpeechItems(nextRows);
-
-    statusRows = nextRows;
-    currentStatusHash = nextHash;
-    currentNewsBriefingItems = nextNewsItems;
-
-    if (document.getElementById('app-body')?.classList.contains('interaction-mode')) {
-      try {
-        showPanel(renderStatusBoard(statusRows));
-      } catch (err) {
-        console.log(`[Status] Failed to refresh status board: ${err.message}`);
-      }
-    }
-
-    if (shouldTriggerBriefingForStatusHash(nextHash, nextNewsItems)) {
-      await markBriefingStatusHashPlayed(nextHash);
-      const intro = buildIntroBriefing(statusRows);
-      if (intro) await speakBriefing(intro);
-      await playNewsBriefingWithVoice(nextNewsItems);
-      return;
-    }
-
-    const fallbackBriefing = statusRows.find((row) => row.type === 'Avatar Briefing')?.value || buildBriefing(statusRows);
-    if (shouldTriggerFallbackBriefingVoice(nextHash, fallbackBriefing)) {
-      await markFallbackBriefingVoicePlayed();
-      await speakBriefing(fallbackBriefing);
-    }
-  } catch (err) {
-    console.log(`[Status] Periodic briefing check failed: ${err.message}`);
-  }
 }
 
 // Bumping the token invalidates any in-flight playNewsBriefingCycle /
@@ -1443,7 +1360,6 @@ async function greetUser() {
     const newsItems = getCleanNewsSpeechItems(statusRows);
     currentNewsBriefingItems = newsItems;
     const voiceDue = !isMuted && shouldTriggerBriefingForStatusHash(currentStatusHash, newsItems);
-    const fallbackVoiceDue = !isMuted && shouldTriggerFallbackBriefingVoice(currentStatusHash, briefing);
 
     if (newsItems.length) {
       if (voiceDue) {
@@ -1474,12 +1390,7 @@ async function greetUser() {
           textEl.textContent = briefingDisplay;
         }
       }
-      if (fallbackVoiceDue) {
-        (async () => {
-          await markFallbackBriefingVoicePlayed();
-          await speakBriefing(briefing);
-        })();
-      }
+      if (!isMuted) speakBriefing(briefing);
     }
 
     // Show Continue button right away; don't make the user wait for voice playback to finish
@@ -1745,7 +1656,6 @@ function populateSettingsForm(settings) {
   renderVoicePhraseEditor('morning');
   document.getElementById('preferred-cli-select').value = settings.preferredCliChannel || '';
   document.getElementById('project-input').value = settings.activeProject;
-  document.getElementById('briefing-voice-frequency-select').value = settings.briefingVoiceFrequency || '1h';
   document.getElementById('max-html-panels-input').value = settings.maxHtmlPanels || 50;
   document.getElementById('language-select').value = settings.language || 'en';
   const welcomeLanguage = document.getElementById('welcome-language-select');
@@ -2281,8 +2191,6 @@ document.getElementById('settings-save-btn').addEventListener('click', async () 
     preferredCliChannel: document.getElementById('preferred-cli-select').value || null,
     language: document.getElementById('language-select').value || 'en',
     activeProject: document.getElementById('project-input').value,
-    briefingVoiceFrequency: document.getElementById('briefing-voice-frequency-select').value,
-    lastBriefingVoiceAt: currentSettings?.lastBriefingVoiceAt || null,
     lastBriefingStatusHash: currentSettings?.lastBriefingStatusHash || null,
     maxHtmlPanels: Math.max(1, parseInt(document.getElementById('max-html-panels-input').value, 10) || 50),
     voiceMuted: isMuted,

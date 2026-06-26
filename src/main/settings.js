@@ -23,8 +23,6 @@ const DEFAULTS = {
   language: 'en',
   activeProject: '',
   preferredCliChannel: null,
-  briefingVoiceFrequency: '1h',
-  lastBriefingVoiceAt: null,
   lastBriefingStatusHash: null,
   maxHtmlPanels: 50,
 };
