@@ -1148,9 +1148,46 @@ function shouldTriggerBriefingForStatusHash(statusHash, newsItems) {
   return currentSettings?.lastBriefingStatusHash !== statusHash;
 }
 
+function getBriefingFrequencyMs() {
+  const value = currentSettings?.briefingVoiceFrequency || '1h';
+  switch (value) {
+    case '1h':
+      return 60 * 60 * 1000;
+    case '6h':
+      return 6 * 60 * 60 * 1000;
+    case '12h':
+      return 12 * 60 * 60 * 1000;
+    case '1d':
+      return 24 * 60 * 60 * 1000;
+    case 'never':
+      return Number.POSITIVE_INFINITY;
+    default:
+      return 60 * 60 * 1000;
+  }
+}
+
+function shouldTriggerFallbackBriefingVoice(statusHash, briefingText) {
+  if (!statusHash || !String(briefingText || '').trim()) return false;
+  if (currentSettings?.briefingVoiceFrequency === 'never') return false;
+  if (currentSettings?.lastBriefingStatusHash === statusHash) return false;
+
+  const intervalMs = getBriefingFrequencyMs();
+  if (!Number.isFinite(intervalMs)) return false;
+
+  const lastVoiceAt = Date.parse(currentSettings?.lastBriefingVoiceAt || '');
+  if (!Number.isFinite(lastVoiceAt)) return true;
+  return (Date.now() - lastVoiceAt) >= intervalMs;
+}
+
 async function markBriefingStatusHashPlayed(statusHash) {
   if (!currentSettings || !statusHash) return;
   currentSettings.lastBriefingStatusHash = statusHash;
+  currentSettings.lastBriefingVoiceAt = new Date().toISOString();
+  await window.marvis.saveSettings(currentSettings);
+}
+
+async function markFallbackBriefingVoicePlayed() {
+  if (!currentSettings) return;
   currentSettings.lastBriefingVoiceAt = new Date().toISOString();
   await window.marvis.saveSettings(currentSettings);
 }
@@ -1176,12 +1213,19 @@ async function checkPeriodicBriefing() {
       }
     }
 
-    if (!shouldTriggerBriefingForStatusHash(nextHash, nextNewsItems)) return;
+    if (shouldTriggerBriefingForStatusHash(nextHash, nextNewsItems)) {
+      await markBriefingStatusHashPlayed(nextHash);
+      const intro = buildIntroBriefing(statusRows);
+      if (intro) await speakBriefing(intro);
+      await playNewsBriefingWithVoice(nextNewsItems);
+      return;
+    }
 
-    await markBriefingStatusHashPlayed(nextHash);
-    const intro = buildIntroBriefing(statusRows);
-    if (intro) await speakBriefing(intro);
-    await playNewsBriefingWithVoice(nextNewsItems);
+    const fallbackBriefing = statusRows.find((row) => row.type === 'Avatar Briefing')?.value || buildBriefing(statusRows);
+    if (shouldTriggerFallbackBriefingVoice(nextHash, fallbackBriefing)) {
+      await markFallbackBriefingVoicePlayed();
+      await speakBriefing(fallbackBriefing);
+    }
   } catch (err) {
     console.log(`[Status] Periodic briefing check failed: ${err.message}`);
   }
@@ -1399,6 +1443,7 @@ async function greetUser() {
     const newsItems = getCleanNewsSpeechItems(statusRows);
     currentNewsBriefingItems = newsItems;
     const voiceDue = !isMuted && shouldTriggerBriefingForStatusHash(currentStatusHash, newsItems);
+    const fallbackVoiceDue = !isMuted && shouldTriggerFallbackBriefingVoice(currentStatusHash, briefing);
 
     if (newsItems.length) {
       if (voiceDue) {
@@ -1429,7 +1474,12 @@ async function greetUser() {
           textEl.textContent = briefingDisplay;
         }
       }
-      if (voiceDue) speakBriefing(briefing);
+      if (fallbackVoiceDue) {
+        (async () => {
+          await markFallbackBriefingVoicePlayed();
+          await speakBriefing(briefing);
+        })();
+      }
     }
 
     // Show Continue button right away; don't make the user wait for voice playback to finish
