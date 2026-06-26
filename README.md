@@ -72,13 +72,13 @@ This repo also includes reusable Marvis skills under [`skills/`](skills):
 
 Optional, configured in Settings:
 
-- **Wake word** - check "Enable wake word" to have Marvis always listen in the background for the word "Marvis," using the browser's built-in speech recognition. No key, signup, or usage limits required. Off by default. The follow-up command after wake-word detection is also transcribed via the browser's built-in recognition.
+- **Wake word** - not ready yet. The wake word flow is still in progress and should be treated as unfinished for now.
 - **Speech-to-text (Mic button)** - recording your own messages via the Mic button is transcribed by ElevenLabs and requires an ElevenLabs API key configured in Settings; without one it reports that transcription isn't available rather than falling back.
 - **Text-to-speech** - every reply is spoken aloud. Uses ElevenLabs if a key is configured (https://elevenlabs.io/), otherwise falls back to the browser's built-in voice. Use the Mute button to silence it - muting immediately interrupts any speech currently playing. Manage ElevenLabs voices in Settings: enter a voice's name and ID (find the ID on a voice's page in the ElevenLabs Voice Library) and click "Add Voice" to save it to the dropdown; pick the active voice from the "ElevenLabs Voice" dropdown, or remove a saved one with "Remove Selected". Defaults to "Adam" if none is selected.
 
 可选功能，可在 Settings 中配置：
 
-- **唤醒词** - 勾选 “Enable wake word” 后，Marvis 会使用浏览器内建语音识别在后台持续监听 “Marvis” 这个词。不需要密钥、注册或使用额度。默认关闭。唤醒后的下一句命令也会通过浏览器内建识别转写。
+- **唤醒词** - 目前尚未完成。这个唤醒词流程仍在开发中，现阶段应视为未完成功能。
 - **语音转文字（Mic 按钮）** - 通过 Mic 按钮录制的语音会由 ElevenLabs 转写，因此需要先在 Settings 中配置 ElevenLabs API key；如果没有配置，会直接提示当前无法转写，而不会自动切换到其他方案。
 - **文字转语音** - 每条回复都会被朗读。如果已配置 ElevenLabs key，则优先使用 ElevenLabs（https://elevenlabs.io/）；否则回退到浏览器内建语音。使用 Mute 按钮可立即静音，并会马上打断当前正在播放的语音。你也可以在 Settings 中管理 ElevenLabs 声音：输入 voice name 和 ID（可在 ElevenLabs Voice Library 的对应声音页面找到 ID），点击 “Add Voice” 保存到下拉列表；在 “ElevenLabs Voice” 下拉中选择当前使用的声音，或用 “Remove Selected” 删除。若未选择，默认使用 “Adam”。
 
