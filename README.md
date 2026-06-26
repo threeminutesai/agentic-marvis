@@ -96,11 +96,11 @@ Disclosure: this is an affiliate link and may provide affiliate credit to the pr
 
 Settings -> Music lets you import your own tracks, build playlists, and schedule them by day-of-week and time-of-day (e.g. focus music on weekday mornings, something calmer in the evening). Music auto-plays on schedule, ducks under Marvis's speech, and has its own volume slider plus a loudness leveler so tracks mastered at different volumes don't require manual adjustment per track.
 
-On first launch, the library is seeded with seven royalty-free sample tracks (in a "Sample Tracks" playlist, not assigned to any schedule slot) so the feature has something to play immediately - see [Sample Music Attribution](src/assets/sample-music/ATTRIBUTION.md) for credits. Delete them anytime; they're only seeded once, on the very first run.
+On first launch, the library is seeded with seven royalty-free sample tracks (in a "Sample Tracks" playlist, not assigned to any schedule slot) so the feature has something to play immediately - see [Sample Music Attribution](data/music/ATTRIBUTION.md) for credits. Delete them anytime; they're only seeded once, on the very first run.
 
 在 Settings -> Music 中，你可以导入自己的音乐、建立播放列表，并按星期和时段设置播放排程（例如工作日上午播放专注音乐，晚上播放更舒缓的内容）。音乐会按排程自动播放，在 Marvis 讲话时自动压低音量，并带有独立音量滑杆和响度平衡，避免不同音量母带的歌曲需要逐首手动调整。
 
-首次启动时，音乐库会预载七首免版税示例音乐（位于 “Sample Tracks” 播放列表中，不会自动分配到任何排程时段），让这个功能一开始就可以播放内容。署名信息请见 [Sample Music Attribution](src/assets/sample-music/ATTRIBUTION.md)。你可以随时删除它们；这些内容只会在第一次运行时初始化一次。
+首次启动时，音乐库会预载七首免版税示例音乐（位于 “Sample Tracks” 播放列表中，不会自动分配到任何排程时段），让这个功能一开始就可以播放内容。署名信息请见 [Sample Music Attribution](data/music/ATTRIBUTION.md)。你可以随时删除它们；这些内容只会在第一次运行时初始化一次。
 
 ## HTML Panel Management
 
