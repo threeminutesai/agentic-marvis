@@ -10,6 +10,7 @@ let isProcessingResponse = false;
 let shouldAbortResponse = false;
 let currentAvatarState = 'idle';
 let statusRows = [];
+let currentStatusHash = '';
 let currentNewsBriefingItems = [];
 let activeOperationId = null;
 let audioRecorder = null;
@@ -759,7 +760,9 @@ async function formatAssistantResponse(text, { allowHtml = true } = {}) {
 
 function isFirstRun(settings) {
   const keys = settings.apiKeys || {};
-  return !keys.deepseek && !keys.gemini && !keys.elevenlabs;
+  const hasCloudProvider = Boolean(keys.deepseek || keys.gemini);
+  const hasOllama = settings.provider === 'ollama' && settings.ollamaBaseUrl && settings.ollamaModel;
+  return !hasCloudProvider && !hasOllama && !keys.elevenlabs;
 }
 
 async function init() {
@@ -815,9 +818,21 @@ function setupWelcomeModal() {
 
   // Step 1: API Key Setup
   const providerSelect = document.getElementById('welcome-provider-select');
+  const welcomeApiKeyInput = document.getElementById('welcome-api-key-input');
+  const welcomeOllamaGroup = document.getElementById('welcome-ollama-group');
   const elevenLabsCheckbox = document.getElementById('welcome-elevenlabs-checkbox');
   const elevenLabsGroup = document.querySelector('.welcome-elevenlabs-group');
   const step1NextBtn = document.getElementById('welcome-step1-next-btn');
+
+  const updateWelcomeProviderFields = () => {
+    const provider = providerSelect.value;
+    const needsApiKey = provider !== 'ollama';
+    welcomeApiKeyInput.parentElement.classList.toggle('hidden', !needsApiKey);
+    welcomeOllamaGroup.classList.toggle('hidden', provider !== 'ollama');
+  };
+
+  providerSelect.addEventListener('change', updateWelcomeProviderFields);
+  updateWelcomeProviderFields();
 
   elevenLabsCheckbox.addEventListener('change', () => {
     if (elevenLabsCheckbox.checked) {
@@ -829,9 +844,9 @@ function setupWelcomeModal() {
 
   step1NextBtn.addEventListener('click', async () => {
     const provider = providerSelect.value;
-    const apiKey = document.getElementById('welcome-api-key-input').value.trim();
+    const apiKey = welcomeApiKeyInput.value.trim();
 
-    if (!apiKey) {
+    if (provider !== 'ollama' && !apiKey) {
       showTemporaryNotice(t('welcomeNeedApiKey'));
       return;
     }
@@ -841,7 +856,11 @@ function setupWelcomeModal() {
       : '';
 
     try {
-      currentSettings.apiKeys[provider] = apiKey;
+      if (provider !== 'ollama') {
+        currentSettings.apiKeys[provider] = apiKey;
+      }
+      currentSettings.ollamaBaseUrl = document.getElementById('welcome-ollama-url-input').value.trim() || 'http://127.0.0.1:11434';
+      currentSettings.ollamaModel = document.getElementById('welcome-ollama-model-input').value.trim() || 'llama3.1:8b';
       if (elevenLabsKey) {
         currentSettings.apiKeys.elevenlabs = elevenLabsKey;
         currentSettings.elevenLabsVoiceId = '';
@@ -1124,26 +1143,47 @@ let newsBriefingTimer = null;
 let newsBriefingToken = 0;
 let briefingCheckTimer = null;
 
+function shouldTriggerBriefingForStatusHash(statusHash, newsItems) {
+  if (!statusHash || !Array.isArray(newsItems) || !newsItems.length) return false;
+  return currentSettings?.lastBriefingStatusHash !== statusHash;
+}
+
+async function markBriefingStatusHashPlayed(statusHash) {
+  if (!currentSettings || !statusHash) return;
+  currentSettings.lastBriefingStatusHash = statusHash;
+  currentSettings.lastBriefingVoiceAt = new Date().toISOString();
+  await window.marvis.saveSettings(currentSettings);
+}
+
 async function checkPeriodicBriefing() {
   if (isMuted || isSpeaking) return;
-  const frequency = currentSettings?.briefingVoiceFrequency || '1h';
-  const lastBriefingVoiceAt = currentSettings?.lastBriefingVoiceAt || null;
-  if (!shouldTriggerBriefingVoice(frequency, lastBriefingVoiceAt)) return;
+  try {
+    const result = await window.marvis.getStatus();
+    if (!result?.ok) return;
+    const nextRows = result.rows || [];
+    const nextHash = result.statusHash || '';
+    const nextNewsItems = getCleanNewsSpeechItems(nextRows);
 
-  // Mark as triggered before speaking to prevent double-fire
-  if (currentSettings) {
-    currentSettings.lastBriefingVoiceAt = new Date().toISOString();
-    await window.marvis.saveSettings(currentSettings);
-  }
+    statusRows = nextRows;
+    currentStatusHash = nextHash;
+    currentNewsBriefingItems = nextNewsItems;
 
-  const newsItems = currentNewsBriefingItems;
-  if (newsItems.length) {
+    if (document.getElementById('app-body')?.classList.contains('interaction-mode')) {
+      try {
+        showPanel(renderStatusBoard(statusRows));
+      } catch (err) {
+        console.log(`[Status] Failed to refresh status board: ${err.message}`);
+      }
+    }
+
+    if (!shouldTriggerBriefingForStatusHash(nextHash, nextNewsItems)) return;
+
+    await markBriefingStatusHashPlayed(nextHash);
     const intro = buildIntroBriefing(statusRows);
     if (intro) await speakBriefing(intro);
-    await playNewsBriefingWithVoice(newsItems);
-  } else {
-    const briefing = buildBriefing(statusRows);
-    if (briefing) await speakBriefing(briefing);
+    await playNewsBriefingWithVoice(nextNewsItems);
+  } catch (err) {
+    console.log(`[Status] Periodic briefing check failed: ${err.message}`);
   }
 }
 
@@ -1313,10 +1353,12 @@ async function greetUser() {
   try {
     const result = await window.marvis.getStatus();
     statusRows = result.ok ? result.rows : [];
+    currentStatusHash = result.ok ? (result.statusHash || '') : '';
     userProfileWasDefaulted = Boolean(result.ok && result.userProfileWasDefaulted);
   } catch (err) {
     console.log(`[Status] Failed to load status sheet: ${err.message}`);
     statusRows = [];
+    currentStatusHash = '';
   }
   const userProfileRow = statusRows.find((row) => row.type === 'User Profile');
   const userProfileInput = document.getElementById('user-profile-input');
@@ -1340,9 +1382,6 @@ async function greetUser() {
   appBody.classList.add('interaction-mode');
   const hasAnyRowValue = (row) => (Array.isArray(row.value) ? row.value.length > 0 : Boolean(row.value));
   const hasStatusContent = statusRows.some(hasAnyRowValue);
-  const frequency = currentSettings?.briefingVoiceFrequency || '1h';
-  const lastBriefingVoiceAt = currentSettings?.lastBriefingVoiceAt || null;
-  const voiceDue = !isMuted && shouldTriggerBriefingVoice(frequency, lastBriefingVoiceAt);
   if (hasStatusContent) {
     try {
       showPanel(renderStatusBoard(statusRows));
@@ -1359,6 +1398,7 @@ async function greetUser() {
     // is only for older status files with no News Briefing array data.
     const newsItems = getCleanNewsSpeechItems(statusRows);
     currentNewsBriefingItems = newsItems;
+    const voiceDue = !isMuted && shouldTriggerBriefingForStatusHash(currentStatusHash, newsItems);
 
     if (newsItems.length) {
       if (voiceDue) {
@@ -1367,6 +1407,7 @@ async function greetUser() {
         // when its own voice line starts, and we wait for that line to
         // finish before moving to the next (see playNewsBriefingWithVoice).
         (async () => {
+          await markBriefingStatusHashPlayed(currentStatusHash);
           const intro = buildIntroBriefing(statusRows);
           if (intro) await speakBriefing(intro);
           await playNewsBriefingWithVoice(newsItems);
@@ -1396,24 +1437,16 @@ async function greetUser() {
     if (continueSection) {
       continueSection.style.display = 'flex';
     }
-    if (voiceDue && currentSettings) {
-      currentSettings.lastBriefingVoiceAt = new Date().toISOString();
-      await window.marvis.saveSettings(currentSettings);
-    }
   } else {
     currentNewsBriefingItems = [];
     const fallbackBriefing = buildBriefing(statusRows);
     if (fallbackBriefing) {
       appendChatLine('Marvis', fallbackBriefing);
-      if (voiceDue) await speakBriefing(fallbackBriefing);
+      if (!isMuted) await speakBriefing(fallbackBriefing);
     }
     const continueSection = document.getElementById('continue-section');
     if (continueSection) {
       continueSection.style.display = 'flex';
-    }
-    if (voiceDue && currentSettings) {
-      currentSettings.lastBriefingVoiceAt = new Date().toISOString();
-      await window.marvis.saveSettings(currentSettings);
     }
   }
 }
@@ -1638,6 +1671,8 @@ function populateSettingsForm(settings) {
   updateProviderApiFields(settings.provider);
   document.getElementById('deepseek-api-key-input').value = settings.apiKeys.deepseek;
   document.getElementById('gemini-api-key-input').value = settings.apiKeys.gemini;
+  document.getElementById('ollama-url-input').value = settings.ollamaBaseUrl || 'http://127.0.0.1:11434';
+  document.getElementById('ollama-model-input').value = settings.ollamaModel || 'llama3.1:8b';
   document.getElementById('elevenlabs-api-key-input').value = settings.apiKeys.elevenlabs;
   renderVoiceOptions(settings.elevenLabsVoices || [], settings.elevenLabsVoiceId);
   const voiceVolume = typeof settings.voiceVolume === 'number' ? settings.voiceVolume : 1;
@@ -2176,8 +2211,11 @@ document.getElementById('settings-save-btn').addEventListener('click', async () 
     apiKeys: {
       deepseek: document.getElementById('deepseek-api-key-input').value,
       gemini: document.getElementById('gemini-api-key-input').value,
+      ollama: '',
       elevenlabs: document.getElementById('elevenlabs-api-key-input').value,
     },
+    ollamaBaseUrl: document.getElementById('ollama-url-input').value.trim() || 'http://127.0.0.1:11434',
+    ollamaModel: document.getElementById('ollama-model-input').value.trim() || 'llama3.1:8b',
     elevenLabsVoiceId: document.getElementById('elevenlabs-voice-select').value,
     elevenLabsVoices: Array.from(document.getElementById('elevenlabs-voice-select').options)
       .slice(1)
@@ -2195,6 +2233,7 @@ document.getElementById('settings-save-btn').addEventListener('click', async () 
     activeProject: document.getElementById('project-input').value,
     briefingVoiceFrequency: document.getElementById('briefing-voice-frequency-select').value,
     lastBriefingVoiceAt: currentSettings?.lastBriefingVoiceAt || null,
+    lastBriefingStatusHash: currentSettings?.lastBriefingStatusHash || null,
     maxHtmlPanels: Math.max(1, parseInt(document.getElementById('max-html-panels-input').value, 10) || 50),
     voiceMuted: isMuted,
     musicMuted: isMusicMuted,

@@ -15,14 +15,20 @@ When the format also includes a language hint, such as `Language: English` or `L
 
 ## Required First Step
 
-Read the target JSON path and preserve its existing field names, nesting, and data types. If the user did not provide both the path and the format, ask for them before collecting data.
+Read the target JSON path and preserve its existing field names, nesting, and data types.
+
+If the user does not provide a path:
+- First look for `data/marvis-status.json` in the current working directory.
+- If that file exists, use it automatically as the target JSON and infer the format from it.
+- This default matters because users often run the CLI from the same folder that contains `Marvis.exe` and the adjacent `data/` folder.
+- Only ask the user for a path if `data/marvis-status.json` is not found.
 
 Accept any of these as the format source:
 - An existing JSON file path to read and preserve
 - A pasted JSON schema or sample object
 - A short description of required fields
 
-If the user provides a format without a path, ask whether to return JSON in the reply or create a file.
+If the user provides a format without a path, first try `data/marvis-status.json`; only ask whether to return JSON in the reply or create a file if that default file is absent.
 
 ## Personalization Rules
 

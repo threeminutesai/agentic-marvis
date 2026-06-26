@@ -9,7 +9,8 @@
     "test": "node --test \"tests/**/*.test.js\"",
     "dist:win": "electron-builder --win",
     "dist:mac": "electron-builder --mac",
-    "dist:linux": "electron-builder --linux"
+    "dist:linux": "electron-builder --linux",
+    "package:win-release": "powershell -ExecutionPolicy Bypass -File scripts/package-win-release.ps1"
   },
   "devDependencies": {
     "electron": "^31.0.0",
@@ -25,7 +26,9 @@
       "src/**/*",
       "package.json",
       "data/music-library.json",
-      "data/music/**/*"
+      "data/music/**/*",
+      "skills/agentic-marvis-brief/**/*",
+      "skills/agentic-marvis-dashboard/**/*"
     ],
     "directories": {
       "output": "release"

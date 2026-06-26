@@ -1,6 +1,7 @@
 // src/main/status/statusFile.js
 const fs = require('node:fs');
 const path = require('node:path');
+const crypto = require('node:crypto');
 
 const TEMPLATE_TYPES = [
   'Weather',
@@ -62,4 +63,11 @@ function readStatusRows(filePath) {
     .filter((row) => row.type);
 }
 
-module.exports = { ensureStatusFile, readStatusRows };
+function hashStatusRows(rows) {
+  return crypto
+    .createHash('sha256')
+    .update(JSON.stringify(rows || []))
+    .digest('hex');
+}
+
+module.exports = { ensureStatusFile, readStatusRows, hashStatusRows };

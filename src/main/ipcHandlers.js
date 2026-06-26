@@ -6,11 +6,12 @@ const fs = require('node:fs');
 const { createSettingsStore } = require('./settings');
 const { createDeepseekProvider } = require('./providers/deepseekProvider');
 const { createGeminiProvider } = require('./providers/geminiProvider');
+const { createOllamaProvider } = require('./providers/ollamaProvider');
 const { createElevenLabsProvider } = require('./providers/elevenLabsProvider');
 const { createElevenLabsSttProvider } = require('./providers/elevenLabsSttProvider');
 const { delegateTask } = require('./claudeCode/delegate');
 const { delegateCodexTask } = require('./codex/delegate');
-const { readStatusRows, ensureStatusFile } = require('./status/statusFile');
+const { readStatusRows, ensureStatusFile, hashStatusRows } = require('./status/statusFile');
 const { ensureCaptureDir, getNextCapturePath, pruneCaptures } = require('./status/captureFile');
 const { DEFAULT_TEMPLATE_HTML } = require('./status/htmlPanelTemplate');
 const { DEFAULT_MUSIC_TRACKS, DEFAULT_MUSIC_SCHEDULE, WEEKDAY_SLOTS, WEEKEND_SLOTS } = require('./music/defaultMusic');
@@ -18,8 +19,14 @@ const { synthesizeGreetingWithCache } = require('./voice/greetingVoiceCache');
 const { createMusicLibraryStore, SUPPORTED_EXTENSIONS } = require('./music');
 const { pathToFileURL } = require('node:url');
 
-function createProviderFor(providerName, apiKey) {
+function createProviderFor(providerName, apiKey, settings = {}) {
   if (providerName === 'gemini') return createGeminiProvider({ apiKey });
+  if (providerName === 'ollama') {
+    return createOllamaProvider({
+      baseUrl: settings.ollamaBaseUrl,
+      model: settings.ollamaModel,
+    });
+  }
   return createDeepseekProvider({ apiKey });
 }
 
@@ -285,12 +292,13 @@ function getEnvFilePath() {
 const ENV_KEY_MAP = {
   DEEPSEEK_API_KEY: 'deepseek',
   GEMINI_API_KEY: 'gemini',
+  OLLAMA_API_KEY: 'ollama',
   ELEVENLABS_API_KEY: 'elevenlabs',
   ANTHROPIC_API_KEY: 'anthropic',
 };
 
 function loadEnvFile() {
-  const keys = { deepseek: '', gemini: '', elevenlabs: '', anthropic: '' };
+  const keys = { deepseek: '', gemini: '', ollama: '', elevenlabs: '', anthropic: '' };
   const envPath = getEnvFilePath();
   if (!fs.existsSync(envPath)) return keys;
   for (const line of fs.readFileSync(envPath, 'utf8').split('\n')) {
@@ -320,7 +328,7 @@ function migrateApiKeysToEnvIfNeeded(settingsStore) {
   const { apiKeys } = settings;
   if (!apiKeys || !Object.values(apiKeys).some((v) => v)) return;
   saveEnvFile(apiKeys);
-  settingsStore.save({ ...settings, apiKeys: { deepseek: '', gemini: '', elevenlabs: '', anthropic: '' } });
+      settingsStore.save({ ...settings, apiKeys: { deepseek: '', gemini: '', ollama: '', elevenlabs: '', anthropic: '' } });
   console.log('[Settings] Migrated API keys from settings.json to .env');
 }
 
@@ -560,7 +568,7 @@ function registerIpcHandlers() {
     try {
       const { apiKeys, ...rest } = settings;
       if (apiKeys) saveEnvFile(apiKeys);
-      settingsStore.save({ ...rest, apiKeys: { deepseek: '', gemini: '', elevenlabs: '', anthropic: '' } });
+      settingsStore.save({ ...rest, apiKeys: { deepseek: '', gemini: '', ollama: '', elevenlabs: '', anthropic: '' } });
       syncUserProfileLanguage(getStatusFilePath(), settings.language || 'en');
       return { ok: true };
     } catch (err) {
@@ -597,10 +605,11 @@ function registerIpcHandlers() {
   });
 
   ipcMain.handle('settings:testConnection', async (_event, { provider, apiKey }) => {
-    if (!apiKey) {
+    const settings = settingsStore.load();
+    if (provider !== 'ollama' && !apiKey) {
       return { ok: false, error: 'No API key provided, sir.' };
     }
-    const client = createProviderFor(provider, apiKey);
+    const client = createProviderFor(provider, apiKey, settings);
     try {
       await client.chat({
         systemPrompt: 'You are a connectivity check. Reply with a single word.',
@@ -630,11 +639,11 @@ function registerIpcHandlers() {
     const settings = settingsStore.load();
     const envKeys = loadEnvFile();
     const apiKey = envKeys[settings.provider] || settings.apiKeys?.[settings.provider];
-    if (!apiKey) {
+    if (settings.provider !== 'ollama' && !apiKey) {
       finishOperation(operationId);
       return { ok: false, reply: `I don't have an API key configured for ${settings.provider}, sir - please add one in Settings.` };
     }
-    const client = createProviderFor(settings.provider, apiKey);
+    const client = createProviderFor(settings.provider, apiKey, settings);
     try {
       const reply = await client.chat({
         systemPrompt: `${settings.personality}\n\n${getUserFacingLanguageInstruction(settings.language)}`,
@@ -773,10 +782,10 @@ function registerIpcHandlers() {
     try {
       copyLegacyStatusFileIfNeeded(filePath);
       const { rows, wasDefaulted } = ensureUserProfileRow(filePath, readStatusRows(filePath));
-      return { ok: true, rows, userProfileWasDefaulted: wasDefaulted };
+      return { ok: true, rows, statusHash: hashStatusRows(rows), userProfileWasDefaulted: wasDefaulted };
     } catch (err) {
       console.log(`[Status] Failed to read status sheet: ${err.message}`);
-      return { ok: false, rows: [], error: err.message };
+      return { ok: false, rows: [], statusHash: '', error: err.message };
     }
   });
 

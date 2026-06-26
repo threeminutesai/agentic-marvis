@@ -13,29 +13,31 @@ A packaged Windows, macOS and Ubuntu build is available on the [Releases page](h
 
 1. `npm install`
 2. `npm start`
-3. Add an API key (DeepSeek or Gemini) when prompted on first launch, then set an active project folder in Settings.
+3. On first launch, choose DeepSeek, Gemini, or Ollama. DeepSeek and Gemini need an API key; Ollama uses your local runtime. Then set an active project folder in Settings.
 
 1. `npm install`
 2. `npm start`
-3. 首次启动时按提示添加 API key（DeepSeek 或 Gemini），然后在 Settings 中设置当前项目文件夹。
+3. 首次启动时选择 DeepSeek、Gemini 或 Ollama。DeepSeek 和 Gemini 需要 API key，Ollama 使用本地运行环境。然后在 Settings 中设置当前项目文件夹。
 
 ## AI Providers
 
 Marvis combines three kinds of AI integration, each doing a different job:
 
-- **Chat bot (DeepSeek or Gemini)** - powers Marvis's own conversational replies. Pick one from the Settings panel's provider dropdown:
+- **Chat bot (DeepSeek, Gemini, or Ollama)** - powers Marvis's own conversational replies. Pick one from the Settings panel's provider dropdown:
   - **DeepSeek** (default) - paid, no free tier.
   - **Gemini** - has a free tier (Google AI Studio); get a key at https://aistudio.google.com/apikey.
-- Each provider's key is stored separately (encrypted at rest), so switching the dropdown doesn't lose the other key. More providers may be added in the future.
+  - **Ollama** - local model runtime. No API key is needed, but you do need a running Ollama server and a local model name such as `llama3.1:8b`.
+- Cloud-provider keys are stored separately (encrypted at rest), so switching the dropdown doesn't lose another key. Ollama keeps its configured base URL and model in Settings.
 - **Claude Code / Codex CLI (heavy lifting)** - not a chat provider; these are delegated to for actual work against your project (writing code, running tasks) when a plain chat reply isn't enough. See [CLI delegation channels](#cli-delegation-channels) below. Claude Code authenticates via its own CLI subscription login, not an API key.
 - **ElevenLabs (speech)** - powers both directions of voice: text-to-speech for Marvis's spoken replies, and speech-to-text for transcribing what you say. You may gett API from https://elevenlabs.io/app/home. See [Voice](#voice) below.
 
 Marvis 结合了三类 AI 能力，每一类负责不同的工作：
 
-- **聊天机器人（DeepSeek 或 Gemini）** - 负责 Marvis 自己的对话回复，可在 Settings 面板的 provider 下拉选单中选择：
+- **聊天机器人（DeepSeek、Gemini 或 Ollama）** - 负责 Marvis 自己的对话回复，可在 Settings 面板的 provider 下拉选单中选择：
   - **DeepSeek**（默认）- 付费服务，无免费额度。
   - **Gemini** - 提供免费额度（Google AI Studio）；可在 https://aistudio.google.com/apikey 获取密钥。
-- 每个 provider 的密钥都会单独存储（静态加密），因此切换下拉选项时不会丢失另一边的密钥。未来还会继续加入更多 provider。
+  - **Ollama** - 本地模型运行环境。不需要 API key，但需要本机正在运行的 Ollama 服务，以及一个本地模型名称，例如 `llama3.1:8b`。
+- 云端 provider 的密钥会分别存储（静态加密），因此切换下拉选项时不会丢失另一边的密钥。Ollama 则会在 Settings 中保存它的地址与模型名称。
 - **Claude Code / Codex CLI（重任务执行）** - 这不是聊天 provider；当普通对话回复不够时，Marvis 会把真正的项目工作（写代码、执行任务）委派给它们。详见下方的 [CLI delegation channels](#cli-delegation-channels)。Claude Code 使用自己的 CLI 订阅登录，而不是 API key。
 - **ElevenLabs（语音）** - 负责双向语音能力，包括 Marvis 回复的文字转语音，以及将你的语音转写为文字。API获取 [https://elevenlabs.io/app/home](https://elevenlabs.io/app/home)。 详见下方的 [Voice](#voice)。
 

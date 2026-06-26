@@ -68,7 +68,7 @@
     <div class="welcome-content">
       <div id="welcome-step-1" class="welcome-step">
         <h1>Welcome to Marvis</h1>
-        <p>Let's get you set up. You'll need an API key from one of these providers to get started:</p>
+        <p>Let's get you set up. Choose a provider to get started. Cloud providers need an API key, while Ollama uses your local runtime.</p>
         <div class="welcome-provider-choice">
           <div class="provider-option" data-provider="gemini">
             <h3>Google Gemini</h3>
@@ -78,9 +78,17 @@
             <h3>DeepSeek</h3>
             <p>Free trial credits. Get your key at <strong>platform.deepseek.com</strong></p>
           </div>
+          <div class="provider-option" data-provider="ollama">
+            <h3>Ollama</h3>
+            <p>Local model runtime. No API key needed if Ollama is already running.</p>
+          </div>
         </div>
-        <label>Your chosen provider: <select id="welcome-provider-select"><option value="gemini">Google Gemini</option><option value="deepseek">DeepSeek</option></select></label>
+        <label>Your chosen provider: <select id="welcome-provider-select"><option value="gemini">Google Gemini</option><option value="deepseek">DeepSeek</option><option value="ollama">Ollama</option></select></label>
         <label>API Key: <input id="welcome-api-key-input" type="password" placeholder="Paste your API key"></label>
+        <div id="welcome-ollama-group" class="hidden">
+          <label>Ollama URL: <input id="welcome-ollama-url-input" type="text" placeholder="http://127.0.0.1:11434"></label>
+          <label>Ollama Model: <input id="welcome-ollama-model-input" type="text" placeholder="llama3.1:8b"></label>
+        </div>
         <label><input id="welcome-elevenlabs-checkbox" type="checkbox"> Also set up ElevenLabs for natural voice (optional)</label>
         <label class="welcome-elevenlabs-group hidden">ElevenLabs API Key: <input id="welcome-elevenlabs-key-input" type="password" placeholder="Get one at elevenlabs.io"></label>
         <p class="welcome-hint">You can add more providers and configure other settings later in the Settings panel.</p>
@@ -134,13 +142,17 @@
     <div class="settings-section">
       <div id="settings-ai-header" class="settings-section-header">AI Provider</div>
       <label><span id="settings-provider-label">Provider</span>
-        <select id="provider-select"><option value="deepseek">DeepSeek</option><option value="gemini">Gemini</option></select>
+        <select id="provider-select"><option value="deepseek">DeepSeek</option><option value="gemini">Gemini</option><option value="ollama">Ollama</option></select>
       </label>
       <div id="deepseek-api-group" class="provider-api-group">
         <label>DeepSeek API Key <input id="deepseek-api-key-input" type="password"></label>
       </div>
       <div id="gemini-api-group" class="provider-api-group hidden">
         <label>Gemini API Key <input id="gemini-api-key-input" type="password"></label>
+      </div>
+      <div id="ollama-api-group" class="provider-api-group hidden">
+        <label>Ollama URL <input id="ollama-url-input" type="text" placeholder="http://127.0.0.1:11434"></label>
+        <label>Ollama Model <input id="ollama-model-input" type="text" placeholder="llama3.1:8b"></label>
       </div>
     </div>
 

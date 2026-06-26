@@ -2,7 +2,9 @@
 
 const DEFAULTS = {
   provider: 'deepseek',
-  apiKeys: { deepseek: '', gemini: '', elevenlabs: '', anthropic: '' },
+  apiKeys: { deepseek: '', gemini: '', ollama: '', elevenlabs: '', anthropic: '' },
+  ollamaBaseUrl: 'http://127.0.0.1:11434',
+  ollamaModel: 'llama3.1:8b',
   elevenLabsVoiceId: '',
   elevenLabsVoices: [],
   userName: '',
@@ -23,6 +25,7 @@ const DEFAULTS = {
   preferredCliChannel: null,
   briefingVoiceFrequency: '1h',
   lastBriefingVoiceAt: null,
+  lastBriefingStatusHash: null,
   maxHtmlPanels: 50,
 };
 
