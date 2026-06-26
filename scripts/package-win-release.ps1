@@ -6,12 +6,21 @@ $packageJson = Get-Content $packageJsonPath -Raw | ConvertFrom-Json
 $version = $packageJson.version
 
 $releaseDir = Join-Path $repoRoot "release"
+$bundledDataDir = Join-Path $repoRoot "release pack\data"
 $sourceExe = Join-Path $releaseDir ("Marvis {0}.exe" -f $version)
 $zipStage = Join-Path $releaseDir "win-release-stage"
 $zipPath = Join-Path $releaseDir ("Marvis-v{0}-win32-x64.zip" -f $version)
 
 if (-not (Test-Path $sourceExe)) {
   throw "Portable EXE not found: $sourceExe"
+}
+
+if (-not (Test-Path (Join-Path $bundledDataDir "music-library.json"))) {
+  throw "Bundled music library not found: $(Join-Path $bundledDataDir 'music-library.json')"
+}
+
+if (-not (Test-Path (Join-Path $bundledDataDir "music"))) {
+  throw "Bundled music folder not found: $(Join-Path $bundledDataDir 'music')"
 }
 
 if (Test-Path $zipStage) {
@@ -27,8 +36,8 @@ New-Item -ItemType Directory -Path (Join-Path $zipStage "data") | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $zipStage "skills") | Out-Null
 
 Copy-Item $sourceExe (Join-Path $zipStage "Marvis.exe")
-Copy-Item (Join-Path $repoRoot "data\music-library.json") (Join-Path $zipStage "data\music-library.json")
-Copy-Item (Join-Path $repoRoot "data\music") (Join-Path $zipStage "data\music") -Recurse
+Copy-Item (Join-Path $bundledDataDir "music-library.json") (Join-Path $zipStage "data\music-library.json")
+Copy-Item (Join-Path $bundledDataDir "music") (Join-Path $zipStage "data\music") -Recurse
 Copy-Item (Join-Path $repoRoot "skills\agentic-marvis-brief") (Join-Path $zipStage "skills\agentic-marvis-brief") -Recurse
 Copy-Item (Join-Path $repoRoot "skills\agentic-marvis-dashboard") (Join-Path $zipStage "skills\agentic-marvis-dashboard") -Recurse
 

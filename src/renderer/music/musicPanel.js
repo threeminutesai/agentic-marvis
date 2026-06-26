@@ -3,6 +3,7 @@
   let activeScheduleDay = 'monday';
   let previewAudio = null;
   let previewingTrackId = null;
+  let backgroundWasPlayingBeforePreview = false;
 
   function getCurrentLanguage() {
     return window.__marvisLanguage === 'zh' ? 'zh' : 'en';
@@ -18,11 +19,20 @@
       previewAudio = null;
     }
     previewingTrackId = null;
+    if (backgroundWasPlayingBeforePreview && musicController) {
+      musicController.resume();
+    }
+    backgroundWasPlayingBeforePreview = false;
   }
 
   function playPreview(track, button) {
     stopPreview();
     if (!track.fileUrl) return;
+    const nowPlaying = musicController?.getNowPlaying?.();
+    backgroundWasPlayingBeforePreview = Boolean(nowPlaying && !nowPlaying.isPaused);
+    if (backgroundWasPlayingBeforePreview && musicController) {
+      musicController.pause();
+    }
     const volumeInput = document.getElementById('music-volume-input');
     const volume = volumeInput ? parseFloat(volumeInput.value) : 1;
     const audio = new Audio(track.fileUrl);

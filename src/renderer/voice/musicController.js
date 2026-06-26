@@ -20,6 +20,7 @@ function createMusicController() {
   let analyser = null;
   let analyserData = null;
   let rafId = null;
+  let pausedTrackTime = 0;
 
   function effectiveVolume() {
     return Math.max(0, Math.min(1, baseVolume * duckFactor));
@@ -178,6 +179,9 @@ function createMusicController() {
     // A missing/corrupt file on disk fires 'error', not 'ended' - route it
     // through the same advance-to-next-track path rather than stalling.
     audio.addEventListener('error', onTrackEnded);
+    if (pausedTrackTime > 0) {
+      audio.currentTime = pausedTrackTime;
+    }
     audio.play().catch(() => {
       if (audio) {
         audio.removeEventListener('ended', onTrackEnded);
@@ -185,6 +189,7 @@ function createMusicController() {
         audio = null;
       }
     });
+    pausedTrackTime = 0;
   }
 
   function loadSlot(day, bucket) {
@@ -220,11 +225,22 @@ function createMusicController() {
 
   function pause() {
     isPausedByUser = true;
-    if (audio) audio.pause();
+    if (audio) {
+      pausedTrackTime = audio.currentTime || 0;
+      audio.pause();
+    }
   }
 
   function resume() {
     isPausedByUser = false;
+    if (audio) {
+      audio.play().catch(() => {});
+      return;
+    }
+    if (queue.length) {
+      playCurrentTrack();
+      return;
+    }
     const { day, bucket } = getActiveSlot(new Date());
     const playlist = getPlaylistForSlot(catalog, day, bucket);
     queue = buildQueueForPlaylist(playlist);
@@ -235,6 +251,7 @@ function createMusicController() {
 
   function skip() {
     if (!queue.length) return;
+    pausedTrackTime = 0;
     onTrackEnded();
   }
 

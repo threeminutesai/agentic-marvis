@@ -32,8 +32,8 @@ jobs:
           mkdir -p release/macos-zip-stage/data
           mkdir -p release/macos-zip-stage/skills
           cp -R release/mac-arm64/Marvis.app release/macos-zip-stage/
-          cp -R data/music release/macos-zip-stage/data/music
-          cp data/music-library.json release/macos-zip-stage/data/music-library.json
+          cp -R "release pack/data/music" release/macos-zip-stage/data/music
+          cp "release pack/data/music-library.json" release/macos-zip-stage/data/music-library.json
           cp -R skills/agentic-marvis-brief release/macos-zip-stage/skills/agentic-marvis-brief
           cp -R skills/agentic-marvis-dashboard release/macos-zip-stage/skills/agentic-marvis-dashboard
           (cd release/macos-zip-stage && zip -qry ../Marvis-v0.5.0-macos-arm64.zip Marvis.app data skills)

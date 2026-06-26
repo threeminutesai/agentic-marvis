@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const { createSettingsStore } = require('./settings');
 const { createDeepseekProvider } = require('./providers/deepseekProvider');
 const { createGeminiProvider } = require('./providers/geminiProvider');
+const { createOpenRouterProvider } = require('./providers/openRouterProvider');
 const { createOllamaProvider } = require('./providers/ollamaProvider');
 const { createElevenLabsProvider } = require('./providers/elevenLabsProvider');
 const { createElevenLabsSttProvider } = require('./providers/elevenLabsSttProvider');
@@ -21,6 +22,12 @@ const { pathToFileURL } = require('node:url');
 
 function createProviderFor(providerName, apiKey, settings = {}) {
   if (providerName === 'gemini') return createGeminiProvider({ apiKey });
+  if (providerName === 'openrouter') {
+    return createOpenRouterProvider({
+      apiKey,
+      model: settings.openRouterModel,
+    });
+  }
   if (providerName === 'ollama') {
     return createOllamaProvider({
       baseUrl: settings.ollamaBaseUrl,
@@ -364,13 +371,14 @@ function getEnvFilePath() {
 const ENV_KEY_MAP = {
   DEEPSEEK_API_KEY: 'deepseek',
   GEMINI_API_KEY: 'gemini',
+  OPENROUTER_API_KEY: 'openrouter',
   OLLAMA_API_KEY: 'ollama',
   ELEVENLABS_API_KEY: 'elevenlabs',
   ANTHROPIC_API_KEY: 'anthropic',
 };
 
 function loadEnvFile() {
-  const keys = { deepseek: '', gemini: '', ollama: '', elevenlabs: '', anthropic: '' };
+  const keys = { deepseek: '', gemini: '', openrouter: '', ollama: '', elevenlabs: '', anthropic: '' };
   const envPath = getEnvFilePath();
   if (!fs.existsSync(envPath)) return keys;
   for (const line of fs.readFileSync(envPath, 'utf8').split('\n')) {
@@ -400,7 +408,7 @@ function migrateApiKeysToEnvIfNeeded(settingsStore) {
   const { apiKeys } = settings;
   if (!apiKeys || !Object.values(apiKeys).some((v) => v)) return;
   saveEnvFile(apiKeys);
-      settingsStore.save({ ...settings, apiKeys: { deepseek: '', gemini: '', ollama: '', elevenlabs: '', anthropic: '' } });
+      settingsStore.save({ ...settings, apiKeys: { deepseek: '', gemini: '', openrouter: '', ollama: '', elevenlabs: '', anthropic: '' } });
   console.log('[Settings] Migrated API keys from settings.json to .env');
 }
 
@@ -640,7 +648,7 @@ function registerIpcHandlers() {
     try {
       const { apiKeys, ...rest } = settings;
       if (apiKeys) saveEnvFile(apiKeys);
-      settingsStore.save({ ...rest, apiKeys: { deepseek: '', gemini: '', ollama: '', elevenlabs: '', anthropic: '' } });
+      settingsStore.save({ ...rest, apiKeys: { deepseek: '', gemini: '', openrouter: '', ollama: '', elevenlabs: '', anthropic: '' } });
       syncUserProfileLanguage(getStatusFilePath(), settings.language || 'en');
       return { ok: true };
     } catch (err) {

@@ -74,6 +74,10 @@
             <h3>Google Gemini</h3>
             <p>Free tier available. Get your key at <strong>ai.google.dev</strong></p>
           </div>
+          <div class="provider-option" data-provider="openrouter">
+            <h3>OpenRouter</h3>
+            <p>One API key for many hosted models. Get your key at <strong>openrouter.ai</strong></p>
+          </div>
           <div class="provider-option" data-provider="deepseek">
             <h3>DeepSeek</h3>
             <p>Free trial credits. Get your key at <strong>platform.deepseek.com</strong></p>
@@ -83,8 +87,11 @@
             <p>Local model runtime. No API key needed if Ollama is already running.</p>
           </div>
         </div>
-        <label>Your chosen provider: <select id="welcome-provider-select"><option value="gemini">Google Gemini</option><option value="deepseek">DeepSeek</option><option value="ollama">Ollama</option></select></label>
+        <label>Your chosen provider: <select id="welcome-provider-select"><option value="gemini">Google Gemini</option><option value="openrouter">OpenRouter</option><option value="deepseek">DeepSeek</option><option value="ollama">Ollama</option></select></label>
         <label>API Key: <input id="welcome-api-key-input" type="password" placeholder="Paste your API key"></label>
+        <div id="welcome-openrouter-group" class="hidden">
+          <label>OpenRouter Model: <input id="welcome-openrouter-model-input" type="text" placeholder="openai/gpt-4o-mini"></label>
+        </div>
         <div id="welcome-ollama-group" class="hidden">
           <label>Ollama URL: <input id="welcome-ollama-url-input" type="text" placeholder="http://127.0.0.1:11434"></label>
           <label>Ollama Model: <input id="welcome-ollama-model-input" type="text" placeholder="llama3.1:8b"></label>
@@ -142,13 +149,17 @@
     <div class="settings-section">
       <div id="settings-ai-header" class="settings-section-header">AI Provider</div>
       <label><span id="settings-provider-label">Provider</span>
-        <select id="provider-select"><option value="deepseek">DeepSeek</option><option value="gemini">Gemini</option><option value="ollama">Ollama</option></select>
+        <select id="provider-select"><option value="deepseek">DeepSeek</option><option value="gemini">Gemini</option><option value="openrouter">OpenRouter</option><option value="ollama">Ollama</option></select>
       </label>
       <div id="deepseek-api-group" class="provider-api-group">
         <label>DeepSeek API Key <input id="deepseek-api-key-input" type="password"></label>
       </div>
       <div id="gemini-api-group" class="provider-api-group hidden">
         <label>Gemini API Key <input id="gemini-api-key-input" type="password"></label>
+      </div>
+      <div id="openrouter-api-group" class="provider-api-group hidden">
+        <label>OpenRouter API Key <input id="openrouter-api-key-input" type="password"></label>
+        <label>OpenRouter Model <input id="openrouter-model-input" type="text" placeholder="openai/gpt-4o-mini"></label>
       </div>
       <div id="ollama-api-group" class="provider-api-group hidden">
         <label>Ollama URL <input id="ollama-url-input" type="text" placeholder="http://127.0.0.1:11434"></label>

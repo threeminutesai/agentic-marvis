@@ -32,8 +32,11 @@ Use this checklist when validating Marvis changes, especially before pushing or 
 - Fallback or avatar-only briefing speech with empty news content must not update the remembered briefed status hash.
 - After the user is in ordinary chat, Marvis must not reopen the briefing/status panel on a background timer.
 - Ollama appears as a first-run and Settings provider option, does not require an API key, and persists its base URL and model.
+- OpenRouter appears as a first-run and Settings provider option, uses an API key, and persists its selected model slug.
 - The bundled `agentic-marvis-brief` skill should default to `data/marvis-status.json` in the current working directory when no path is provided, and only ask for a path if that file is missing.
 - Settings save and restore provider, API keys, voice, music, profile, CLI, and panel retention values.
+- The chat-page now-playing `Pause` control must hold the current music track and resume from the same position; only `Skip` should advance to the next track.
+- Settings music preview must pause background scheduled music while preview audio is playing and resume background playback when preview stops or ends.
 - Settings must not show the old briefing frequency control.
 - Settings includes a manual `Check for Updates` button at the bottom footer.
 - `Check for Updates` compares the installed app version with the latest GitHub release for `threeminutesai/agentic-marvis`.
@@ -95,15 +98,8 @@ npm run dist:win -- --publish never
 Package the ZIP with:
 
 - `release/Marvis 0.5.0.exe` copied/renamed as `Marvis.exe`
-- `data/music-library.json`
-- `data/music/ATTRIBUTION.md`
-- `data/music/fassounds-calm-mind-chill-lofi-beat-background-music-259700.mp3`
-- `data/music/fatbunny-working-488068.mp3`
-- `data/music/johan_benitez99co-day-516015.mp3`
-- `data/music/jourinhannah-romance-234850.mp3`
-- `data/music/openmindaudio-working-class-country-anthem-worn-hands-538391.mp3`
-- `data/music/the_mountain-cosmic-study-143288.mp3`
-- `data/music/u_98o9hlkn7r-corporate-financial-success-272259.mp3`
+- bundled `data/music-library.json` from `release pack/data/music-library.json`
+- bundled `data/music/*` from `release pack/data/music/`
 - `skills/agentic-marvis-brief/**/*`
 - `skills/agentic-marvis-dashboard/**/*`
 
@@ -126,9 +122,8 @@ Use the GitHub Actions workflow `Build macOS Release`.
 Verify the downloaded ZIP contains:
 
 - `Marvis.app/`
-- `data/music-library.json`
-- `data/music/ATTRIBUTION.md`
-- all 7 bundled MP3 files under `data/music/`
+- bundled `data/music-library.json` from `release pack/data/music-library.json`
+- bundled `data/music/*` from `release pack/data/music/`
 - `skills/agentic-marvis-brief/`
 - `skills/agentic-marvis-dashboard/`
 

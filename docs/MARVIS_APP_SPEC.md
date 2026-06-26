@@ -94,6 +94,9 @@ Expected outcome:
 - User-imported tracks and playlists can be managed in Settings.
 - Music volume is separate from voice volume.
 - Music ducks while Marvis speaks.
+- The chat-page now-playing `Pause` control pauses the current track in place, and `Play` resumes the same track from the stored position.
+- The chat-page `Skip` control advances to the next scheduled track.
+- When the user previews a track from Settings, scheduled/background music pauses for the duration of the preview and resumes when the preview ends or is stopped.
 
 ## APIs and Integrations
 
@@ -132,6 +135,24 @@ Use Ollama when:
 - the message is simple chat, factual Q&A, brainstorming, or a voice-friendly answer that does not need project delegation.
 
 Do not use Ollama for:
+
+- local project edits by itself,
+- screenshot analysis without CLI delegation,
+- report HTML generation,
+- tasks that must write files to the active project.
+
+### OpenRouter
+
+OpenRouter is a hosted chat provider for ordinary conversational chat when the user wants one API key that can target multiple remote model families through a standard chat-completions interface.
+
+Use OpenRouter when:
+
+- the user selected OpenRouter as the provider,
+- an OpenRouter API key is configured,
+- a model slug is configured, such as `openai/gpt-4o-mini`,
+- the message is simple chat, factual Q&A, brainstorming, or a voice-friendly answer that does not need project delegation.
+
+Do not use OpenRouter for:
 
 - local project edits by itself,
 - screenshot analysis without CLI delegation,
@@ -363,8 +384,8 @@ Briefing voice should respect:
 
 Settings should include and preserve:
 
-- AI provider selection: Gemini, DeepSeek, or Ollama.
-- Provider configuration: DeepSeek key, Gemini key, Ollama base URL, Ollama model, and ElevenLabs key.
+- AI provider selection: Gemini, DeepSeek, OpenRouter, or Ollama.
+- Provider configuration: DeepSeek key, Gemini key, OpenRouter key, OpenRouter model slug, Ollama base URL, Ollama model, and ElevenLabs key.
 - ElevenLabs voice ID and saved voice list.
 - Voice volume.
 - Bot name and wake word label.
@@ -416,6 +437,7 @@ skills/
 Important:
 
 - `Marvis.exe` must be the portable build output, normally `release/Marvis 0.5.0.exe` renamed to `Marvis.exe`.
+- The bundled release `data/` payload should be sourced from `release pack/data/`, especially `release pack/data/music-library.json` and `release pack/data/music/`, rather than from mutable runtime files under the live `data/` folder.
 - Do not package `release/win-unpacked/Marvis.exe` by itself because it depends on nearby DLLs such as `ffmpeg.dll`.
 - The release ZIP must include the full bundled music pack under `data/music`: `ATTRIBUTION.md` plus all 7 shipped MP3 files listed above.
 - The release ZIP must include both bundled skill folders under `skills/`: `agentic-marvis-brief` and `agentic-marvis-dashboard`.
@@ -444,6 +466,8 @@ skills/
 ```
 
 macOS must be built on a macOS runner through GitHub Actions.
+
+The macOS release ZIP should use the same bundled `data/` source of truth as Windows: `release pack/data/music-library.json` and `release pack/data/music/`.
 
 ### Release Publishing
 

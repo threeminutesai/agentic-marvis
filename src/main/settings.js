@@ -2,7 +2,8 @@
 
 const DEFAULTS = {
   provider: 'deepseek',
-  apiKeys: { deepseek: '', gemini: '', ollama: '', elevenlabs: '', anthropic: '' },
+  apiKeys: { deepseek: '', gemini: '', openrouter: '', ollama: '', elevenlabs: '', anthropic: '' },
+  openRouterModel: 'openai/gpt-4o-mini',
   ollamaBaseUrl: 'http://127.0.0.1:11434',
   ollamaModel: 'llama3.1:8b',
   elevenLabsVoiceId: '',

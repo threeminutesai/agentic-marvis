@@ -770,7 +770,7 @@ async function formatAssistantResponse(text, { allowHtml = true } = {}) {
 
 function isFirstRun(settings) {
   const keys = settings.apiKeys || {};
-  const hasCloudProvider = Boolean(keys.deepseek || keys.gemini);
+  const hasCloudProvider = Boolean(keys.deepseek || keys.gemini || keys.openrouter);
   const hasOllama = settings.provider === 'ollama' && settings.ollamaBaseUrl && settings.ollamaModel;
   return !hasCloudProvider && !hasOllama && !keys.elevenlabs;
 }
@@ -829,6 +829,7 @@ function setupWelcomeModal() {
   // Step 1: API Key Setup
   const providerSelect = document.getElementById('welcome-provider-select');
   const welcomeApiKeyInput = document.getElementById('welcome-api-key-input');
+  const welcomeOpenRouterGroup = document.getElementById('welcome-openrouter-group');
   const welcomeOllamaGroup = document.getElementById('welcome-ollama-group');
   const elevenLabsCheckbox = document.getElementById('welcome-elevenlabs-checkbox');
   const elevenLabsGroup = document.querySelector('.welcome-elevenlabs-group');
@@ -838,6 +839,7 @@ function setupWelcomeModal() {
     const provider = providerSelect.value;
     const needsApiKey = provider !== 'ollama';
     welcomeApiKeyInput.parentElement.classList.toggle('hidden', !needsApiKey);
+    welcomeOpenRouterGroup.classList.toggle('hidden', provider !== 'openrouter');
     welcomeOllamaGroup.classList.toggle('hidden', provider !== 'ollama');
   };
 
@@ -869,6 +871,7 @@ function setupWelcomeModal() {
       if (provider !== 'ollama') {
         currentSettings.apiKeys[provider] = apiKey;
       }
+      currentSettings.openRouterModel = document.getElementById('welcome-openrouter-model-input').value.trim() || 'openai/gpt-4o-mini';
       currentSettings.ollamaBaseUrl = document.getElementById('welcome-ollama-url-input').value.trim() || 'http://127.0.0.1:11434';
       currentSettings.ollamaModel = document.getElementById('welcome-ollama-model-input').value.trim() || 'llama3.1:8b';
       if (elevenLabsKey) {
@@ -1645,6 +1648,8 @@ function populateSettingsForm(settings) {
   updateProviderApiFields(settings.provider);
   document.getElementById('deepseek-api-key-input').value = settings.apiKeys.deepseek;
   document.getElementById('gemini-api-key-input').value = settings.apiKeys.gemini;
+  document.getElementById('openrouter-api-key-input').value = settings.apiKeys.openrouter || '';
+  document.getElementById('openrouter-model-input').value = settings.openRouterModel || 'openai/gpt-4o-mini';
   document.getElementById('ollama-url-input').value = settings.ollamaBaseUrl || 'http://127.0.0.1:11434';
   document.getElementById('ollama-model-input').value = settings.ollamaModel || 'llama3.1:8b';
   document.getElementById('elevenlabs-api-key-input').value = settings.apiKeys.elevenlabs;
@@ -2184,9 +2189,11 @@ document.getElementById('settings-save-btn').addEventListener('click', async () 
     apiKeys: {
       deepseek: document.getElementById('deepseek-api-key-input').value,
       gemini: document.getElementById('gemini-api-key-input').value,
+      openrouter: document.getElementById('openrouter-api-key-input').value,
       ollama: '',
       elevenlabs: document.getElementById('elevenlabs-api-key-input').value,
     },
+    openRouterModel: document.getElementById('openrouter-model-input').value.trim() || 'openai/gpt-4o-mini',
     ollamaBaseUrl: document.getElementById('ollama-url-input').value.trim() || 'http://127.0.0.1:11434',
     ollamaModel: document.getElementById('ollama-model-input').value.trim() || 'llama3.1:8b',
     elevenLabsVoiceId: document.getElementById('elevenlabs-voice-select').value,
