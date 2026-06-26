@@ -6,6 +6,7 @@ release*/
 *.exe
 .claude/
 .superpowers/
+.agents/
 docs/superpowers/
 skills/
 skills-lock.json
