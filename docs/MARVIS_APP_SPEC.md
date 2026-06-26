@@ -41,6 +41,7 @@ Expected outcome:
 - Voice volume applies to TTS playback.
 - Music ducks under voice and returns afterward.
 - Voice playback must not depend on only a tiny set of sample phrases; any accepted user message can produce spoken returned output.
+- On first run, if the status JSON exists but briefing/news fields are still empty, Marvis should still speak a short fallback stage-2 line rather than going silent after the initial greeting.
 
 ### HTML Reports and Panels
 
@@ -299,6 +300,8 @@ News Briefing uses parallel string arrays on the status row:
 - Keep the same item order across all arrays so the renderer can reveal and speak each story news-by-news.
 - Do not store objects in these arrays; the renderer expects strings and will show `[object Object]` if objects are written.
 - Include a concise "why it matters" angle in each detail string, especially when user profile context is available.
+- `detail[]` should not embed raw article URLs when `link[]` is present. Source URLs belong in `link[]`, while `detail[]` should stay readable for both layout and TTS.
+- If a thumbnail is unavailable for a story, the UI should still preserve stable card layout with a placeholder treatment rather than collapsing or misaligning the news stack.
 
 News should be current and source-aware. If the status file is stale, Marvis should not pretend it refreshed the news itself. The app reads whatever is in the status file; external automation is responsible for keeping it fresh.
 

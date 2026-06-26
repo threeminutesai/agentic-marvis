@@ -1016,6 +1016,24 @@ function getRowFieldList(rows, type, field) {
   return value ? [value] : [];
 }
 
+function stripNewsUrls(text) {
+  return String(text || '')
+    .replace(/https?:\/\/\S+/gi, '')
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/\s+\n/g, '\n')
+    .trim();
+}
+
+function getCleanNewsSpeechItems(rows) {
+  const newsBriefingRow = rows.find((row) => row.type === 'News Briefing');
+  const items = getNewsBriefingItems(newsBriefingRow);
+  return items.map((item) => ({
+    ...item,
+    headline: stripNewsUrls(item.headline),
+    detail: stripNewsUrls(item.detail) || stripNewsUrls(item.headline),
+  }));
+}
+
 // Unread/Urgent Email counts are intentionally excluded from speech - they're
 // still shown on the status cards, just not read aloud.
 function buildIntroFragments(rows) {
@@ -1043,8 +1061,9 @@ function buildIntroBriefing(rows) {
 
 function buildBriefing(rows) {
   const fragments = buildIntroFragments(rows);
-  const newsDetails = getRowFieldList(rows, 'News Briefing', 'detail');
-  const newsHeadlines = getRowFieldList(rows, 'News Briefing', 'value');
+  const newsItems = getCleanNewsSpeechItems(rows);
+  const newsDetails = newsItems.map((item) => item.detail).filter(Boolean);
+  const newsHeadlines = newsItems.map((item) => item.headline).filter(Boolean);
   const spokenNews = newsDetails.length ? newsDetails.join('. ') : newsHeadlines.join(', ');
   if (spokenNews) fragments.push(t('todaysBriefing', { news: spokenNews }));
   if (!fragments.length) return t('onlineReady');
@@ -1054,7 +1073,7 @@ function buildBriefing(rows) {
 function buildBriefingDisplay(rows, spokenBriefing) {
   const avatarBriefing = rows.find((row) => row.type === 'Avatar Briefing')?.value;
   if (avatarBriefing) return avatarBriefing;
-  const newsHeadlines = getRowFieldList(rows, 'News Briefing', 'value');
+  const newsHeadlines = getCleanNewsSpeechItems(rows).map((item) => item.headline).filter(Boolean);
   if (newsHeadlines.length) return newsHeadlines.join('\n');
   return spokenBriefing;
 }
@@ -1174,7 +1193,7 @@ function openNewsDetailModal(index) {
   if (!modal || !titleEl || !textEl || !imageEl || !linkEl) return;
 
   titleEl.textContent = item.headline || '';
-  textEl.textContent = item.detail || item.headline || '';
+  textEl.textContent = stripNewsUrls(item.detail || item.headline || '');
 
   if (isSafeHttpUrl(item.image)) {
     imageEl.src = item.image;
@@ -1250,7 +1269,7 @@ async function playNewsBriefingWithVoice(items) {
   for (let i = 0; i < items.length && newsBriefingToken === myToken; i++) {
     setAvatarHeadline(items[i].headline);
     revealNewsBriefingItem(i);
-    await speakBriefing(items[i].detail || items[i].headline);
+    await speakBriefing(stripNewsUrls(items[i].detail || items[i].headline));
     if (newsBriefingToken !== myToken) return;
   }
 }
@@ -1320,7 +1339,11 @@ async function greetUser() {
   const appBody = document.getElementById('app-body');
   appBody.classList.add('interaction-mode');
   const hasAnyRowValue = (row) => (Array.isArray(row.value) ? row.value.length > 0 : Boolean(row.value));
-  if (statusRows.some(hasAnyRowValue)) {
+  const hasStatusContent = statusRows.some(hasAnyRowValue);
+  const frequency = currentSettings?.briefingVoiceFrequency || '1h';
+  const lastBriefingVoiceAt = currentSettings?.lastBriefingVoiceAt || null;
+  const voiceDue = !isMuted && shouldTriggerBriefingVoice(frequency, lastBriefingVoiceAt);
+  if (hasStatusContent) {
     try {
       showPanel(renderStatusBoard(statusRows));
     } catch (err) {
@@ -1334,11 +1357,8 @@ async function greetUser() {
     // if an Avatar Briefing summary is also present (the agentic-marvis-brief
     // skill always writes both) - the legacy reveal-all-at-once branch below
     // is only for older status files with no News Briefing array data.
-    const newsItems = getNewsBriefingItems(newsBriefingRow);
+    const newsItems = getCleanNewsSpeechItems(statusRows);
     currentNewsBriefingItems = newsItems;
-    const frequency = currentSettings?.briefingVoiceFrequency || '1h';
-    const lastBriefingVoiceAt = currentSettings?.lastBriefingVoiceAt || null;
-    const voiceDue = !isMuted && shouldTriggerBriefingVoice(frequency, lastBriefingVoiceAt);
 
     if (newsItems.length) {
       if (voiceDue) {
@@ -1372,6 +1392,21 @@ async function greetUser() {
     }
 
     // Show Continue button right away; don't make the user wait for voice playback to finish
+    const continueSection = document.getElementById('continue-section');
+    if (continueSection) {
+      continueSection.style.display = 'flex';
+    }
+    if (voiceDue && currentSettings) {
+      currentSettings.lastBriefingVoiceAt = new Date().toISOString();
+      await window.marvis.saveSettings(currentSettings);
+    }
+  } else {
+    currentNewsBriefingItems = [];
+    const fallbackBriefing = buildBriefing(statusRows);
+    if (fallbackBriefing) {
+      appendChatLine('Marvis', fallbackBriefing);
+      if (voiceDue) await speakBriefing(fallbackBriefing);
+    }
     const continueSection = document.getElementById('continue-section');
     if (continueSection) {
       continueSection.style.display = 'flex';

@@ -1541,9 +1541,28 @@ button:active { transform: scale(0.97); }
   object-fit: cover;
   flex-shrink: 0;
 }
+.news-briefing-thumb-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+  background: linear-gradient(135deg, rgba(79, 214, 255, 0.12), rgba(10, 17, 39, 0.7));
+  border: 1px dashed rgba(79, 214, 255, 0.28);
+  color: var(--ion-soft);
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+}
 .news-briefing-content {
   flex: 1;
   min-width: 0;
+}
+.news-briefing-headline {
+  font-weight: 700;
+  line-height: 1.4;
+  margin-bottom: 6px;
+  color: var(--ion);
 }
 .news-briefing-text {
   line-height: 1.5;
@@ -1551,6 +1570,15 @@ button:active { transform: scale(0.97); }
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.news-briefing-source {
+  margin-top: 8px;
+  font-size: 0.75rem;
+  color: var(--ion-soft);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 @keyframes chatTextSwap {

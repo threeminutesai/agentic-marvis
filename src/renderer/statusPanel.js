@@ -94,6 +94,29 @@ const NEWS_BRIEFING_ITEM_INTERVAL_MS = 3200;
 // (the end of the array) replace the oldest rather than truncating to
 // the first 15, since later entries are assumed to be the most current.
 const NEWS_BRIEFING_MAX_ITEMS = 15;
+const NEWS_URL_RE = /https?:\/\/\S+/gi;
+
+function extractFirstHttpUrl(text) {
+  const match = String(text || '').match(NEWS_URL_RE);
+  return match ? match[0] : '';
+}
+
+function stripInlineUrls(text) {
+  return String(text || '')
+    .replace(NEWS_URL_RE, '')
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/\s+\n/g, '\n')
+    .trim();
+}
+
+function getNewsSourceLabel(link) {
+  if (!isSafeHttpUrl(link)) return 'Source';
+  try {
+    return new URL(link).hostname.replace(/^www\./i, '');
+  } catch {
+    return 'Source';
+  }
+}
 
 function getNewsBriefingItems(row) {
   if (!row) return [];
@@ -102,7 +125,19 @@ function getNewsBriefingItems(row) {
   const images = Array.isArray(row.image) ? row.image : (row.image ? [row.image] : []);
   const links = Array.isArray(row.link) ? row.link : (row.link ? [row.link] : []);
   return headlines
-    .map((headline, i) => ({ headline, detail: details[i] || '', image: images[i] || '', link: links[i] || '' }))
+    .map((headline, i) => {
+      const cleanHeadline = stripInlineUrls(headline);
+      const rawDetail = details[i] || '';
+      const cleanDetail = stripInlineUrls(rawDetail);
+      const inferredLink = links[i] || extractFirstHttpUrl(rawDetail) || extractFirstHttpUrl(headline) || '';
+      return {
+        headline: cleanHeadline,
+        detail: cleanDetail || cleanHeadline,
+        image: images[i] || '',
+        link: inferredLink,
+        sourceLabel: getNewsSourceLabel(inferredLink),
+      };
+    })
     .filter((item) => item.headline || item.detail)
     .slice(-NEWS_BRIEFING_MAX_ITEMS);
 }
@@ -181,12 +216,17 @@ function renderStatusBoard(rows) {
       .map((item, i) => {
         const thumbHtml = isSafeHttpUrl(item.image)
           ? `<img class="news-briefing-thumb" src="${escapeHtml(item.image)}" alt="" />`
+          : `<div class="news-briefing-thumb news-briefing-thumb-placeholder">${escapeHtml(item.sourceLabel || 'Source')}</div>`;
+        const sourceHtml = isSafeHttpUrl(item.link)
+          ? `<div class="news-briefing-source">${escapeHtml(item.sourceLabel || 'Source')}</div>`
           : '';
         return `
           <div class="news-briefing-item" id="news-briefing-item-${i}" data-news-index="${i}">
             ${thumbHtml}
             <div class="news-briefing-content">
+              <div class="news-briefing-headline">${escapeHtml(item.headline)}</div>
               <div class="news-briefing-text">${escapeHtml(item.detail || item.headline)}</div>
+              ${sourceHtml}
             </div>
           </div>
         `;

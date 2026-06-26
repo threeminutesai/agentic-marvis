@@ -23,8 +23,11 @@ Use this checklist when validating Marvis changes, especially before pushing or 
 - Crop and close controls stay above report iframe content.
 - Attachments route to Claude Code/Codex, not Gemini/DeepSeek.
 - Briefing uses status rows, parallel news string arrays (`value[]`, `detail[]`, thumbnail `image[]`, optional `link[]`), voice frequency, and mute state correctly.
+- News detail strings stay readable in the UI and spoken output: if `link[]` is present, raw article URLs should not be left embedded in `detail[]`.
+- Missing news thumbnails do not break layout: empty `image[]` entries should still render with a stable placeholder or equivalent visual fallback.
 - `User Profile.detail` preserves metadata such as `Geolocation: ... | Language: ...` and language changes update the saved JSON.
 - Generated briefing content follows the language stored in the status JSON metadata.
+- On first run with an empty or not-yet-filled status JSON, Marvis still speaks a short fallback stage-2 line instead of staying silent after the initial greeting.
 - Settings save and restore provider, API keys, voice, music, profile, CLI, and panel retention values.
 
 ## Required Local Verification
