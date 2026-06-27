@@ -18,3 +18,10 @@ data/
 !data/music-library.json
 .env
 .env.example
+
+# Dev-only folders not shipped in releases
+agentic-marvis-dashboard-workspace/
+.github/
+scripts/
+tests/
+release pack/

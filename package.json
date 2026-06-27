@@ -42,7 +42,7 @@
     },
     "win": {
       "target": [
-        "dir"
+        "portable"
       ]
     },
     "linux": {
