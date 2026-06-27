@@ -35,7 +35,15 @@ New-Item -ItemType Directory -Path $zipStage | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $zipStage "data") | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $zipStage "skills") | Out-Null
 
-Copy-Item $sourceExe (Join-Path $zipStage "Marvis.exe")
+# Copy entire unpacked app directory (includes Marvis.exe + all DLLs like ffmpeg.dll)
+$unpackedDir = Join-Path $repoRoot "release\win-unpacked"
+Get-ChildItem $unpackedDir -Exclude "resources" | ForEach-Object {
+  if ($_.PSIsContainer) {
+    Copy-Item $_.FullName (Join-Path $zipStage $_.Name) -Recurse
+  } else {
+    Copy-Item $_.FullName (Join-Path $zipStage $_.Name)
+  }
+}
 Copy-Item (Join-Path $bundledDataDir "music-library.json") (Join-Path $zipStage "data\music-library.json")
 Copy-Item (Join-Path $bundledDataDir "music") (Join-Path $zipStage "data\music") -Recurse
 Copy-Item (Join-Path $repoRoot "skills\agentic-marvis-brief") (Join-Path $zipStage "skills\agentic-marvis-brief") -Recurse

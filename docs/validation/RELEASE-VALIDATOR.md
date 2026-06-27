@@ -201,7 +201,7 @@ Comprehensive checklist to verify app quality, package integrity, and UI complet
 
 | Version | Date | EXE Size | ZIP Size | Status |
 | --- | --- | --- | --- | --- |
-| v0.5.2 | 2026-06-27 | 99 MB (fixed) | 130 MB ✅ | PASS (4x bloat caught & fixed) |
+| v0.5.2 | 2026-06-27 | 172.5 MB (dir target) | 106.6 MB ✅ | PASS (bloat fixed: portable→dir) |
 | v0.5.1 | 2026-06-27 | 99 MB | 130 MB | ✅ |
 | v0.5.0 | 2026-06-24 | ~99 MB | ~100 MB | ✅ |
 
@@ -220,10 +220,10 @@ Comprehensive checklist to verify app quality, package integrity, and UI complet
 
 ## Known Build Issues
 
-- **Portable EXE bloat**: electron-builder sometimes creates bloated portable executables (400+ MB vs expected 90-150 MB)
-- **Root cause**: Likely cached files, unstripped symbols, or misconfigured bundling in electron-builder
-- **Workaround**: Look for `release/win-unpacked` or `release/stage` directories with smaller EXE files
-- **Prevention**: Run `npm run dist:win` with clean cache; verify output size immediately before packaging
+- **Portable EXE bloat (FIXED in v0.5.2)**: electron-builder "portable" target wraps unpacked app in NSIS self-extracting archive, adding 250+ MB overhead
+- **Root cause**: NSIS self-extracting archive overhead (~250 MB) + unpacked app (~172 MB) = 423+ MB portable EXE
+- **Solution**: Changed build target from "portable" to "dir" in package.json. This outputs unpacked app directory only, which gets ZIPped to ~100-130 MB
+- **Prevention**: Use "dir" target instead of "portable"; verify EXE is 150-180 MB (unpacked) before packaging. When ZIPped, expect 100-140 MB
 
 ---
 
