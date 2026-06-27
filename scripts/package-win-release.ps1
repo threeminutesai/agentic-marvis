@@ -35,13 +35,13 @@ New-Item -ItemType Directory -Path $zipStage | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $zipStage "data") | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $zipStage "skills") | Out-Null
 
-# Copy entire unpacked app directory (includes Marvis.exe + all DLLs like ffmpeg.dll)
+# Copy essential app files (Marvis.exe + required DLLs, but not resources)
 $unpackedDir = Join-Path $repoRoot "release\win-unpacked"
-Get-ChildItem $unpackedDir -Exclude "resources" | ForEach-Object {
-  if ($_.PSIsContainer) {
-    Copy-Item $_.FullName (Join-Path $zipStage $_.Name) -Recurse
-  } else {
-    Copy-Item $_.FullName (Join-Path $zipStage $_.Name)
+$essentialFiles = @("Marvis.exe", "ffmpeg.dll", "d3dcompiler_47.dll", "libGLESv2.dll", "vk_swiftshader.dll", "vulkan-1.dll", "libEGL.dll")
+foreach ($file in $essentialFiles) {
+  $sourcePath = Join-Path $unpackedDir $file
+  if (Test-Path $sourcePath) {
+    Copy-Item $sourcePath (Join-Path $zipStage $file)
   }
 }
 Copy-Item (Join-Path $bundledDataDir "music-library.json") (Join-Path $zipStage "data\music-library.json")
