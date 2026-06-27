@@ -28,8 +28,7 @@
       "data/music-library.json",
       "data/music/**/*",
       "skills/agentic-marvis-brief/**/*",
-      "skills/agentic-marvis-dashboard/**/*",
-      "scripts/**/*"
+      "skills/agentic-marvis-dashboard/**/*"
     ],
     "directories": {
       "output": "release"
