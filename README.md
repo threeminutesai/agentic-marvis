@@ -27,25 +27,23 @@ Windows：双击 `run.bat`，首次运行自动安装依赖后启动。
 
 ## First-time setup
 
-Open **Settings** and fill in:
+On first launch, an onboarding screen will ask you to configure:
 
 | What | Where to get it |
 |------|----------------|
 | Chat provider (DeepSeek / Gemini / Ollama) | [DeepSeek](https://platform.deepseek.com/) · [Google AI Studio](https://aistudio.google.com/apikey) · local Ollama server |
 | ElevenLabs API key (voice, optional) | [elevenlabs.io](https://elevenlabs.io/app/home) |
-| Active project folder | any folder on your machine |
 
-That's it. Marvis starts a spoken briefing on launch once the status data is in place (see [Briefing](#briefing-weather-news-email) below).
+Done. Marvis starts a spoken briefing on next launch once the status data is in place (see [Briefing](#briefing-weather-news-email) below).
 
-打开 **Settings** 填写：
+首次启动时会弹出引导界面，要求配置：
 
 | 内容 | 获取方式 |
 |------|---------|
 | 聊天 provider（DeepSeek / Gemini / Ollama） | [DeepSeek](https://platform.deepseek.com/) · [Google AI Studio](https://aistudio.google.com/apikey) · 本地 Ollama 服务 |
 | ElevenLabs API key（语音，可选） | [elevenlabs.io](https://elevenlabs.io/app/home) |
-| 当前项目文件夹 | 本机任意文件夹 |
 
-完成后启动即可。如果简报数据已就位，Marvis 会在启动时播报语音简报（详见下方 [简报](#briefing-weather-news-email)）。
+完成后重启。如果简报数据已就位，Marvis 会在启动时播报语音简报（详见下方 [简报](#briefing-weather-news-email)）。
 
 ---
 
