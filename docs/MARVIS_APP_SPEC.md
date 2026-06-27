@@ -496,6 +496,9 @@ data/
 skills/
   agentic-marvis-brief/
   agentic-marvis-dashboard/
+scripts/
+  extract_excel.py
+  diff_extract.py
 ```
 
 Important:
@@ -505,6 +508,7 @@ Important:
 - Do not package `release/win-unpacked/Marvis.exe` by itself because it depends on nearby DLLs such as `ffmpeg.dll`.
 - The release ZIP must include the full bundled music pack under `data/music`: `ATTRIBUTION.md` plus all 7 shipped MP3 files listed above.
 - The release ZIP must include both bundled skill folders under `skills/`: `agentic-marvis-brief` and `agentic-marvis-dashboard`.
+- The release ZIP must include bundled `scripts/` folder containing utility scripts (`extract_excel.py`, `diff_extract.py`) required by the bundled skills.
 - A release is not valid if `data/music-library.json` is present but one or more of the shipped music files are missing from `data/music`.
 
 ### macOS
@@ -527,11 +531,14 @@ data/
 skills/
   agentic-marvis-brief/
   agentic-marvis-dashboard/
+scripts/
+  extract_excel.py
+  diff_extract.py
 ```
 
 macOS must be built on a macOS runner through GitHub Actions.
 
-The macOS release ZIP should use the same bundled `data/` source of truth as Windows: `release pack/data/music-library.json` and `release pack/data/music/`.
+The macOS release ZIP should use the same bundled `data/` source of truth as Windows: `release pack/data/music-library.json` and `release pack/data/music/`. It should also include the bundled `scripts/` folder with utility scripts required by the bundled skills.
 
 ### Release Publishing
 
