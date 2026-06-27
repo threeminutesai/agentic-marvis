@@ -211,11 +211,19 @@ Comprehensive checklist to verify app quality, package integrity, and UI complet
 
 | Issue | Symptom | Fix |
 | --- | --- | --- |
-| Build bloat | EXE > 200 MB | Use `release/stage/Marvis.exe` instead |
-| Cache issue | Portable 4-5x larger than stage | `rm -rf node_modules/.cache` then rebuild |
-| Source in ZIP | .js files in release | Check `package.json` `"files"` array |
-| Size not matching | ZIP >> expected | Rebuild with clean cache |
+| Build bloat | EXE > 200 MB | Investigate electron-builder config or rebuild with `npm run dist:win` |
+| Portable vs Stage | Portable 3-5x larger than stage | Use `release/stage/Marvis.exe` or find stage build artifacts |
+| Cache issue | Consistent bloat despite cleaning | Check `package.json` for unnecessary bundled files |
+| Source in ZIP | .js files in release | Check `package.json` `"files"` array excludes src/ |
+| Size not matching | ZIP >> expected (> 250 MB) | **DO NOT RELEASE** - Investigate build artifacts |
 | Release notes wrong | Mixed languages or no title | Use bilingual format, version-only title |
+
+## Known Build Issues
+
+- **Portable EXE bloat**: electron-builder sometimes creates bloated portable executables (400+ MB vs expected 90-150 MB)
+- **Root cause**: Likely cached files, unstripped symbols, or misconfigured bundling in electron-builder
+- **Workaround**: Look for `release/win-unpacked` or `release/stage` directories with smaller EXE files
+- **Prevention**: Run `npm run dist:win` with clean cache; verify output size immediately before packaging
 
 ---
 
