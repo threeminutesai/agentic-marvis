@@ -11,14 +11,6 @@ function ensureCaptureDir(dataDir) {
   return dir;
 }
 
-function listCaptureIds(dir) {
-  return fs.readdirSync(dir)
-    .map((name) => /^(\d{5})\.png$/i.exec(name)?.[1])
-    .filter(Boolean)
-    .map((id) => Number(id))
-    .sort((a, b) => a - b);
-}
-
 function getNextCapturePath(dataDir) {
   let dir;
   try {
@@ -26,23 +18,30 @@ function getNextCapturePath(dataDir) {
   } catch (err) {
     throw new Error(`Failed to ensure capture directory: ${err.message}`);
   }
-  const existingIds = listCaptureIds(dir);
-  const nextId = String((existingIds.length ? Math.max(...existingIds) : 0) + 1).padStart(5, '0');
-  return path.join(dir, `${nextId}.png`);
+  const now = new Date();
+  const pad = (n, len = 2) => String(n).padStart(len, '0');
+  const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}-${pad(now.getMilliseconds(), 3)}`;
+  return path.join(dir, `${stamp}.png`);
 }
 
 function pruneCaptures(dataDir, maxCount = 30) {
   const dir = ensureCaptureDir(dataDir);
   const limit = Number(maxCount) > 0 ? Number(maxCount) : 30;
-  const ids = listCaptureIds(dir);
-  const excess = ids.length - limit;
+  const files = fs.readdirSync(dir)
+    .filter((name) => /\.png$/i.test(name))
+    .map((name) => {
+      const filePath = path.join(dir, name);
+      const stat = fs.statSync(filePath);
+      return { name, filePath, timeMs: stat.birthtimeMs || stat.ctimeMs || stat.mtimeMs };
+    })
+    .sort((a, b) => a.timeMs - b.timeMs);
+  const excess = files.length - limit;
   if (excess <= 0) return;
-  for (const id of ids.slice(0, excess)) {
-    const fileName = `${String(id).padStart(5, '0')}.png`;
+  for (const file of files.slice(0, excess)) {
     try {
-      fs.unlinkSync(path.join(dir, fileName));
+      fs.unlinkSync(file.filePath);
     } catch (err) {
-      console.log(`[CaptureFile] Failed to prune ${fileName}: ${err.message}`);
+      console.log(`[CaptureFile] Failed to prune ${file.name}: ${err.message}`);
     }
   }
 }

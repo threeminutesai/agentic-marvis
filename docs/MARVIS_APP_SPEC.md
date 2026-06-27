@@ -60,6 +60,8 @@ Expected outcome:
 - The crop and close buttons remain visible and clickable above report content.
 - `open <keyword>`, `show <keyword>`, and `/open <keyword>` search saved HTML panels by keyword.
 - `/html <path>` and `html <path>` open a specific local HTML file directly.
+- When a report panel is prepared, the task description is used immediately to derive a searchable title stored in the panel index. After Codex writes the HTML file, the title is injected into the file itself at generation time (promoting any existing `<h1>` or falling back to the task-derived title) so `open <keyword>` can trace it by content title without waiting for the first explicit open.
+- HTML panels are named by date and content slug (`YYYYMMDD-slug.html`) and pruned oldest-first by file creation date when the count exceeds the `maxHtmlPanels` setting.
 
 ### CLI Delegation
 
@@ -69,13 +71,17 @@ Expected outcome:
 
 - `/code <task>` and `/claude <task>` delegate to Claude Code.
 - `/codex <task>` delegates to Codex.
-- Plain follow-up chat should not blindly keep using the preferred CLI. Marvis should decide whether the next turn still belongs to the active Codex task or should return to ordinary chat.
-- When Gemini routing decides the user is continuing the same Codex task, Marvis should include the recent Codex task context and last assistant result in the next Codex delegation.
-- When the user changes topic, or a Codex task ends with a delivered HTML/report result, the managed Codex task session should be closed and the next plain user turn should go back through Gemini routing.
+- Plain follow-up chat should not blindly keep using the preferred CLI. Marvis should decide whether the next turn still belongs to the active CLI task or should return to ordinary chat.
+- Marvis tracks a managed task session for any CLI channel (`/claude`, `/code`, `/codex`), not just Codex. The session records the channel, objective, recent turns, and whether the last reply had HTML.
+- When Gemini routing decides the user is continuing the same CLI task, Marvis should include the recent task context and last result in the next delegation.
+- When the user changes topic or clearly concludes the task, the managed session and any open HTML panel should be closed before handling the next turn.
+- Delivering an HTML/report result alone does not close the session; the user may follow up immediately on the displayed content.
 - If the user clearly requests a report, Marvis delegates to Claude Code by default when no explicit CLI prefix is present.
 - If screenshots/captures are attached, Marvis delegates to a CLI channel because the bot API cannot read local files.
 - CLI output must be summarized for voice and, when HTML is involved, returned by file path only.
 - When the right-side live CLI panel is shown during Codex work, it should display backend CLI stream output rather than duplicating the summarized chat/voice progress text.
+- When the user asks a follow-up question about the currently displayed HTML report, Marvis should answer using the HTML content without replacing the panel or showing a new CLI activity panel (quiet follow-up mode). The HTML panel stays visible; the response appears in chat.
+- When the user asks something unrelated to the displayed HTML, the panel should close and the new task should start fresh.
 
 ### Capture
 
@@ -87,6 +93,7 @@ Expected outcome:
 - A selected region becomes an attachment chip.
 - Attachment-bearing messages route to Claude Code/Codex, not Gemini/DeepSeek.
 - Capture and close controls stay above HTML panel content.
+- Capture files are named by creation timestamp (`YYYYMMDD-HHMMSS-mmm.png`) and pruned oldest-first by file creation date when the count exceeds the configured limit.
 
 ### Music
 
@@ -107,15 +114,15 @@ Expected outcome:
 
 ### Gemini
 
-Gemini is a bot API provider for ordinary conversational chat and the intelligent plain-message router for Codex follow-up decisions.
+Gemini is a bot API provider for ordinary conversational chat and the intelligent plain-message router for CLI follow-up decisions.
 
 Use Gemini when:
 
 - the user selected Gemini as the provider,
 - the message is simple chat, factual Q&A, brainstorming, or a voice-friendly answer,
 - no local file access, project edits, screenshot reading, or HTML report generation is required.
-- a plain user message needs routing judgment about whether to stay in Marvis chat, start Codex, continue the active Codex task, or close that task session first.
-- local summary memory contains relevant prior conversation context that can improve routing or ordinary chat quality.
+- a plain user message needs routing judgment about whether to stay in Marvis chat, route to Claude Code, route to Codex, continue the active CLI task, or close that task session first.
+- local summary memory contains relevant prior conversation context that can improve routing or ordinary chat quality (only when no active CLI session exists).
 
 Do not use Gemini for:
 
@@ -237,12 +244,13 @@ Use Codex when:
 
 Codex follows the same report contract as Claude Code: write HTML to disk, then return the path.
 
-Codex task-session expectations:
+CLI task-session expectations:
 
-- Marvis may keep a managed Codex task session summary in app state even if the underlying CLI process is launched per request.
-- Continuing Codex work should reuse recent task context and the last Codex result when Gemini marks the next turn as `continue`.
-- Returning an HTML/report result should end the current managed Codex task session.
-- Switching to plain Marvis chat or to a non-Codex CLI path should end the current managed Codex task session.
+- Marvis keeps a managed task session for any CLI channel (`/claude`, `/code`, `/codex`), not just Codex. Each CLI turn is a fresh process invocation; the session is a renderer-side context window, not a persistent process.
+- Continuing CLI work should reuse recent task context and the last result when Gemini marks the next turn as `continue`.
+- Returning an HTML/report result does not automatically end the current managed session; the session stays live so the user can immediately follow up with edits, additions, or questions about the delivered result.
+- Switching to plain Marvis chat, asking an unrelated question, or the user clearly concluding the task should end the current managed session and close any open HTML panel.
+- The Gemini router is responsible for issuing a `close` or `start` session action when the session should end or a new one should begin.
 
 ### GitHub and GitHub Actions
 
@@ -263,14 +271,17 @@ Plain user messages with no explicit `/code`, `/claude`, or `/codex` prefix shou
 
 - First, handle any hard-coded direct commands such as `/html`, `open`, `show`, mute commands, or status-detail shortcuts.
 - If there are screenshot attachments, route to a CLI channel because ordinary bot providers cannot read local files.
-- Otherwise, Gemini should decide whether the plain message belongs to normal Marvis chat or Codex.
-- Gemini may return one of four session actions for Codex control: `start`, `continue`, `close`, or `none`.
-- `start` means begin a new managed Codex task session.
-- `continue` means the user is still talking about the same Codex task and Marvis should include recent Codex context in the next delegation.
-- `close` means the previous Codex task should be considered finished or abandoned before handling the current message.
-- `none` means no Codex session control change is needed.
-- If Gemini routing is unavailable, Marvis may fall back to the older preferred-CLI behavior, but that is a fallback path rather than the preferred control flow.
-- Gemini routing may receive a few relevant local memory summaries as soft context, but it should still prioritize the latest user message and active Codex task state over older memories.
+- Otherwise, Gemini should decide whether the plain message belongs to normal Marvis chat, Claude Code (`claudeCode`), or Codex (`codex`).
+- Gemini returns one of three routes: `marvis`, `claudeCode`, or `codex`.
+- Gemini returns one of four session actions: `start`, `continue`, `close`, or `none`.
+- `start` means begin a new managed CLI task session (clears any existing HTML panel).
+- `continue` means the user is following the same CLI task and Marvis should include recent context in the next delegation.
+- `close` means the previous task should be finished or abandoned; clear the session and HTML panel before handling the current message.
+- `none` means no session control change is needed.
+- When `currentHtmlPath` is set and the user's question clearly relates to the displayed content, Gemini should return `route: "claudeCode", sessionAction: "continue"` to trigger a quiet HTML follow-up (answered from content, panel stays visible).
+- When `currentHtmlPath` is set but the user is asking for something unrelated, Gemini should return `route: "claudeCode", sessionAction: "start"` to close the old panel and start a new task.
+- If Gemini routing is unavailable, Marvis falls back to the preferred-CLI behavior using the active session's channel.
+- Gemini routing receives relevant local memory summaries as soft context only when there is no active CLI session. When an active session is present, the session context takes full priority and memory is excluded from the routing prompt to prevent older memories from overriding current task intent.
 
 ### Handle with Gemini/DeepSeek/Ollama
 
@@ -285,7 +296,7 @@ Use the selected bot provider when the user asks for:
 
 The response should stay in chat and be spoken aloud when voice is enabled.
 
-When Gemini is the selected provider, it should also be allowed to act as the plain-message router even if the final answer for that turn is still ordinary Marvis chat rather than Codex.
+When Gemini is the selected provider, it should also be allowed to act as the plain-message router even if the final answer for that turn is still ordinary Marvis chat rather than a CLI delegation.
 
 ### Local Conversation Memory
 

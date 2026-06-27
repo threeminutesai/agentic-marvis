@@ -49,11 +49,26 @@ function isAuthFailureText(text) {
   return /\b401\b|authenticat/i.test(text);
 }
 
-function delegateCodexTask({ task, projectPath, spawnImpl = spawn, timeoutMs = TIMEOUT_MS, signal, onProgress, onRawOutput }) {
+function extractSessionId(text) {
+  const match = String(text || '').match(/\bsession id:\s*([0-9a-f]{8}-[0-9a-f-]{27,})/i);
+  return match?.[1] || null;
+}
+
+function buildCodexExecArgs({ resumeSessionId } = {}) {
+  const commonArgs = ['--skip-git-repo-check', '-c', 'model_reasoning_effort=low'];
+  if (resumeSessionId) {
+    return ['exec', 'resume', ...commonArgs, resumeSessionId, '-'];
+  }
+  return ['exec', ...commonArgs, '-'];
+}
+
+function delegateCodexTask({ task, projectPath, resumeSessionId, spawnImpl = spawn, timeoutMs = TIMEOUT_MS, signal, onProgress, onRawOutput }) {
   return new Promise((resolve) => {
-    console.log(`[Codex] Spawning: codex exec --skip-git-repo-check (task piped via stdin)`);
+    const args = buildCodexExecArgs({ resumeSessionId });
+    console.log(`[Codex] Spawning: codex ${args.slice(0, -1).join(' ')} (task piped via stdin)`);
     console.log(`[Codex] Working directory: ${projectPath}`);
-    const proc = spawnImpl('codex', ['exec', '--skip-git-repo-check', '-c', 'model_reasoning_effort=low', '-'], {
+    if (resumeSessionId) console.log(`[Codex] Resuming session: ${resumeSessionId}`);
+    const proc = spawnImpl('codex', args, {
       cwd: projectPath,
       env: process.env,
       shell: true,
@@ -117,8 +132,9 @@ function delegateCodexTask({ task, projectPath, spawnImpl = spawn, timeoutMs = T
       if (settled || !hasOutput) return;
       proc.kill();
       const output = stdoutBuffer.trim() || stderrBuffer.trim();
+      const sessionId = extractSessionId(`${stdoutBuffer}\n${stderrBuffer}`) || resumeSessionId || null;
       console.log('[Codex] Data complete with output (killed process)');
-      settle({ status: 'success', summary: output });
+      settle({ status: 'success', summary: output, sessionId });
     };
 
     proc.stdout.on('data', (chunk) => {
@@ -164,9 +180,13 @@ function delegateCodexTask({ task, projectPath, spawnImpl = spawn, timeoutMs = T
       if (output && isAuthFailureText(output)) {
         settle({ status: 'error', summary: `Codex authentication failed, sir - try running "codex login" in a terminal. ${output}` });
       } else if (output) {
-        settle({ status: 'success', summary: output });
+        settle({
+          status: 'success',
+          summary: output,
+          sessionId: extractSessionId(`${stdoutBuffer}\n${stderrBuffer}`) || resumeSessionId || null,
+        });
       } else if (code === 0) {
-        settle({ status: 'success', summary: 'Codex finished, sir.' });
+        settle({ status: 'success', summary: 'Codex finished, sir.', sessionId: resumeSessionId || null });
       } else {
         settle({ status: 'error', summary: `Codex exited with code ${code}.` });
       }
@@ -227,4 +247,4 @@ function warmupCodex({ projectPath, spawnImpl = spawn, timeoutMs = WARMUP_TIMEOU
   });
 }
 
-module.exports = { delegateCodexTask, warmupCodex };
+module.exports = { delegateCodexTask, warmupCodex, buildCodexExecArgs, extractSessionId };

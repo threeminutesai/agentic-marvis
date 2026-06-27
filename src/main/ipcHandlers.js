@@ -54,15 +54,17 @@ function extractJsonObject(text) {
 }
 
 function normalizeRouterDecision(raw, { hasSession = false } = {}) {
-  const route = raw?.route === 'codex' ? 'codex' : 'marvis';
+  const rawRoute = raw?.route;
+  const route = ['codex', 'claudeCode'].includes(rawRoute) ? rawRoute : 'marvis';
+  const isCliRoute = route === 'codex' || route === 'claudeCode';
   let sessionAction = ['start', 'continue', 'close', 'none'].includes(raw?.sessionAction)
     ? raw.sessionAction
     : 'none';
 
-  if (route === 'codex' && sessionAction === 'none') {
+  if (isCliRoute && sessionAction === 'none') {
     sessionAction = hasSession ? 'continue' : 'start';
   }
-  if (route === 'codex' && sessionAction === 'continue' && !hasSession) {
+  if (isCliRoute && sessionAction === 'continue' && !hasSession) {
     sessionAction = 'start';
   }
   if (route === 'marvis' && sessionAction === 'start') {
@@ -465,6 +467,166 @@ function ensureHtmlPanelDir() {
   return dir;
 }
 
+function getHtmlPanelIndexPath() {
+  return path.join(ensureHtmlPanelDir(), 'index.json');
+}
+
+function normalizePanelText(value) {
+  return String(value || '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function stripHtmlTags(html) {
+  return normalizePanelText(String(html || '')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' '));
+}
+
+function titleCaseFallback(value) {
+  const text = normalizePanelText(value);
+  if (!text) return 'Marvis Report';
+  return text[0].toUpperCase() + text.slice(1);
+}
+
+function deriveHtmlPanelTitle(input) {
+  const cleaned = normalizePanelText(input)
+    .replace(/^\/(?:codex|code|claude)\s+/i, '')
+    .replace(/\b(?:please|can you|could you)\b/gi, '')
+    .replace(/\b(?:make|generate|create|write|produce|compile|prepare|search the web for|search web for)\b/gi, '')
+    .replace(/\b(?:a|an|the|me)\b/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const shortened = (cleaned || 'Marvis report').slice(0, 90).trim();
+  const title = /\breport\b/i.test(shortened)
+    ? shortened
+    : `${shortened} Report`;
+  return titleCaseFallback(title);
+}
+
+function slugifyPanelTitle(title) {
+  const slug = String(title || '')
+    .normalize('NFKD')
+    .replace(/[^\w\s-]/g, '')
+    .trim()
+    .toLowerCase()
+    .replace(/[-\s]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 56);
+  return slug || 'marvis-report';
+}
+
+function readHtmlPanelIndex() {
+  const indexPath = getHtmlPanelIndexPath();
+  if (!fs.existsSync(indexPath)) return { version: 1, panels: [] };
+  try {
+    const parsed = JSON.parse(fs.readFileSync(indexPath, 'utf8'));
+    const panels = Array.isArray(parsed.panels) ? parsed.panels : [];
+    return { version: 1, panels };
+  } catch {
+    return { version: 1, panels: [] };
+  }
+}
+
+function writeHtmlPanelIndex(index) {
+  fs.writeFileSync(getHtmlPanelIndexPath(), JSON.stringify({
+    version: 1,
+    panels: Array.isArray(index.panels) ? index.panels : [],
+  }, null, 2));
+}
+
+function getHtmlPanelFiles() {
+  const dir = ensureHtmlPanelDir();
+  return fs.readdirSync(dir)
+    .filter((file) => file.endsWith('.html') && file !== '_template.html')
+    .map((file) => {
+      const filePath = path.join(dir, file);
+      const stat = fs.statSync(filePath);
+      return {
+        file,
+        filePath,
+        createdMs: stat.birthtimeMs || stat.ctimeMs || stat.mtimeMs,
+        modifiedMs: stat.mtimeMs,
+      };
+    });
+}
+
+function getUniqueHtmlPanelPath(title) {
+  const dir = ensureHtmlPanelDir();
+  const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const slug = slugifyPanelTitle(title);
+  let candidate = path.join(dir, `${datePart}-${slug}.html`);
+  let suffix = 2;
+  while (fs.existsSync(candidate)) {
+    candidate = path.join(dir, `${datePart}-${slug}-${suffix}.html`);
+    suffix += 1;
+  }
+  return candidate;
+}
+
+function extractHtmlPanelTitle(html) {
+  const source = String(html || '');
+  const titleMatch = source.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  if (titleMatch?.[1]) return normalizePanelText(stripHtmlTags(titleMatch[1]));
+  const headingMatch = source.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)
+    || source.match(/<h2[^>]*>([\s\S]*?)<\/h2>/i);
+  if (headingMatch?.[1]) return normalizePanelText(stripHtmlTags(headingMatch[1]));
+  return '';
+}
+
+function ensureHtmlPanelTitle(filePath, fallbackTitle) {
+  if (!fs.existsSync(filePath) || fs.statSync(filePath).size === 0) return fallbackTitle;
+  const html = fs.readFileSync(filePath, 'utf8');
+  const existingTitle = extractHtmlPanelTitle(html);
+  const title = existingTitle || deriveHtmlPanelTitle(fallbackTitle);
+  if (existingTitle) return title;
+
+  const escapedTitle = title
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  let nextHtml = html;
+  if (/<head[\s>]/i.test(nextHtml)) {
+    nextHtml = nextHtml.replace(/<head([^>]*)>/i, `<head$1>\n  <title>${escapedTitle}</title>`);
+  } else if (/<html[\s>]/i.test(nextHtml)) {
+    nextHtml = nextHtml.replace(/<html([^>]*)>/i, `<html$1>\n<head>\n  <title>${escapedTitle}</title>\n</head>`);
+  } else {
+    nextHtml = `<!DOCTYPE html>\n<html>\n<head>\n  <meta charset="UTF-8">\n  <title>${escapedTitle}</title>\n</head>\n<body>\n${nextHtml}\n</body>\n</html>`;
+  }
+  fs.writeFileSync(filePath, nextHtml);
+  return title;
+}
+
+function upsertHtmlPanelMetadata({ filePath, title, sourceTask }) {
+  const dir = ensureHtmlPanelDir();
+  const resolved = path.resolve(filePath || '');
+  if (!resolved.startsWith(path.resolve(dir) + path.sep)) return null;
+  const file = path.basename(resolved);
+  const now = new Date().toISOString();
+  const index = readHtmlPanelIndex();
+  const existing = index.panels.find((panel) => panel.file === file);
+  const stat = fs.existsSync(resolved) ? fs.statSync(resolved) : null;
+  const entry = {
+    file,
+    title: deriveHtmlPanelTitle(title || sourceTask || file.replace(/\.html$/i, '')),
+    sourceTask: normalizePanelText(sourceTask || existing?.sourceTask || ''),
+    createdAt: existing?.createdAt || (stat ? new Date(stat.birthtimeMs || stat.ctimeMs || Date.now()).toISOString() : now),
+    updatedAt: now,
+  };
+  const panels = [
+    ...index.panels.filter((panel) => panel.file !== file && fs.existsSync(path.join(dir, panel.file))),
+    entry,
+  ];
+  writeHtmlPanelIndex({ version: 1, panels });
+  return entry;
+}
+
+function finalizeHtmlPanelMetadata(filePath, fallbackTitle) {
+  const title = ensureHtmlPanelTitle(filePath, fallbackTitle);
+  return upsertHtmlPanelMetadata({ filePath, title, sourceTask: fallbackTitle });
+}
+
 // Calculate string similarity score (0-1) using normalized Levenshtein distance
 function calculateSimilarity(str1, str2) {
   const s1 = String(str1).toLowerCase();
@@ -498,7 +660,17 @@ function levenshteinDistance(s1, s2) {
   return costs[s2.length];
 }
 
-// Search HTML files in the html-panels folder by keyword with fuzzy matching
+function scorePanelMatch(query, candidate) {
+  const text = String(candidate || '').toLowerCase();
+  if (!text) return 0;
+  if (text === query) return 1.8;
+  if (text.includes(query)) return 1.3;
+  return calculateSimilarity(query, text);
+}
+
+// Search HTML files in the html-panels folder by title, source task, content,
+// and filename. The filename is now just storage; the report title is the
+// primary handle users can ask for later ("open AI news report").
 function searchHtmlPanels(keyword, minSimilarity = 0.4) {
   const dir = ensureHtmlPanelDir();
   if (!keyword || !String(keyword).trim()) {
@@ -506,33 +678,42 @@ function searchHtmlPanels(keyword, minSimilarity = 0.4) {
   }
 
   const query = String(keyword).toLowerCase().trim();
-  const files = fs.readdirSync(dir);
+  const index = readHtmlPanelIndex();
+  const metadataByFile = new Map(index.panels.map((panel) => [panel.file, panel]));
 
-  const results = files
-    .filter((file) => file.endsWith('.html') && file !== '_template.html')
-    .map((file) => {
+  const results = getHtmlPanelFiles()
+    .map(({ file, filePath, createdMs, modifiedMs }) => {
       const baseName = file.replace(/\.html$/, '');
-      const baseNameLower = baseName.toLowerCase();
-      const isExactMatch = baseNameLower === query;
-      const containsKeyword = baseNameLower.includes(query);
-      const similarity = calculateSimilarity(query, baseName);
+      const meta = metadataByFile.get(file) || {};
+      let html = '';
+      try {
+        html = fs.readFileSync(filePath, 'utf8');
+      } catch {
+        html = '';
+      }
+      const htmlTitle = extractHtmlPanelTitle(html);
+      const contentText = stripHtmlTags(html).slice(0, 2000);
+      const title = normalizePanelText(htmlTitle || meta.title || baseName);
+      const titleScore = scorePanelMatch(query, title);
+      const taskScore = scorePanelMatch(query, meta.sourceTask || '');
+      const fileScore = scorePanelMatch(query, baseName) * 0.7;
+      const contentScore = scorePanelMatch(query, contentText) * 0.5;
+      const score = Math.max(titleScore, taskScore, fileScore, contentScore);
 
       return {
         file,
         baseName,
-        similarity,
-        isExactMatch,
-        containsKeyword,
-        // Priority: exact match (1.5) > contains keyword (1.0) > fuzzy similarity
-        score: isExactMatch ? 1.5 : (containsKeyword ? 1.0 : similarity),
-        filePath: path.join(dir, file),
+        title,
+        sourceTask: meta.sourceTask || '',
+        score,
+        filePath,
+        createdAt: meta.createdAt || new Date(createdMs).toISOString(),
+        modifiedMs,
       };
     })
-    // Filter: keep exact matches or substring matches, or high similarity fuzzy matches
-    .filter((result) => result.isExactMatch || result.containsKeyword || result.score >= minSimilarity)
+    .filter((result) => result.score >= minSimilarity)
     .sort((a, b) => {
-      // Sort by score descending (highest match first)
-      return b.score - a.score;
+      return b.score - a.score || b.modifiedMs - a.modifiedMs;
     });
 
   return results;
@@ -555,34 +736,32 @@ function getHtmlPanelTemplatePath() {
   return templatePath;
 }
 
-function listHtmlPanelIds(dir) {
-  return fs.readdirSync(dir)
-    .map((name) => /^(\d{5})\.html$/i.exec(name)?.[1])
-    .filter(Boolean)
-    .map((id) => Number(id))
-    .sort((a, b) => a - b);
-}
-
-function getNextHtmlPanelPath() {
-  const dir = ensureHtmlPanelDir();
-  const existingIds = listHtmlPanelIds(dir);
-  const nextId = String((existingIds.length ? Math.max(...existingIds) : 0) + 1).padStart(5, '0');
-  return path.join(dir, `${nextId}.html`);
+function getNextHtmlPanelPath(title) {
+  return getUniqueHtmlPanelPath(title);
 }
 
 function pruneHtmlPanels(maxCount) {
   const dir = ensureHtmlPanelDir();
   const limit = Number(maxCount) > 0 ? Number(maxCount) : 50;
-  const ids = listHtmlPanelIds(dir);
-  const excess = ids.length - limit;
+  const files = getHtmlPanelFiles()
+    .sort((a, b) => a.createdMs - b.createdMs || a.modifiedMs - b.modifiedMs);
+  const excess = files.length - limit;
   if (excess <= 0) return;
-  for (const id of ids.slice(0, excess)) {
-    const fileName = `${String(id).padStart(5, '0')}.html`;
+  const removedFiles = new Set();
+  for (const panel of files.slice(0, excess)) {
     try {
-      fs.unlinkSync(path.join(dir, fileName));
+      fs.unlinkSync(panel.filePath);
+      removedFiles.add(panel.file);
     } catch (err) {
-      console.log(`[HtmlPanel] Failed to prune ${fileName}: ${err.message}`);
+      console.log(`[HtmlPanel] Failed to prune ${panel.file}: ${err.message}`);
     }
+  }
+  if (removedFiles.size) {
+    const index = readHtmlPanelIndex();
+    writeHtmlPanelIndex({
+      version: 1,
+      panels: index.panels.filter((panel) => !removedFiles.has(panel.file)),
+    });
   }
 }
 
@@ -828,7 +1007,9 @@ function registerIpcHandlers() {
 
     const session = payload?.session?.active ? payload.session : null;
     const client = createGeminiProvider({ apiKey });
-    const memoryResults = memoryStore.search(`${payload?.text || ''} ${session?.objective || ''}`, 3);
+    const memoryResults = session
+      ? []
+      : memoryStore.search(payload?.text || '', 3);
     const userPayload = {
       text: String(payload?.text || ''),
       hasAttachments: Boolean(payload?.hasAttachments),
@@ -839,12 +1020,16 @@ function registerIpcHandlers() {
 
     const systemPrompt = [
       'You are Marvis intelligent routing control.',
-      'Decide whether the next user message should go to normal Marvis chat or to Codex.',
-      'Use Codex for coding, file/project work, HTML/report generation, debugging, implementation, technical follow-up, and continuing an existing Codex task.',
-      'Use Marvis chat for ordinary conversation, quick factual answers, small talk, or clearly new non-project topics.',
-      'If there is an active Codex session, continue it only when the user is clearly following the same task/result.',
-      'Close the Codex session when the user switches topic, or when the previous Codex result already sounds concluded/final, or when HTML/report delivery means the task is effectively complete.',
-      'Return JSON only with this shape: {"route":"marvis|codex","sessionAction":"start|continue|close|none","reason":"short reason"}.',
+      'Decide whether the next user message should go to normal Marvis chat, Codex, or Claude Code.',
+      'Use claudeCode when: the user asks a follow-up question about the currently displayed HTML report (currentHtmlPath is set and the question relates to its content), or when starting a new report/code/file task for Claude Code.',
+      'Use codex when: the user explicitly wants Codex for project work, debugging, or implementation.',
+      'Use marvis for ordinary conversation, quick factual answers, small talk, or clearly new non-project topics.',
+      'If currentHtmlPath is set and the user question clearly relates to the displayed content (asking about it, comparing items, requesting summary), route to claudeCode with sessionAction "continue" to answer from the displayed HTML without generating a new report.',
+      'If currentHtmlPath is set but the user is asking for something unrelated or a new report, route to claudeCode with sessionAction "start" (this closes the current panel and starts fresh).',
+      'If there is an active session, continue it only when the user is clearly following the same task or result.',
+      'HTML/report delivery does not automatically close the session; keep it active for follow-up questions, edits, or additions.',
+      'Close the session when the user switches topic, asks an unrelated question, or clearly concludes the task.',
+      'Return JSON only with this shape: {"route":"marvis|codex|claudeCode","sessionAction":"start|continue|close|none","reason":"short reason"}.',
       'No markdown, no extra text.',
     ].join(' ');
 
@@ -857,7 +1042,7 @@ function registerIpcHandlers() {
       if (!parsed) {
         return {
           ok: true,
-          decision: normalizeRouterDecision({ route: session ? 'codex' : 'marvis', sessionAction: session ? 'continue' : 'none', reason: 'Fallback because router JSON could not be parsed.' }, { hasSession: Boolean(session) }),
+          decision: normalizeRouterDecision({ route: session ? (session.channelKey === '/codex' ? 'codex' : 'claudeCode') : 'marvis', sessionAction: session ? 'continue' : 'none', reason: 'Fallback because router JSON could not be parsed.' }, { hasSession: Boolean(session) }),
         };
       }
       return { ok: true, decision: normalizeRouterDecision(parsed, { hasSession: Boolean(session) }) };
@@ -879,12 +1064,24 @@ function registerIpcHandlers() {
     }
     const client = createProviderFor(settings.provider, apiKey, settings);
     const memoryResults = memoryStore.search(text, 3);
+    const recentTurns = Array.isArray(payload?.recentTurns)
+      ? payload.recentTurns
+        .slice(-8)
+        .map((turn) => ({
+          role: turn?.role === 'assistant' ? 'assistant' : 'user',
+          content: String(turn?.content || '').slice(0, 500),
+        }))
+        .filter((turn) => turn.content.trim())
+      : [];
+    const recentTurnBlock = recentTurns.length
+      ? `\n\nRecent visible chat turns, newest last. Treat these as more authoritative than vector memory for "just now", "what did I ask", and follow-up references:\n${recentTurns.map((turn, index) => `${index + 1}. ${turn.role === 'assistant' ? 'Marvis' : 'User'}: ${turn.content}`).join('\n')}`
+      : '';
     const memoryBlock = memoryResults.length
       ? `\n\nRelevant local memory summaries:\n${memoryResults.map((entry, index) => `${index + 1}. ${entry.summary}`).join('\n')}\nUse these only when relevant; do not claim certainty beyond them.`
       : '';
     try {
       const reply = await client.chat({
-        systemPrompt: `${settings.personality}\n\n${getUserFacingLanguageInstruction(settings.language)}${memoryBlock}`,
+        systemPrompt: `${settings.personality}\n\n${getUserFacingLanguageInstruction(settings.language)}${recentTurnBlock}${memoryBlock}`,
         messages: [{ role: 'user', content: text }],
         signal: controller?.signal,
       });
@@ -990,6 +1187,7 @@ function registerIpcHandlers() {
   ipcMain.handle('codex:delegate', async (_event, payload) => {
     const task = typeof payload === 'string' ? payload : payload.task;
     const operationId = typeof payload === 'string' ? null : payload.operationId;
+    const resumeSessionId = typeof payload === 'string' ? null : payload.resumeSessionId;
     const controller = createOperationController(operationId);
     console.log(`[IPC] codex:delegate received task: "${task}"`);
     const settings = settingsStore.load();
@@ -1003,6 +1201,7 @@ function registerIpcHandlers() {
       const result = await delegateCodexTask({
         task,
         projectPath: settings.activeProject,
+        resumeSessionId,
         signal: controller?.signal,
         onProgress: operationId
           ? (text) => _event.sender.send('cli:progress', { operationId, text })
@@ -1044,20 +1243,38 @@ function registerIpcHandlers() {
     }
   });
 
-  ipcMain.handle('html-panel:prepare', () => {
-    const filePath = getNextHtmlPanelPath();
+  ipcMain.handle('html-panel:prepare', (_event, payload = {}) => {
+    const sourceTask = typeof payload === 'string' ? payload : payload.task;
+    const title = deriveHtmlPanelTitle(typeof payload === 'string' ? payload : (payload.title || payload.task));
+    const filePath = getNextHtmlPanelPath(title);
     fs.writeFileSync(filePath, '', { flag: 'wx' });
+    upsertHtmlPanelMetadata({ filePath, title, sourceTask });
     pruneHtmlPanels(settingsStore.load().maxHtmlPanels);
     return {
       filePath,
       fileName: path.basename(filePath),
+      title,
       templatePath: getHtmlPanelTemplatePath(),
     };
   });
 
+  ipcMain.handle('html-panel:finalize', (_event, payload = {}) => {
+    const { filePath, fallbackTitle } = payload;
+    try {
+      const meta = finalizeHtmlPanelMetadata(
+        filePath,
+        fallbackTitle || path.basename(filePath || '').replace(/\.html$/i, ''),
+      );
+      return { ok: true, title: meta?.title || '' };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
   ipcMain.handle('html-panel:read', (_event, filePath) => {
     try {
-      return { ok: true, html: readHtmlPanelFile(filePath), filePath };
+      const meta = finalizeHtmlPanelMetadata(filePath, path.basename(filePath || '').replace(/\.html$/i, ''));
+      return { ok: true, html: readHtmlPanelFile(filePath), filePath, title: meta?.title || '' };
     } catch (err) {
       return { ok: false, error: err.message };
     }
@@ -1079,8 +1296,15 @@ function registerIpcHandlers() {
         return { ok: false, error: `No HTML panel found matching "${keyword}".` };
       }
       const topMatch = results[0];
+      const meta = finalizeHtmlPanelMetadata(topMatch.filePath, topMatch.title || topMatch.sourceTask || topMatch.file);
       const html = readHtmlPanelFile(topMatch.filePath);
-      return { ok: true, html, filePath: topMatch.filePath, fileName: topMatch.file };
+      return {
+        ok: true,
+        html,
+        filePath: topMatch.filePath,
+        fileName: topMatch.file,
+        title: meta?.title || topMatch.title || topMatch.file,
+      };
     } catch (err) {
       return { ok: false, error: err.message };
     }

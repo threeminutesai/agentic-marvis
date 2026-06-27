@@ -1,7 +1,7 @@
 ﻿const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('marvis', {
-  sendMessage: (text, operationId) => ipcRenderer.invoke('chat:send', { text, operationId }),
+  sendMessage: (text, operationId, options = {}) => ipcRenderer.invoke('chat:send', { text, operationId, ...options }),
   cancelOperation: (operationId) => ipcRenderer.invoke('operation:cancel', operationId),
   getSettings: () => ipcRenderer.invoke('settings:get'),
   saveSettings: (settings) => ipcRenderer.invoke('settings:save', settings),
@@ -17,7 +17,7 @@ contextBridge.exposeInMainWorld('marvis', {
   synthesizeCachedSpeech: (payload) => ipcRenderer.invoke('tts:synthesize-cached', payload),
   transcribeSpeech: (payload) => ipcRenderer.invoke('stt:transcribe', payload),
   delegateTask: (task, operationId) => ipcRenderer.invoke('claudeCode:delegate', { task, operationId }),
-  delegateCodexTask: (task, operationId) => ipcRenderer.invoke('codex:delegate', { task, operationId }),
+  delegateCodexTask: (task, operationId, options = {}) => ipcRenderer.invoke('codex:delegate', { task, operationId, ...options }),
   selectFolder: () => ipcRenderer.invoke('dialog:selectFolder'),
   getMusicLibrary: () => ipcRenderer.invoke('music:get'),
   saveMusicLibrary: (catalog) => ipcRenderer.invoke('music:save', catalog),
@@ -26,10 +26,11 @@ contextBridge.exposeInMainWorld('marvis', {
   getStatus: () => ipcRenderer.invoke('status:get'),
   saveUserProfile: (profileText, geolocation, language) => ipcRenderer.invoke('status:saveUserProfile', { profileText, geolocation, language }),
   updateProfile: (profileText, geolocation, language) => ipcRenderer.invoke('profile:update', profileText, geolocation, language),
-  prepareHtmlPanel: () => ipcRenderer.invoke('html-panel:prepare'),
+  prepareHtmlPanel: (payload) => ipcRenderer.invoke('html-panel:prepare', payload),
   readHtmlPanel: (filePath) => ipcRenderer.invoke('html-panel:read', filePath),
   readExternalHtml: (filePath) => ipcRenderer.invoke('html:read-external', filePath),
   discardHtmlPanel: (filePath) => ipcRenderer.invoke('html-panel:discard', filePath),
+  finalizeHtmlPanel: (filePath, fallbackTitle) => ipcRenderer.invoke('html-panel:finalize', { filePath, fallbackTitle }),
   searchHtmlPanels: (keyword) => ipcRenderer.invoke('html-panel:search', keyword),
   openHtmlPanelByKeyword: (keyword) => ipcRenderer.invoke('html-panel:openByKeyword', keyword),
   captureRegion: (rect) => ipcRenderer.invoke('panel:captureRegion', rect),

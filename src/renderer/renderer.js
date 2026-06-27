@@ -26,6 +26,7 @@ let nowPlayingWidgetTimer = null;
 let appClockTimer = null;
 let cliWarmupNonce = 0;
 let activeCliTaskSession = null;
+let recentConversationTurns = [];
 
 // Pending attachments (panel screenshot captures) to be sent with the next
 // CLI-delegated message. See docs/superpowers/specs/
@@ -1482,6 +1483,7 @@ const CLI_CHANNELS = {
 };
 
 const MAX_CLI_SESSION_TURNS = 6;
+const MAX_RECENT_CHAT_TURNS = 10;
 
 // Recognizes natural-language "generate me a report" phrasing (e.g. "in
 // report, recommend...", "make a report on...", "report on...") that should
@@ -1493,6 +1495,35 @@ const MAX_CLI_SESSION_TURNS = 6;
 const REPORT_REQUEST_RE = /^(?:in|as)\s+(?:a\s+)?report\b|\b(?:make|generate|create|write|produce|compile|prepare)\s+(?:me\s+)?(?:a|the)\s+report\b|\breport\s+(?:on|about|for)\b/i;
 function isReportRequest(text) {
   return REPORT_REQUEST_RE.test(text.trim());
+}
+
+function normalizeTitleText(text) {
+  return String(text || '').replace(/\s+/g, ' ').trim();
+}
+
+function deriveHtmlPanelTitle(task) {
+  const cleaned = normalizeTitleText(task)
+    .replace(/^\/(?:codex|code|claude)\s+/i, '')
+    .replace(/\b(?:please|can you|could you)\b/gi, '')
+    .replace(/\b(?:make|generate|create|write|produce|compile|prepare|search the web for|search web for)\b/gi, '')
+    .replace(/\b(?:a|an|the|me)\b/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const base = (cleaned || 'Marvis report').slice(0, 90).trim();
+  return /\breport\b/i.test(base) ? base : `${base} Report`;
+}
+
+function rememberVisibleTurn(role, content) {
+  const normalized = normalizeTitleText(content);
+  if (!normalized) return;
+  recentConversationTurns = [
+    ...recentConversationTurns,
+    { role, content: normalized },
+  ].slice(-MAX_RECENT_CHAT_TURNS);
+}
+
+function getRecentConversationSnapshot() {
+  return recentConversationTurns.map((turn) => ({ ...turn }));
 }
 
 function shouldSpeakReturnedMessage(text) {
@@ -1536,12 +1567,6 @@ function closeActiveCliTaskSession() {
 }
 
 function updateCliTaskSession({ channelKey, userText, replyText, hadHtml }) {
-  if (channelKey !== '/codex') return;
-  if (hadHtml) {
-    closeActiveCliTaskSession();
-    return;
-  }
-
   const prior = activeCliTaskSession?.channelKey === channelKey
     ? activeCliTaskSession
     : {
@@ -1588,6 +1613,23 @@ New user message:
 ${task}`;
 }
 
+function buildHtmlFollowUpTask(userText, htmlPath, sessionState) {
+  const turns = (sessionState?.recentTurns || [])
+    .map((t) => `${t.role === 'assistant' ? 'Assistant' : 'User'}: ${t.content}`)
+    .join('\n');
+  const context = turns ? `\nRecent context:\n${turns}\n` : '';
+  return `The user has a follow-up question about the HTML report currently shown on screen at:
+[html] ${htmlPath}
+${context}
+User question: ${userText}
+
+Read the HTML file and answer the question directly and concisely.
+Do NOT generate a new HTML report or file.
+Reply in this exact format:
+[voice]
+<your answer here>`;
+}
+
 async function decideIntelligentRoute(text, { hasAttachments = false } = {}) {
   try {
     const result = await window.marvis.decideRouting({
@@ -1616,7 +1658,7 @@ function rememberConversationMemory({ source, userText, assistantText, hadHtml =
   });
 }
 
-async function sendToCli(text, channel, task, { forceReport = false, voiceAllowed = true, sessionState = null } = {}) {
+async function sendToCli(text, channel, task, { forceReport = false, voiceAllowed = true, sessionState = null, quietMode = false } = {}) {
   appendChatLine('You', text);
   if (!task) {
     const prompt = t('askChannelTask', { channel: channel.label });
@@ -1632,11 +1674,11 @@ async function sendToCli(text, channel, task, { forceReport = false, voiceAllowe
   // Placeholder bubble updated in place (no speech) as progress events stream
   // in from the CLI, then overwritten with the real reply once it resolves.
   appendChatLine('Marvis', t('thinking'));
-  const useBackendCliPanel = getChannelKey(channel) === '/codex';
+  const useBackendCliPanel = !quietMode && getChannelKey(channel) === '/codex';
   const unsubscribeProgress = window.marvis.onCliProgress(({ operationId: progressOperationId, text: progressText }) => {
     if (progressOperationId !== operationId) return;
     setAvatarHeadline(progressText);
-    if (!useBackendCliPanel) appendCliActivityLine(progressText);
+    if (!quietMode && !useBackendCliPanel) appendCliActivityLine(progressText);
   });
   const unsubscribeOutput = useBackendCliPanel
     ? window.marvis.onCliOutput(({ operationId: outputOperationId, text: outputText }) => {
@@ -1646,16 +1688,20 @@ async function sendToCli(text, channel, task, { forceReport = false, voiceAllowe
     : () => {};
   let htmlPanel = null;
   try {
-    htmlPanel = await window.marvis.prepareHtmlPanel();
-    currentHtmlPath = null;
-    showCliActivityPanel(channel.label, task, {
-      label: useBackendCliPanel ? 'Backend CLI' : 'Live CLI',
-      preserveLog: true,
-    });
-    if (!useBackendCliPanel) {
-      appendCliActivityLine(`Starting ${channel.label}...`);
+    if (!quietMode) {
+      htmlPanel = await window.marvis.prepareHtmlPanel({ task });
+      currentHtmlPath = null;
+      showCliActivityPanel(channel.label, task, {
+        label: useBackendCliPanel ? 'Backend CLI' : 'Live CLI',
+        preserveLog: true,
+      });
+      if (!useBackendCliPanel) {
+        appendCliActivityLine(`Starting ${channel.label}...`);
+      }
     }
-    const delegatedTask = buildCliTaskWithHtmlContract(buildCliSessionTask(task, sessionState), htmlPanel, { forceReport });
+    const delegatedTask = quietMode
+      ? task
+      : buildCliTaskWithHtmlContract(buildCliSessionTask(task, sessionState), htmlPanel, { forceReport });
     console.log(`[CLI] Delegating to ${channel.label}: "${task}"`);
     console.log(`[CLI] Calling channel.delegate (this is an IPC call)...`);
     const result = await channel.delegate(delegatedTask, operationId);
@@ -1663,22 +1709,26 @@ async function sendToCli(text, channel, task, { forceReport = false, voiceAllowe
     console.log(`[CLI] Result status: ${result?.status}, summary length: ${result?.summary?.length}`);
     unsubscribeProgress();
     unsubscribeOutput();
-    if (result?.status !== 'success' && htmlPanel?.filePath) {
-      window.marvis.discardHtmlPanel(htmlPanel.filePath).catch(() => {});
+    if (!quietMode) {
+      if (result?.status !== 'success' && htmlPanel?.filePath) {
+        window.marvis.discardHtmlPanel(htmlPanel.filePath).catch(() => {});
+      } else if (result?.status === 'success' && htmlPanel?.filePath) {
+        window.marvis.finalizeHtmlPanel(htmlPanel.filePath, htmlPanel.title).catch(() => {});
+      }
     }
     if (activeOperationId !== operationId && shouldAbortResponse) return;
     activeOperationId = null;
     setProcessingResponse(false);
     if (shouldAbortResponse || result?.status === 'cancelled') {
-      showCliStandbyPanel(channel, 'Paused. Ready for the next request.');
+      if (!quietMode) showCliStandbyPanel(channel, 'Paused. Ready for the next request.');
       return;
     }
     const summary = result.summary || `${channel.label} finished, sir.`;
-    const formatted = await formatAssistantResponse(summary);
+    const formatted = await formatAssistantResponse(summary, { allowHtml: !quietMode });
     if (formatted.html) {
       currentHtmlPath = formatted.htmlPath || null;
       showHTML(formatted.html);
-    } else {
+    } else if (!quietMode) {
       showCliStandbyPanel(channel, 'Ready for the next request.');
     }
     const reply = formatted.reply;
@@ -2039,9 +2089,7 @@ async function routeUserMessage(text) {
     // default routing to the preferred CLI channel.
     const explicitChannel = parseCliCommand(text)?.channel;
     const channel = explicitChannel || CLI_CHANNELS[`/${currentSettings.preferredCliChannel || 'code'}`];
-    if (getChannelKey(channel) !== '/codex') {
-      closeActiveCliTaskSession();
-    }
+    closeActiveCliTaskSession();
     const taskText = text || 'Take a look at the attached screenshot(s).';
     const lines = [taskText];
     // Include HTML file path if currently displayed (for joint analysis)
@@ -2055,7 +2103,7 @@ async function routeUserMessage(text) {
     await sendToCli(text, channel, fullTask, {
       forceReport: isReportRequest(taskText),
       voiceAllowed,
-      sessionState: getChannelKey(channel) === '/codex' ? getActiveCliTaskSessionSnapshot() : null,
+      sessionState: getActiveCliTaskSessionSnapshot(),
     });
     clearAttachments();
     return;
@@ -2078,37 +2126,48 @@ async function routeUserMessage(text) {
   }
   const cliCommand = parseCliCommand(text);
   if (cliCommand) {
-    if (getChannelKey(cliCommand.channel) !== '/codex') {
-      closeActiveCliTaskSession();
-    }
+    closeActiveCliTaskSession();
     await sendToCli(text, cliCommand.channel, cliCommand.task, {
       forceReport: isReportRequest(cliCommand.task),
       voiceAllowed,
-      sessionState: getChannelKey(cliCommand.channel) === '/codex' ? getActiveCliTaskSessionSnapshot() : null,
+      sessionState: getActiveCliTaskSessionSnapshot(),
     });
     return;
   }
 
   const routingDecision = await decideIntelligentRoute(text, { hasAttachments: false });
   if (routingDecision) {
-    if (routingDecision.sessionAction === 'close') {
-      closeActiveCliTaskSession();
-    }
-    if (routingDecision.route === 'codex') {
+    const isCliRoute = routingDecision.route === 'codex' || routingDecision.route === 'claudeCode';
+    if (isCliRoute) {
+      const isClaude = routingDecision.route === 'claudeCode';
+      const targetChannel = isClaude ? CLI_CHANNELS['/claude'] : CLI_CHANNELS['/codex'];
+      if (routingDecision.sessionAction === 'start') {
+        closeActiveCliTaskSession();
+        currentHtmlPath = null;
+      } else if (routingDecision.sessionAction === 'close') {
+        closeActiveCliTaskSession();
+        currentHtmlPath = null;
+      }
       const sessionState = routingDecision.sessionAction === 'continue'
         ? getActiveCliTaskSessionSnapshot()
         : null;
-      if (routingDecision.sessionAction === 'start') {
-        closeActiveCliTaskSession();
-      }
-      await sendToCli(text, CLI_CHANNELS['/codex'], text, {
-        forceReport: isReportRequest(text),
+      // Quiet follow-up: user is asking about the currently displayed HTML panel
+      const isQuietFollowUp = isClaude
+        && routingDecision.sessionAction === 'continue'
+        && Boolean(currentHtmlPath);
+      const task = isQuietFollowUp
+        ? buildHtmlFollowUpTask(text, currentHtmlPath, sessionState)
+        : text;
+      await sendToCli(text, targetChannel, task, {
+        forceReport: !isQuietFollowUp && isReportRequest(text),
         voiceAllowed,
         sessionState,
+        quietMode: isQuietFollowUp,
       });
       return;
     }
     closeActiveCliTaskSession();
+    currentHtmlPath = null;
     await sendToMarvis(text, { voiceAllowed });
     return;
   } else if (currentSettings.preferredCliChannel) {
@@ -2121,7 +2180,7 @@ async function routeUserMessage(text) {
       await sendToCli(text, channel, text, {
         forceReport: isReportRequest(text),
         voiceAllowed,
-        sessionState: getChannelKey(channel) === '/codex' ? getActiveCliTaskSessionSnapshot() : null,
+        sessionState: getActiveCliTaskSessionSnapshot(),
       });
     } else {
       await sendToMarvis(text, { voiceAllowed });
