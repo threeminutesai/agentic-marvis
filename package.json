@@ -30,7 +30,6 @@
       "skills/agentic-marvis-brief/**/*",
       "skills/agentic-marvis-dashboard/**/*"
     ],
-    "afterPack": "scripts/afterPack.js",
     "directories": {
       "output": "release"
     },
