@@ -7,6 +7,8 @@ contextBridge.exposeInMainWorld('marvis', {
   saveSettings: (settings) => ipcRenderer.invoke('settings:save', settings),
   warmCli: (channelKey) => ipcRenderer.invoke('cli:warmup', channelKey),
   decideRouting: (payload) => ipcRenderer.invoke('router:decide', payload),
+  rememberConversation: (payload) => ipcRenderer.invoke('memory:rememberConversation', payload),
+  searchMemory: (query) => ipcRenderer.invoke('memory:search', query),
   testConnection: (payload) => ipcRenderer.invoke('settings:testConnection', payload),
   checkForUpdates: () => ipcRenderer.invoke('settings:checkForUpdates'),
   openExternalUrl: (url) => ipcRenderer.invoke('shell:openExternal', url),

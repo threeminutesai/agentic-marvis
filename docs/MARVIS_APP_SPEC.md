@@ -28,6 +28,7 @@ Expected outcome:
 - TTS speaks the returned answer, not only the first paragraph.
 - The Mute button immediately stops voice playback.
 - When ElevenLabs TTS is unavailable or out of credits, browser speech is used as fallback.
+- Marvis may use a small local summary-memory store to recall relevant past conversations, but it should inject only concise relevant summaries rather than replaying full transcript history.
 
 ### Voice Input and Output
 
@@ -113,6 +114,7 @@ Use Gemini when:
 - the message is simple chat, factual Q&A, brainstorming, or a voice-friendly answer,
 - no local file access, project edits, screenshot reading, or HTML report generation is required.
 - a plain user message needs routing judgment about whether to stay in Marvis chat, start Codex, continue the active Codex task, or close that task session first.
+- local summary memory contains relevant prior conversation context that can improve routing or ordinary chat quality.
 
 Do not use Gemini for:
 
@@ -267,6 +269,7 @@ Plain user messages with no explicit `/code`, `/claude`, or `/codex` prefix shou
 - `close` means the previous Codex task should be considered finished or abandoned before handling the current message.
 - `none` means no Codex session control change is needed.
 - If Gemini routing is unavailable, Marvis may fall back to the older preferred-CLI behavior, but that is a fallback path rather than the preferred control flow.
+- Gemini routing may receive a few relevant local memory summaries as soft context, but it should still prioritize the latest user message and active Codex task state over older memories.
 
 ### Handle with Gemini/DeepSeek/Ollama
 
@@ -282,6 +285,26 @@ Use the selected bot provider when the user asks for:
 The response should stay in chat and be spoken aloud when voice is enabled.
 
 When Gemini is the selected provider, it should also be allowed to act as the plain-message router even if the final answer for that turn is still ordinary Marvis chat rather than Codex.
+
+### Local Conversation Memory
+
+Marvis may maintain a small fully local conversation-memory store under `data/` for lightweight recall.
+
+Expected behavior:
+
+- Memory storage stays local on disk and does not require an external vector database.
+- Memory entries should focus on concise summaries of successful past exchanges rather than full raw transcripts.
+- Each memory entry may include a lightweight local vector representation for similarity search.
+- Relevant memory summaries may be injected into ordinary Marvis chat prompts and Gemini routing prompts.
+- Memory should help with continuity and recall, but Marvis should not present remembered summaries as guaranteed facts if they might be stale or ambiguous.
+- HTML/report completions may be remembered as summary outcomes such as "finished with a visual/report result".
+
+Suggested storage layout:
+
+```text
+data/
+  conversation-memory.json
+```
 
 ### Delegate to Claude Code/Codex
 

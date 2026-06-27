@@ -1604,6 +1604,18 @@ async function decideIntelligentRoute(text, { hasAttachments = false } = {}) {
   }
 }
 
+function rememberConversationMemory({ source, userText, assistantText, hadHtml = false }) {
+  if (!userText || !assistantText) return;
+  window.marvis.rememberConversation({
+    source,
+    userText,
+    assistantText,
+    hadHtml,
+  }).catch((err) => {
+    console.log(`[Memory] Failed to store conversation summary: ${err.message}`);
+  });
+}
+
 async function sendToCli(text, channel, task, { forceReport = false, voiceAllowed = true, sessionState = null } = {}) {
   appendChatLine('You', text);
   if (!task) {
@@ -1661,6 +1673,12 @@ async function sendToCli(text, channel, task, { forceReport = false, voiceAllowe
       channelKey: getChannelKey(channel),
       userText: text,
       replyText: formatted.displayReply || reply,
+      hadHtml: Boolean(formatted.html),
+    });
+    rememberConversationMemory({
+      source: getChannelKey(channel) === '/codex' ? 'codex' : 'claude',
+      userText: text,
+      assistantText: formatted.displayReply || reply,
       hadHtml: Boolean(formatted.html),
     });
     console.log(`[CLI] Displaying reply: "${reply}"`);
@@ -1736,11 +1754,17 @@ async function sendToMarvis(text, { voiceAllowed = true } = {}) {
     activeOperationId = null;
     setProcessingResponse(false);
     if (shouldAbortResponse || cancelled) return;
-    const formatted = await formatAssistantResponse(reply, { allowHtml: false });
-    if (formatted.html) showHTML(formatted.html);
-    else hidePanel();
-    appendChatLine('Marvis', formatted.displayReply);
-    stopProcessingCue();
+      const formatted = await formatAssistantResponse(reply, { allowHtml: false });
+      if (formatted.html) showHTML(formatted.html);
+      else hidePanel();
+      appendChatLine('Marvis', formatted.displayReply);
+      rememberConversationMemory({
+        source: 'marvis',
+        userText: text,
+        assistantText: formatted.displayReply || formatted.reply,
+        hadHtml: false,
+      });
+      stopProcessingCue();
     stopCachedVoice();
     ttsController.stop();
     if (voiceAllowed) await speakReply(formatted.reply);

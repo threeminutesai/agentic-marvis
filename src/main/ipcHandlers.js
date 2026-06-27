@@ -18,6 +18,7 @@ const { DEFAULT_TEMPLATE_HTML } = require('./status/htmlPanelTemplate');
 const { DEFAULT_MUSIC_TRACKS, DEFAULT_MUSIC_SCHEDULE, WEEKDAY_SLOTS, WEEKEND_SLOTS } = require('./music/defaultMusic');
 const { synthesizeGreetingWithCache } = require('./voice/greetingVoiceCache');
 const { createMusicLibraryStore, SUPPORTED_EXTENSIONS } = require('./music');
+const { createMemoryStore } = require('./memory/memoryStore');
 const { pathToFileURL } = require('node:url');
 
 function createProviderFor(providerName, apiKey, settings = {}) {
@@ -115,6 +116,10 @@ function getMusicLibraryFilePath() {
 
 function getVoiceCacheDir() {
   return path.join(getDataDir(), 'voice-cache');
+}
+
+function getConversationMemoryFilePath() {
+  return path.join(getDataDir(), 'conversation-memory.json');
 }
 
 const RELEASES_API_URL = 'https://api.github.com/repos/threeminutesai/agentic-marvis/releases/latest';
@@ -640,12 +645,16 @@ function registerIpcHandlers() {
   const musicDir = getMusicDir();
   const musicLibraryFilePath = getMusicLibraryFilePath();
   const voiceCacheDir = getVoiceCacheDir();
+  const conversationMemoryFilePath = getConversationMemoryFilePath();
   migrateLegacyMusicFilesIfNeeded(musicDir);
   initDevMusicLibraryIfNeeded(musicDir, musicLibraryFilePath);
   migrateLegacyVoiceCacheIfNeeded(voiceCacheDir);
   const musicStore = createMusicLibraryStore({
     filePath: musicLibraryFilePath,
     musicDir,
+  });
+  const memoryStore = createMemoryStore({
+    filePath: conversationMemoryFilePath,
   });
 
   function withFileUrls(catalog) {
@@ -792,6 +801,23 @@ function registerIpcHandlers() {
     return { ok: false, skipped: true, summary: `Unknown CLI channel: ${normalized}` };
   });
 
+  ipcMain.handle('memory:rememberConversation', (_event, payload) => {
+    try {
+      const entry = memoryStore.rememberConversation(payload || {});
+      return { ok: true, entry };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle('memory:search', (_event, query) => {
+    try {
+      return { ok: true, results: memoryStore.search(query || '') };
+    } catch (err) {
+      return { ok: false, error: err.message, results: [] };
+    }
+  });
+
   ipcMain.handle('router:decide', async (_event, payload) => {
     const settings = settingsStore.load();
     const envKeys = loadEnvFile();
@@ -802,11 +828,13 @@ function registerIpcHandlers() {
 
     const session = payload?.session?.active ? payload.session : null;
     const client = createGeminiProvider({ apiKey });
+    const memoryResults = memoryStore.search(`${payload?.text || ''} ${session?.objective || ''}`, 3);
     const userPayload = {
       text: String(payload?.text || ''),
       hasAttachments: Boolean(payload?.hasAttachments),
       currentHtmlPath: String(payload?.currentHtmlPath || ''),
       session,
+      memorySummaries: memoryResults.map((entry) => entry.summary),
     };
 
     const systemPrompt = [
@@ -850,9 +878,13 @@ function registerIpcHandlers() {
       return { ok: false, reply: `I don't have an API key configured for ${settings.provider}, sir - please add one in Settings.` };
     }
     const client = createProviderFor(settings.provider, apiKey, settings);
+    const memoryResults = memoryStore.search(text, 3);
+    const memoryBlock = memoryResults.length
+      ? `\n\nRelevant local memory summaries:\n${memoryResults.map((entry, index) => `${index + 1}. ${entry.summary}`).join('\n')}\nUse these only when relevant; do not claim certainty beyond them.`
+      : '';
     try {
       const reply = await client.chat({
-        systemPrompt: `${settings.personality}\n\n${getUserFacingLanguageInstruction(settings.language)}`,
+        systemPrompt: `${settings.personality}\n\n${getUserFacingLanguageInstruction(settings.language)}${memoryBlock}`,
         messages: [{ role: 'user', content: text }],
         signal: controller?.signal,
       });

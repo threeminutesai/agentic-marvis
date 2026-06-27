@@ -18,6 +18,8 @@ Use this checklist when validating Marvis changes, especially before pushing or 
 - Plain messages without a CLI prefix should not blindly reuse the preferred CLI; Gemini routing should decide whether the next turn belongs to ordinary chat or Codex.
 - If Gemini decides to continue Codex, the next Codex delegation should carry recent task context instead of acting like a blank new topic.
 - If Gemini decides a topic changed, or if Codex has just delivered HTML/report output, the managed Codex task session should close before the next plain-message routing decision.
+- Local conversation memory should stay on disk in a small app-managed store and should save concise summaries rather than full transcript dumps.
+- Relevant local memory summaries should be available to normal Marvis chat and Gemini routing, but stale memory should not override the latest user turn.
 - Report generation asks CLI delegates to write an HTML file and return `[html] <path>`.
 - HTML panel opens only from explicit file paths or open/show commands.
 - `open <keyword>`, `show <keyword>`, and `/open <keyword>` search saved panels.
