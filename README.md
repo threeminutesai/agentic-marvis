@@ -81,14 +81,14 @@ Configure in Settings → Voice:
 
 - **Mic button** — records your message and transcribes it via ElevenLabs (requires ElevenLabs key).
 - **Text-to-speech** — every reply is spoken aloud. Uses ElevenLabs if a key is set, otherwise the browser's built-in voice. Mute button silences immediately.
-- **ElevenLabs voices** — add voices by name + ID (find IDs in the [ElevenLabs Voice Library](https://elevenlabs.io/app/voice-library)), pick the active one from the dropdown.
+- **ElevenLabs voices** — add voices by name + ID (find IDs in the [ElevenLabs Voice Library](https://elevenlabs.io/app/voice-library)), pick the active one from the dropdown. Requires a paid ElevenLabs plan; the free tier defaults to "Adam".
 - **Wake word** — not ready yet.
 
 在 Settings → Voice 中配置：
 
 - **Mic 按钮** — 录音后由 ElevenLabs 转写（需要 ElevenLabs key）。
 - **文字转语音** — 每条回复都会被朗读。已配置 ElevenLabs key 则使用 ElevenLabs，否则使用浏览器内建语音。Mute 按钮立即静音。
-- **ElevenLabs 声音** — 填写 name + ID（在 [ElevenLabs Voice Library](https://elevenlabs.io/app/voice-library) 找 ID），从下拉中选择当前声音。
+- **ElevenLabs 声音** — 填写 name + ID（在 [ElevenLabs Voice Library](https://elevenlabs.io/app/voice-library) 找 ID），从下拉中选择当前声音。需要付费方案；免费方案默认使用 "Adam"。
 - **唤醒词** — 尚未完成。
 
 ---
