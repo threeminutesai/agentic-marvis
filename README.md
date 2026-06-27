@@ -43,7 +43,7 @@ Done. Marvis starts a spoken briefing on next launch once the status data is in 
 | 聊天 provider（DeepSeek / Gemini / Ollama） | [DeepSeek](https://platform.deepseek.com/) · [Google AI Studio](https://aistudio.google.com/apikey) · 本地 Ollama 服务 |
 | ElevenLabs API key（语音，可选） | [elevenlabs.io](https://elevenlabs.io/app/home) |
 
-完成后重启。如果简报数据已就位，Marvis 会在启动时播报语音简报（详见下方 [简报](#briefing-weather-news-email)）。
+如果简报数据已就位，Marvis 会在启动时播报语音简报（详见下方 [简报](#briefing-weather-news-email)）。
 
 ---
 
