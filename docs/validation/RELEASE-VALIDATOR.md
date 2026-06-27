@@ -4,6 +4,32 @@
 
 ---
 
+## English
+
+### Purpose
+Comprehensive checklist to verify app quality, package integrity, and UI completeness before releasing to GitHub.
+
+### How to Use
+1. Follow each section in order
+2. Check all items as you complete them
+3. Do not skip any validation steps
+4. If any check fails, stop and fix the issue before continuing
+
+---
+
+## 中文
+
+### 目的
+在发布到 GitHub 前验证应用质量、包完整性和 UI 完整性的全面清单。
+
+### 使用方法
+1. 按顺序跟随每个部分
+2. 完成时检查所有项目
+3. 不要跳过任何验证步骤
+4. 如果任何检查失败，停止并修复问题后再继续
+
+---
+
 ## Pre-Build Verification
 
 - [ ] Tests pass: `npm test`
@@ -202,4 +228,49 @@ Ratio: EXE should be 75-85% of ZIP
 ```
 
 ✅ **Run this checklist start-to-finish before releasing**
+
+---
+
+## 中文版本 (Chinese Version)
+
+### 快速参考大小目标
+
+```
+EXE:  90-150 MB (失败 > 200 MB)
+ZIP:  120-180 MB (失败 > 250 MB)
+比率: EXE 应该是 ZIP 的 75-85%
+```
+
+### 验证步骤概览
+
+1. **预构建验证** - 测试、git 状态、版本检查
+2. **构建步骤** - 编译 Windows 版本
+3. **大小验证** - 检查 EXE 大小（防止 4 倍膨胀）
+4. **打包步骤** - 创建发布 ZIP
+5. **ZIP 大小验证** - 验证最终包大小
+6. **发布说明** - 验证格式（版本号标题、双语内容）
+7. **UI 元素验证** - 检查所有 UI 控件和默认值
+8. **GitHub 发布** - 创建和发布版本
+9. **清理** - 删除旧版本
+
+### 常见问题修复
+
+| 问题 | 症状 | 解决方案 |
+| --- | --- | --- |
+| 构建膨胀 | EXE > 200 MB | 使用 stage 构建而不是 portable |
+| 缓存问题 | Portable 大 4-5 倍 | `rm -rf node_modules/.cache` 后重新构建 |
+| ZIP 中有源代码 | .js 文件在发布中 | 检查 `package.json` `"files"` 数组 |
+| 发布说明错误 | 混合语言或无标题 | 使用双语格式、仅版本号标题 |
+
+### 关键检查点
+
+- ✅ EXE 大小：90-150 MB
+- ✅ ZIP 大小：120-180 MB
+- ✅ 发布标题：仅版本号 (v0.5.2)
+- ✅ 发布说明：英文优先，然后中文
+- ✅ UI 元素：所有按钮、设置、音乐播放器
+- ✅ 默认值：音乐音量 20%、语言选择
+- ✅ 无源代码：仅 EXE、数据和技能文件
+
+✅ **在发布前完整运行此清单**
 
