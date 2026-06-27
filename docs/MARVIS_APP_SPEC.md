@@ -68,6 +68,9 @@ Expected outcome:
 
 - `/code <task>` and `/claude <task>` delegate to Claude Code.
 - `/codex <task>` delegates to Codex.
+- Plain follow-up chat should not blindly keep using the preferred CLI. Marvis should decide whether the next turn still belongs to the active Codex task or should return to ordinary chat.
+- When Gemini routing decides the user is continuing the same Codex task, Marvis should include the recent Codex task context and last assistant result in the next Codex delegation.
+- When the user changes topic, or a Codex task ends with a delivered HTML/report result, the managed Codex task session should be closed and the next plain user turn should go back through Gemini routing.
 - If the user clearly requests a report, Marvis delegates to Claude Code by default when no explicit CLI prefix is present.
 - If screenshots/captures are attached, Marvis delegates to a CLI channel because the bot API cannot read local files.
 - CLI output must be summarized for voice and, when HTML is involved, returned by file path only.
@@ -102,13 +105,14 @@ Expected outcome:
 
 ### Gemini
 
-Gemini is a bot API provider for ordinary conversational chat.
+Gemini is a bot API provider for ordinary conversational chat and the intelligent plain-message router for Codex follow-up decisions.
 
 Use Gemini when:
 
 - the user selected Gemini as the provider,
 - the message is simple chat, factual Q&A, brainstorming, or a voice-friendly answer,
 - no local file access, project edits, screenshot reading, or HTML report generation is required.
+- a plain user message needs routing judgment about whether to stay in Marvis chat, start Codex, continue the active Codex task, or close that task session first.
 
 Do not use Gemini for:
 
@@ -219,15 +223,23 @@ Claude Code must write the HTML file before returning the path.
 
 ### Codex
 
-Codex handles project-aware work when explicitly requested with `/codex` or when it is the selected preferred CLI channel.
+Codex handles project-aware work when explicitly requested with `/codex`, when Gemini decides a plain user message belongs to Codex, or when attachment routing selects Codex.
 
 Use Codex when:
 
 - the user uses `/codex`,
-- preferred CLI is Codex,
+- Gemini judges the plain user message is a new Codex-worthy project task,
+- Gemini judges the plain user message is a continuation of the same active Codex task,
 - a screenshot/local-file task routes to the preferred CLI and that preference is Codex.
 
 Codex follows the same report contract as Claude Code: write HTML to disk, then return the path.
+
+Codex task-session expectations:
+
+- Marvis may keep a managed Codex task session summary in app state even if the underlying CLI process is launched per request.
+- Continuing Codex work should reuse recent task context and the last Codex result when Gemini marks the next turn as `continue`.
+- Returning an HTML/report result should end the current managed Codex task session.
+- Switching to plain Marvis chat or to a non-Codex CLI path should end the current managed Codex task session.
 
 ### GitHub and GitHub Actions
 
@@ -242,6 +254,20 @@ Expected behavior:
 
 ## Conversation Routing Rules
 
+### Intelligent Plain-Message Routing
+
+Plain user messages with no explicit `/code`, `/claude`, or `/codex` prefix should be routed as follows:
+
+- First, handle any hard-coded direct commands such as `/html`, `open`, `show`, mute commands, or status-detail shortcuts.
+- If there are screenshot attachments, route to a CLI channel because ordinary bot providers cannot read local files.
+- Otherwise, Gemini should decide whether the plain message belongs to normal Marvis chat or Codex.
+- Gemini may return one of four session actions for Codex control: `start`, `continue`, `close`, or `none`.
+- `start` means begin a new managed Codex task session.
+- `continue` means the user is still talking about the same Codex task and Marvis should include recent Codex context in the next delegation.
+- `close` means the previous Codex task should be considered finished or abandoned before handling the current message.
+- `none` means no Codex session control change is needed.
+- If Gemini routing is unavailable, Marvis may fall back to the older preferred-CLI behavior, but that is a fallback path rather than the preferred control flow.
+
 ### Handle with Gemini/DeepSeek/Ollama
 
 Use the selected bot provider when the user asks for:
@@ -254,6 +280,8 @@ Use the selected bot provider when the user asks for:
 - ordinary conversation.
 
 The response should stay in chat and be spoken aloud when voice is enabled.
+
+When Gemini is the selected provider, it should also be allowed to act as the plain-message router even if the final answer for that turn is still ordinary Marvis chat rather than Codex.
 
 ### Delegate to Claude Code/Codex
 
@@ -409,6 +437,7 @@ Settings should also behave as follows:
 - The update check should call GitHub Releases for `threeminutesai/agentic-marvis`, compare the installed app version against the latest release tag, and show a clear up-to-date or update-available message.
 - If a newer version exists, Marvis should offer to open the matching download asset or release page in the system browser.
 - Marvis should not try to overwrite or replace its own running executable as part of this manual update flow.
+- When a preferred CLI is configured, Marvis may warm that CLI in the background after startup, after Settings save, or after project changes to reduce first-use delay.
 
 ## Packaging and Release Expectations
 

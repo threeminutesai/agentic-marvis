@@ -3,7 +3,60 @@ function showPanel(html) {
   const appBody = document.getElementById('app-body');
   const panel = document.getElementById('status-panel');
   panel.innerHTML = html;
+  panel.dataset.panelType = 'status';
+  delete panel.dataset.cliTitle;
   appBody.classList.add('panel-active');
+}
+
+function showCliActivityPanel(title, task, options = {}) {
+  const appBody = document.getElementById('app-body');
+  const panel = document.getElementById('status-panel');
+  const { label = 'Live CLI', preserveLog = false } = options;
+  const safeTitle = escapeHtml(title || 'CLI');
+  const safeTask = escapeHtml(task || '');
+  const safeLabel = escapeHtml(label);
+  const canReuseLog = preserveLog && panel.dataset.panelType === 'cli' && panel.dataset.cliTitle === String(title || 'CLI');
+  const existingLogHtml = canReuseLog ? (panel.querySelector('#cli-activity-log')?.innerHTML || '') : '';
+  panel.innerHTML = `
+    <div class="cli-activity-panel">
+      <div class="cli-activity-header">
+        <div class="cli-activity-label">${safeLabel}</div>
+        <div class="cli-activity-title">${safeTitle}</div>
+      </div>
+      <div class="cli-activity-task">${safeTask}</div>
+      <div class="cli-activity-log" id="cli-activity-log">${existingLogHtml}</div>
+    </div>
+  `;
+  panel.dataset.panelType = 'cli';
+  panel.dataset.cliTitle = String(title || 'CLI');
+  appBody.classList.add('panel-active');
+}
+
+function appendCliActivityLine(text) {
+  const log = document.getElementById('cli-activity-log');
+  if (!log || !text) return;
+  const nextText = String(text).trim();
+  if (!nextText) return;
+  const lastLine = log.lastElementChild;
+  if (lastLine?.textContent === nextText) return;
+  const line = document.createElement('div');
+  line.className = 'cli-activity-line';
+  line.textContent = nextText;
+  log.appendChild(line);
+  log.scrollTop = log.scrollHeight;
+}
+
+function updateCliActivityPanel({ label, task } = {}) {
+  const panel = document.getElementById('status-panel');
+  if (!panel || panel.dataset.panelType !== 'cli') return;
+  if (typeof label === 'string') {
+    const labelEl = panel.querySelector('.cli-activity-label');
+    if (labelEl) labelEl.textContent = label;
+  }
+  if (typeof task === 'string') {
+    const taskEl = panel.querySelector('.cli-activity-task');
+    if (taskEl) taskEl.textContent = task;
+  }
 }
 
 function showHTML(html) {
@@ -35,6 +88,8 @@ function showHTMLSafe(html) {
   iframeContainer.appendChild(iframe);
   panel.innerHTML = '';
   panel.appendChild(iframeContainer);
+  panel.dataset.panelType = 'html';
+  delete panel.dataset.cliTitle;
   appBody.classList.add('panel-active');
 
   // Write content to iframe document
@@ -59,6 +114,11 @@ function showHTMLSafe(html) {
 
 function hidePanel() {
   const appBody = document.getElementById('app-body');
+  const panel = document.getElementById('status-panel');
+  if (panel) {
+    delete panel.dataset.panelType;
+    delete panel.dataset.cliTitle;
+  }
   appBody.classList.remove('panel-active');
 }
 
@@ -379,6 +439,9 @@ function escapeHtml(str) {
 if (typeof module !== 'undefined') {
   module.exports = {
     showPanel,
+    showCliActivityPanel,
+    appendCliActivityLine,
+    updateCliActivityPanel,
     showHTML,
     hidePanel,
     renderStatusBoard,

@@ -15,6 +15,9 @@ Use this checklist when validating Marvis changes, especially before pushing or 
 - Normal chat TTS speaks the returned message, not only the first paragraph.
 - TTS falls back to browser speech if ElevenLabs fails.
 - `/code`, `/claude`, and `/codex` delegate to the correct CLI.
+- Plain messages without a CLI prefix should not blindly reuse the preferred CLI; Gemini routing should decide whether the next turn belongs to ordinary chat or Codex.
+- If Gemini decides to continue Codex, the next Codex delegation should carry recent task context instead of acting like a blank new topic.
+- If Gemini decides a topic changed, or if Codex has just delivered HTML/report output, the managed Codex task session should close before the next plain-message routing decision.
 - Report generation asks CLI delegates to write an HTML file and return `[html] <path>`.
 - HTML panel opens only from explicit file paths or open/show commands.
 - `open <keyword>`, `show <keyword>`, and `/open <keyword>` search saved panels.
@@ -42,6 +45,7 @@ Use this checklist when validating Marvis changes, especially before pushing or 
 - `Check for Updates` compares the installed app version with the latest GitHub release for `threeminutesai/agentic-marvis`.
 - When an update exists, Marvis should offer to open the release asset or release page in the system browser instead of trying to self-replace the running app.
 - When no update exists, Marvis should clearly report that the installed version is already current.
+- If a preferred CLI is configured, background warm-up may happen after startup/settings save/project change, but the validator should distinguish this from a true always-open CLI session.
 
 ## Required Local Verification
 

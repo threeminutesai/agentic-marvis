@@ -2,6 +2,7 @@
 
 // README documents "up to 10 minutes" for CLI delegation - keep this in sync.
 const TIMEOUT_MS = 10 * 60 * 1000;
+const WARMUP_TIMEOUT_MS = 15 * 1000;
 const MAX_BUFFER_LENGTH = 5 * 1024 * 1024;
 
 function redactHtmlDiffs(text) {
@@ -150,4 +151,57 @@ function delegateCodexTask({ task, projectPath, spawnImpl = spawn, timeoutMs = T
   });
 }
 
-module.exports = { delegateCodexTask };
+function warmupCodex({ projectPath, spawnImpl = spawn, timeoutMs = WARMUP_TIMEOUT_MS } = {}) {
+  return new Promise((resolve) => {
+    const proc = spawnImpl('codex', ['--version'], {
+      cwd: projectPath || process.cwd(),
+      env: process.env,
+      shell: true,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    let stdout = '';
+    let stderr = '';
+    let settled = false;
+
+    const settle = (result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(result);
+    };
+
+    const timer = setTimeout(() => {
+      if (settled) return;
+      proc.kill();
+      settle({ ok: false, summary: 'Codex warm-up timed out.' });
+    }, timeoutMs);
+
+    proc.on('error', (err) => {
+      settle({ ok: false, summary: `I can't reach Codex, sir - ${err.message}` });
+    });
+
+    proc.stdout.on('data', (chunk) => {
+      stdout += chunk.toString();
+    });
+
+    proc.stderr.on('data', (chunk) => {
+      stderr += chunk.toString();
+    });
+
+    proc.on('close', (code) => {
+      const summary = (stdout.trim() || stderr.trim() || 'Codex ready.').replace(/\s+/g, ' ');
+      if (code === 0) {
+        settle({ ok: true, summary });
+        return;
+      }
+      if (summary && isAuthFailureText(summary)) {
+        settle({ ok: false, summary: `Codex authentication failed, sir - try running "codex login" in a terminal. ${summary}` });
+        return;
+      }
+      settle({ ok: false, summary: summary || `Codex warm-up failed (code ${code}).` });
+    });
+  });
+}
+
+module.exports = { delegateCodexTask, warmupCodex };

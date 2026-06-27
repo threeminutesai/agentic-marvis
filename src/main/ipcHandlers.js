@@ -10,8 +10,8 @@ const { createOpenRouterProvider } = require('./providers/openRouterProvider');
 const { createOllamaProvider } = require('./providers/ollamaProvider');
 const { createElevenLabsProvider } = require('./providers/elevenLabsProvider');
 const { createElevenLabsSttProvider } = require('./providers/elevenLabsSttProvider');
-const { delegateTask } = require('./claudeCode/delegate');
-const { delegateCodexTask } = require('./codex/delegate');
+const { delegateTask, warmupClaudeCode } = require('./claudeCode/delegate');
+const { delegateCodexTask, warmupCodex } = require('./codex/delegate');
 const { readStatusRows, ensureStatusFile, hashStatusRows } = require('./status/statusFile');
 const { ensureCaptureDir, getNextCapturePath, pruneCaptures } = require('./status/captureFile');
 const { DEFAULT_TEMPLATE_HTML } = require('./status/htmlPanelTemplate');
@@ -35,6 +35,44 @@ function createProviderFor(providerName, apiKey, settings = {}) {
     });
   }
   return createDeepseekProvider({ apiKey });
+}
+
+function extractJsonObject(text) {
+  const source = String(text || '').trim();
+  if (!source) return null;
+  const fenced = source.match(/```json\s*([\s\S]*?)\s*```/i);
+  const candidate = fenced ? fenced[1] : source;
+  const firstBrace = candidate.indexOf('{');
+  const lastBrace = candidate.lastIndexOf('}');
+  if (firstBrace === -1 || lastBrace === -1 || lastBrace < firstBrace) return null;
+  try {
+    return JSON.parse(candidate.slice(firstBrace, lastBrace + 1));
+  } catch {
+    return null;
+  }
+}
+
+function normalizeRouterDecision(raw, { hasSession = false } = {}) {
+  const route = raw?.route === 'codex' ? 'codex' : 'marvis';
+  let sessionAction = ['start', 'continue', 'close', 'none'].includes(raw?.sessionAction)
+    ? raw.sessionAction
+    : 'none';
+
+  if (route === 'codex' && sessionAction === 'none') {
+    sessionAction = hasSession ? 'continue' : 'start';
+  }
+  if (route === 'codex' && sessionAction === 'continue' && !hasSession) {
+    sessionAction = 'start';
+  }
+  if (route === 'marvis' && sessionAction === 'start') {
+    sessionAction = hasSession ? 'close' : 'none';
+  }
+
+  return {
+    route,
+    sessionAction,
+    reason: String(raw?.reason || '').trim(),
+  };
 }
 
 function getUserFacingLanguageInstruction(language) {
@@ -730,6 +768,74 @@ function registerIpcHandlers() {
     controller.abort();
     activeOperations.delete(operationId);
     return { ok: true };
+  });
+
+  ipcMain.handle('cli:warmup', async (_event, channelKey) => {
+    const settings = settingsStore.load();
+    const normalized = String(channelKey || settings.preferredCliChannel || '')
+      .trim()
+      .toLowerCase()
+      .replace(/^\//, '');
+
+    if (!normalized) {
+      return { ok: false, skipped: true, summary: 'No preferred CLI configured.' };
+    }
+
+    if (normalized === 'code' || normalized === 'claude') {
+      return warmupClaudeCode({ projectPath: settings.activeProject });
+    }
+
+    if (normalized === 'codex') {
+      return warmupCodex({ projectPath: settings.activeProject });
+    }
+
+    return { ok: false, skipped: true, summary: `Unknown CLI channel: ${normalized}` };
+  });
+
+  ipcMain.handle('router:decide', async (_event, payload) => {
+    const settings = settingsStore.load();
+    const envKeys = loadEnvFile();
+    const apiKey = envKeys.gemini || settings.apiKeys?.gemini;
+    if (!apiKey) {
+      return { ok: false, skipped: true, error: 'No Gemini API key configured for intelligent routing, sir.' };
+    }
+
+    const session = payload?.session?.active ? payload.session : null;
+    const client = createGeminiProvider({ apiKey });
+    const userPayload = {
+      text: String(payload?.text || ''),
+      hasAttachments: Boolean(payload?.hasAttachments),
+      currentHtmlPath: String(payload?.currentHtmlPath || ''),
+      session,
+    };
+
+    const systemPrompt = [
+      'You are Marvis intelligent routing control.',
+      'Decide whether the next user message should go to normal Marvis chat or to Codex.',
+      'Use Codex for coding, file/project work, HTML/report generation, debugging, implementation, technical follow-up, and continuing an existing Codex task.',
+      'Use Marvis chat for ordinary conversation, quick factual answers, small talk, or clearly new non-project topics.',
+      'If there is an active Codex session, continue it only when the user is clearly following the same task/result.',
+      'Close the Codex session when the user switches topic, or when the previous Codex result already sounds concluded/final, or when HTML/report delivery means the task is effectively complete.',
+      'Return JSON only with this shape: {"route":"marvis|codex","sessionAction":"start|continue|close|none","reason":"short reason"}.',
+      'No markdown, no extra text.',
+    ].join(' ');
+
+    try {
+      const reply = await client.chat({
+        systemPrompt,
+        messages: [{ role: 'user', content: JSON.stringify(userPayload) }],
+      });
+      const parsed = extractJsonObject(reply);
+      if (!parsed) {
+        return {
+          ok: true,
+          decision: normalizeRouterDecision({ route: session ? 'codex' : 'marvis', sessionAction: session ? 'continue' : 'none', reason: 'Fallback because router JSON could not be parsed.' }, { hasSession: Boolean(session) }),
+        };
+      }
+      return { ok: true, decision: normalizeRouterDecision(parsed, { hasSession: Boolean(session) }) };
+    } catch (err) {
+      return { ok: false, error: `Gemini routing failed, sir: ${err.message}` };
+    }
   });
 
   ipcMain.handle('chat:send', async (_event, payload) => {
