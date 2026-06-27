@@ -1904,7 +1904,7 @@ function populateSettingsForm(settings) {
   document.getElementById('voice-volume-input').value = voiceVolume;
   document.getElementById('voice-volume-value').textContent = `${Math.round(voiceVolume * 100)}%`;
   ttsController.setVolume(voiceVolume);
-  const musicVolume = typeof settings.musicVolume === 'number' ? settings.musicVolume : 0.6;
+  const musicVolume = typeof settings.musicVolume === 'number' ? settings.musicVolume : 0.2;
   document.getElementById('music-volume-input').value = musicVolume;
   document.getElementById('music-volume-value').textContent = `${Math.round(musicVolume * 100)}%`;
   musicController.setVolume(musicVolume);
