@@ -35,14 +35,11 @@ New-Item -ItemType Directory -Path $zipStage | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $zipStage "data") | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $zipStage "skills") | Out-Null
 
-# Copy essential app files (Marvis.exe + required DLLs, but not resources)
+# Copy only Marvis.exe (DLLs are bundled inside Marvis.exe or in resources folder that Electron needs)
 $unpackedDir = Join-Path $repoRoot "release\win-unpacked"
-$essentialFiles = @("Marvis.exe", "ffmpeg.dll", "d3dcompiler_47.dll", "libGLESv2.dll", "vk_swiftshader.dll", "vulkan-1.dll", "libEGL.dll")
-foreach ($file in $essentialFiles) {
-  $sourcePath = Join-Path $unpackedDir $file
-  if (Test-Path $sourcePath) {
-    Copy-Item $sourcePath (Join-Path $zipStage $file)
-  }
+$sourcePath = Join-Path $unpackedDir "Marvis.exe"
+if (Test-Path $sourcePath) {
+  Copy-Item $sourcePath (Join-Path $zipStage "Marvis.exe")
 }
 Copy-Item (Join-Path $bundledDataDir "music-library.json") (Join-Path $zipStage "data\music-library.json")
 Copy-Item (Join-Path $bundledDataDir "music") (Join-Path $zipStage "data\music") -Recurse
