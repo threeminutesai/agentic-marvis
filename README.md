@@ -125,7 +125,7 @@ Claude 或 Codex 生成报告后会显示在右侧面板，并保存到 `data/ht
 
 ## Briefing (Weather, News, Email)
 
-The status board and spoken greeting pull from `data/marvis-status.json`. Marvis reads this file on launch but does not refresh it — you control when it updates.
+The status board and spoken greeting pull from `data/marvis-status.json`. Marvis reads this file on launch but does not refresh it — you control when it updates. Customize the briefing content by setting your user profile (location, language, interests) in Settings.
 
 **To automate:** use the bundled `agentic-marvis-brief` skill with Claude Code or Codex to regenerate `marvis-status.json` on a schedule (news, weather, Gmail triage). Run it manually or set up a cron / task scheduler to call it periodically.
 
@@ -134,7 +134,7 @@ The status board and spoken greeting pull from `data/marvis-status.json`. Marvis
 claude --skill skills/agentic-marvis-brief
 ```
 
-状态看板和语音简报来自 `data/marvis-status.json`。Marvis 启动时读取，但不会自动刷新，更新时机由你决定。
+状态看板和语音简报来自 `data/marvis-status.json`。Marvis 启动时读取，但不会自动刷新，更新时机由你决定。可在 Settings 中设置用户画像（地点、语言、兴趣等）来自定义简报内容。
 
 **自动化方式：** 使用内置的 `agentic-marvis-brief` skill，通过 Claude Code 或 Codex 定期重新生成 `marvis-status.json`（包含新闻、天气、Gmail 分类）。可手动运行，也可通过计划任务或 cron 定期触发。
 
