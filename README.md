@@ -149,12 +149,7 @@ claude --skill skills/agentic-marvis-brief
 
 ## Bundled skills
 
-| Skill | What it does |
-|-------|-------------|
-| [`agentic-marvis-brief`](skills/agentic-marvis-brief) | Fills `marvis-status.json` with news, weather, Gmail triage, and briefing data |
-| [`agentic-marvis-dashboard`](skills/agentic-marvis-dashboard) | Turns spreadsheets into a single-file HTML dashboard with KPI cards, charts, and tables |
-
-| Skill | 说明 |
-|-------|------|
-| [`agentic-marvis-brief`](skills/agentic-marvis-brief) | 生成包含新闻、天气、Gmail 分类的 `marvis-status.json` |
-| [`agentic-marvis-dashboard`](skills/agentic-marvis-dashboard) | 将电子表格转换为含 KPI 卡片、图表与表格的单文件 HTML 仪表板 |
+| Skill | What it does | 说明 |
+|-------|-------------|------|
+| [`agentic-marvis-brief`](skills/agentic-marvis-brief) | Fills `marvis-status.json` with news, weather, Gmail triage, and briefing data | 生成包含新闻、天气、Gmail 分类的 `marvis-status.json` |
+| [`agentic-marvis-dashboard`](skills/agentic-marvis-dashboard) | Turns spreadsheets into a single-file HTML dashboard with KPI cards, charts, and tables | 将电子表格转换为含 KPI 卡片、图表与表格的单文件 HTML 仪表板 |
