@@ -867,6 +867,21 @@ function registerIpcHandlers() {
 
   ipcMain.handle('settings:get', () => {
     const settings = settingsStore.load();
+    // Sync language from User Profile detail if not in settings
+    if (!settings.language) {
+      try {
+        const statusRows = readStatusRows(getStatusFilePath());
+        const profileRow = statusRows.find((r) => r.type === 'User Profile');
+        if (profileRow) {
+          const parsed = parseUserProfileDetail(profileRow.detail);
+          if (parsed.language) {
+            settings.language = parsed.language;
+          }
+        }
+      } catch (err) {
+        console.log('[Settings] Could not sync language from profile:', err.message);
+      }
+    }
     return { ...settings, apiKeys: loadEnvFile() };
   });
 

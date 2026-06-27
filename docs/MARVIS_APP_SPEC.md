@@ -420,9 +420,19 @@ This default matters because users are expected to run the CLI from the same fol
 
 ### Briefing Language
 
-If `User Profile.detail` includes a language value such as `Language: English` or `Language: 中文`, Marvis and its briefing generation workflow should treat that as the output-language requirement for generated user-facing briefing content.
+Language is stored in two places:
+1. **settings.json** - UI language preference
+2. **User Profile.detail** - Language metadata for briefing generation (e.g., `Language: English` or `Language: 中文`)
 
-This applies to:
+Expected behavior:
+
+- On app startup, if language is not in settings, read from `User Profile.detail` metadata
+- When user changes language in settings, sync it to `User Profile.detail` (preserving other metadata like geolocation)
+- Briefing generation should read language from `User Profile.detail` and generate content in that language
+- Profile editing should not discard the `Language:` metadata when saving geolocation or background text
+- Do not let language setting disappear due to initialization or sync failures
+
+This applies to generated content:
 
 - weather summary text,
 - unread and urgent email summaries,
