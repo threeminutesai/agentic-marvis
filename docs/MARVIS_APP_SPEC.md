@@ -75,6 +75,7 @@ Expected outcome:
 - If the user clearly requests a report, Marvis delegates to Claude Code by default when no explicit CLI prefix is present.
 - If screenshots/captures are attached, Marvis delegates to a CLI channel because the bot API cannot read local files.
 - CLI output must be summarized for voice and, when HTML is involved, returned by file path only.
+- When the right-side live CLI panel is shown during Codex work, it should display backend CLI stream output rather than duplicating the summarized chat/voice progress text.
 
 ### Capture
 

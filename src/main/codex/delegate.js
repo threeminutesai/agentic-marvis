@@ -49,7 +49,7 @@ function isAuthFailureText(text) {
   return /\b401\b|authenticat/i.test(text);
 }
 
-function delegateCodexTask({ task, projectPath, spawnImpl = spawn, timeoutMs = TIMEOUT_MS, signal, onProgress }) {
+function delegateCodexTask({ task, projectPath, spawnImpl = spawn, timeoutMs = TIMEOUT_MS, signal, onProgress, onRawOutput }) {
   return new Promise((resolve) => {
     console.log(`[Codex] Spawning: codex exec --skip-git-repo-check (task piped via stdin)`);
     console.log(`[Codex] Working directory: ${projectPath}`);
@@ -63,7 +63,22 @@ function delegateCodexTask({ task, projectPath, spawnImpl = spawn, timeoutMs = T
     proc.stdin.end();
     let stdoutBuffer = '';
     let stderrBuffer = '';
+    let stdoutLineBuffer = '';
+    let stderrLineBuffer = '';
     let settled = false;
+
+    const emitRawLines = (streamName, chunkText, carryBuffer) => {
+      if (!onRawOutput) return carryBuffer + chunkText;
+      const combined = carryBuffer + chunkText;
+      const lines = combined.split(/\r?\n/);
+      const nextCarry = lines.pop() || '';
+      for (const line of lines) {
+        const trimmed = line.trimEnd();
+        if (!trimmed) continue;
+        onRawOutput(`[Codex ${streamName}] ${trimmed}`);
+      }
+      return nextCarry;
+    };
 
     const settle = (result) => {
       if (settled) return;
@@ -110,6 +125,7 @@ function delegateCodexTask({ task, projectPath, spawnImpl = spawn, timeoutMs = T
       const data = chunk.toString();
       console.log(`[Codex stdout] ${redactHtmlDiffs(data)}`);
       stdoutBuffer += data;
+      stdoutLineBuffer = emitRawLines('stdout', redactHtmlDiffs(data), stdoutLineBuffer);
       hasOutput = true;
       if (stdoutBuffer.length > MAX_BUFFER_LENGTH) stdoutBuffer = stdoutBuffer.slice(-MAX_BUFFER_LENGTH);
       if (onProgress) {
@@ -126,6 +142,7 @@ function delegateCodexTask({ task, projectPath, spawnImpl = spawn, timeoutMs = T
       const data = chunk.toString();
       console.log(`[Codex stderr] ${redactHtmlDiffs(data)}`);
       stderrBuffer += data;
+      stderrLineBuffer = emitRawLines('stderr', redactHtmlDiffs(data), stderrLineBuffer);
       hasOutput = true;
       if (stderrBuffer.length > MAX_BUFFER_LENGTH) stderrBuffer = stderrBuffer.slice(-MAX_BUFFER_LENGTH);
       if (data.includes('tokens used')) {
@@ -135,6 +152,12 @@ function delegateCodexTask({ task, projectPath, spawnImpl = spawn, timeoutMs = T
     });
 
     proc.on('close', (code) => {
+      if (onRawOutput) {
+        const pendingStdout = stdoutLineBuffer.trim();
+        const pendingStderr = stderrLineBuffer.trim();
+        if (pendingStdout) onRawOutput(`[Codex stdout] ${pendingStdout}`);
+        if (pendingStderr) onRawOutput(`[Codex stderr] ${pendingStderr}`);
+      }
       const output = stdoutBuffer.trim() || stderrBuffer.trim();
       console.log(`[Codex] Process exited with code ${code}`);
       console.log(`[Codex] Output: ${output.slice(0, 200)}...`);

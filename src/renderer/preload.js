@@ -39,4 +39,9 @@ contextBridge.exposeInMainWorld('marvis', {
     ipcRenderer.on('cli:progress', listener);
     return () => ipcRenderer.removeListener('cli:progress', listener);
   },
+  onCliOutput: (callback) => {
+    const listener = (_event, payload) => callback(payload);
+    ipcRenderer.on('cli:output', listener);
+    return () => ipcRenderer.removeListener('cli:output', listener);
+  },
 });

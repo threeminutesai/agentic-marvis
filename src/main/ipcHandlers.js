@@ -1007,6 +1007,9 @@ function registerIpcHandlers() {
         onProgress: operationId
           ? (text) => _event.sender.send('cli:progress', { operationId, text })
           : undefined,
+        onRawOutput: operationId
+          ? (text) => _event.sender.send('cli:output', { operationId, text })
+          : undefined,
       });
       console.log('[IPC] Codex delegate returned:', result);
       return result;

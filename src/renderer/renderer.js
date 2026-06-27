@@ -1632,17 +1632,29 @@ async function sendToCli(text, channel, task, { forceReport = false, voiceAllowe
   // Placeholder bubble updated in place (no speech) as progress events stream
   // in from the CLI, then overwritten with the real reply once it resolves.
   appendChatLine('Marvis', t('thinking'));
+  const useBackendCliPanel = getChannelKey(channel) === '/codex';
   const unsubscribeProgress = window.marvis.onCliProgress(({ operationId: progressOperationId, text: progressText }) => {
     if (progressOperationId !== operationId) return;
     setAvatarHeadline(progressText);
-    appendCliActivityLine(progressText);
+    if (!useBackendCliPanel) appendCliActivityLine(progressText);
   });
+  const unsubscribeOutput = useBackendCliPanel
+    ? window.marvis.onCliOutput(({ operationId: outputOperationId, text: outputText }) => {
+      if (outputOperationId !== operationId) return;
+      appendCliActivityLine(outputText);
+    })
+    : () => {};
   let htmlPanel = null;
   try {
     htmlPanel = await window.marvis.prepareHtmlPanel();
     currentHtmlPath = null;
-    showCliActivityPanel(channel.label, task, { label: 'Live CLI', preserveLog: true });
-    appendCliActivityLine(`Starting ${channel.label}...`);
+    showCliActivityPanel(channel.label, task, {
+      label: useBackendCliPanel ? 'Backend CLI' : 'Live CLI',
+      preserveLog: true,
+    });
+    if (!useBackendCliPanel) {
+      appendCliActivityLine(`Starting ${channel.label}...`);
+    }
     const delegatedTask = buildCliTaskWithHtmlContract(buildCliSessionTask(task, sessionState), htmlPanel, { forceReport });
     console.log(`[CLI] Delegating to ${channel.label}: "${task}"`);
     console.log(`[CLI] Calling channel.delegate (this is an IPC call)...`);
@@ -1650,6 +1662,7 @@ async function sendToCli(text, channel, task, { forceReport = false, voiceAllowe
     console.log(`[CLI] Received result from IPC:`, result);
     console.log(`[CLI] Result status: ${result?.status}, summary length: ${result?.summary?.length}`);
     unsubscribeProgress();
+    unsubscribeOutput();
     if (result?.status !== 'success' && htmlPanel?.filePath) {
       window.marvis.discardHtmlPanel(htmlPanel.filePath).catch(() => {});
     }
@@ -1690,6 +1703,7 @@ async function sendToCli(text, channel, task, { forceReport = false, voiceAllowe
   } catch (err) {
     console.log(`[CLI] Error:`, err);
     unsubscribeProgress();
+    unsubscribeOutput();
     if (htmlPanel?.filePath) window.marvis.discardHtmlPanel(htmlPanel.filePath).catch(() => {});
     if (activeOperationId === operationId) activeOperationId = null;
     setProcessingResponse(false);
@@ -1698,6 +1712,7 @@ async function sendToCli(text, channel, task, { forceReport = false, voiceAllowe
     setAvatarHeadline(`I ran into a problem reaching ${channel.label}, sir: ${err.message}`);
   } finally {
     unsubscribeProgress();
+    unsubscribeOutput();
     if (activeOperationId === operationId) activeOperationId = null;
     setProcessingResponse(false);
     if (!isSpeaking) setAvatarState('idle');
