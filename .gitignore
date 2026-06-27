@@ -25,3 +25,5 @@ agentic-marvis-dashboard-workspace/
 scripts/
 tests/
 release pack/
+__tmp_*.py
+tmp_*.py
