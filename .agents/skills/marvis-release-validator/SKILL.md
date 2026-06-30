@@ -24,6 +24,7 @@ Read `docs/MARVIS_APP_SPEC.md` before making validation judgments. Read `referen
    - For the bundled `agentic-marvis-brief` skill, confirm it defaults to `data/marvis-status.json` in the current working directory when no explicit path is provided.
    - For release validation, confirm both `skills/agentic-marvis-brief/` and `skills/agentic-marvis-dashboard/` are included in packaged release artifacts alongside the app and `data/` payload.
    - For CLI output validation, confirm Codex or Claude diff output does not dump raw HTML file contents into the right-side terminal or CLI activity panel; HTML diffs must be collapsed to a redacted summary such as `[content omitted]`.
+   - For CLI helper-line validation, confirm the right-side terminal or CLI activity panel hides raw helper chatter such as bare `exec`, full shell command invocations, and timing boilerplate like `succeeded in 560ms:` when those lines do not add user value.
    - For screenshot validation, confirm sending a request with attached screenshots does not replace or close the currently visible right-side HTML panel during analysis.
    - For voice-plus-image validation, confirm a voice transcript sent with pending screenshots still includes the screenshot attachments in the delegated CLI task and the UI makes that combined send obvious to the user.
 4. Run targeted syntax checks for changed JavaScript files and `npm test`.
@@ -118,6 +119,7 @@ macOS workflow output should include a `.dmg` and a zip containing `Marvis.app`,
 - When screenshots are attached for a follow-up on the current panel, preserve the visible right-side HTML panel instead of swapping it to a CLI activity view.
 - Never convert long bot replies, Markdown, inline HTML, or `[content]` blocks into report panels.
 - Never stream raw HTML diff bodies or full HTML file contents into the backend CLI panel; redact them before display.
+- Hide raw CLI helper chatter such as `exec`, full shell command lines, and plain timing boilerplate when a shorter summary already represents the same action.
 - Speak returned chat replies fully unless muted.
 
 ## Release Safety

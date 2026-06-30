@@ -12,7 +12,10 @@ function redactHtmlDiffs(text) {
 
 function createHtmlDiffRedactor() {
   const diffLineRe = /^(index [0-9a-f]+\.\.[0-9a-f]+|new file mode \d+|deleted file mode \d+|similarity index \d+%|rename from |rename to |--- |\+\+\+ |@@ |[+\- ])/;
+  const htmlReadCommandRe = /\b(?:Get-Content|cat|type)\b[\s"]+(.+?\.html)\b/i;
+  const controlLineRe = /^(exec|diff --git |".*?"\s+-Command |[A-Za-z]:\\|tokens used\b|done\.?$|applied\b|updated\b|created\b|deleted\b|error:|warning:)/i;
   let inHtmlDiff = false;
+  let inHtmlRead = false;
   let suppressedCount = 0;
   let pendingLine = '';
 
@@ -21,6 +24,26 @@ function createHtmlDiffRedactor() {
       result.push(`  ... [${suppressedCount} lines omitted]`);
       suppressedCount = 0;
     }
+  };
+
+  const formatHtmlReadSummary = (line) => {
+    const match = String(line || '').match(htmlReadCommandRe);
+    const filePath = (match?.[1] || '.html')
+      .replace(/^"+|"+$/g, '')
+      .trim();
+    return `HTML file content omitted: ${filePath}`;
+  };
+
+  const lineLooksLikeHtmlContent = (line) => {
+    const trimmed = String(line || '').trim();
+    if (!trimmed) return false;
+    if (/^<!doctype\s+html>/i.test(trimmed)) return true;
+    if (/^<\/?(html|head|body|main|header|section|article|style|title|meta|link|script)\b/i.test(trimmed)) return true;
+    if (/^[:.#@a-zA-Z0-9_-]+\s*\{$/.test(trimmed)) return true;
+    if (/^--[a-z-]+\s*:/.test(trimmed)) return true;
+    if (/^[a-z-]+\s*:\s*[^:]+;?$/.test(trimmed)) return true;
+    if (/^[{}]$/.test(trimmed)) return true;
+    return false;
   };
 
   return {
@@ -34,6 +57,7 @@ function createHtmlDiffRedactor() {
         if (diffStart) {
           flushSuppressed(result);
           inHtmlDiff = true;
+          inHtmlRead = false;
           result.push(`diff --git a/${diffStart[1]} b/${diffStart[1]} [content omitted]`);
           continue;
         }
@@ -44,6 +68,28 @@ function createHtmlDiffRedactor() {
           }
           inHtmlDiff = false;
           flushSuppressed(result);
+        }
+        if (inHtmlRead) {
+          if (controlLineRe.test(line) && !lineLooksLikeHtmlContent(line)) {
+            inHtmlRead = false;
+            flushSuppressed(result);
+          } else {
+            suppressedCount += 1;
+            continue;
+          }
+        }
+        if (htmlReadCommandRe.test(line)) {
+          flushSuppressed(result);
+          inHtmlRead = true;
+          result.push(formatHtmlReadSummary(line));
+          continue;
+        }
+        if (lineLooksLikeHtmlContent(line)) {
+          flushSuppressed(result);
+          inHtmlRead = true;
+          result.push('HTML content omitted');
+          suppressedCount += 1;
+          continue;
         }
         result.push(line);
       }
@@ -60,6 +106,10 @@ function createHtmlDiffRedactor() {
         inHtmlDiff = false;
         flushSuppressed(result);
       }
+      if (inHtmlRead) {
+        inHtmlRead = false;
+        flushSuppressed(result);
+      }
       return result.filter(Boolean).join('\n');
     },
   };
@@ -68,6 +118,18 @@ function createHtmlDiffRedactor() {
 function lastMeaningfulLine(text) {
   const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   return lines.length ? lines[lines.length - 1] : null;
+}
+
+function shouldHideCliRawLine(line) {
+  const trimmed = String(line || '').trim();
+  if (!trimmed) return true;
+  if (/^exec$/i.test(trimmed)) return true;
+  if (/^resume$/i.test(trimmed)) return true;
+  if (/^".*powershell\.exe"\s+-Command\s+/i.test(trimmed)) return true;
+  if (/^".*cmd\.exe"\s+\/c\s+/i.test(trimmed)) return true;
+  if (/^".*bash(?:\.exe)?"\s+-lc\s+/i.test(trimmed)) return true;
+  if (/^".*?(?:powershell|cmd|bash|sh)(?:\.exe)?"\b.*\bsucceeded in \d+ms:?\s*$/i.test(trimmed)) return true;
+  return false;
 }
 
 // Codex CLI prints its own auth-failure text to stdout/stderr like any other
@@ -123,6 +185,7 @@ function delegateCodexTask({ task, projectPath, resumeSessionId, spawnImpl = spa
       for (const line of lines) {
         const trimmed = line.trimEnd();
         if (!trimmed) continue;
+        if (shouldHideCliRawLine(trimmed)) continue;
         onRawOutput(`[Codex ${streamName}] ${trimmed}`);
       }
       return nextCarry;
@@ -216,8 +279,8 @@ function delegateCodexTask({ task, projectPath, resumeSessionId, spawnImpl = spa
       if (onRawOutput) {
         const pendingStdout = stdoutLineBuffer.trim();
         const pendingStderr = stderrLineBuffer.trim();
-        if (pendingStdout) onRawOutput(`[Codex stdout] ${pendingStdout}`);
-        if (pendingStderr) onRawOutput(`[Codex stderr] ${pendingStderr}`);
+        if (pendingStdout && !shouldHideCliRawLine(pendingStdout)) onRawOutput(`[Codex stdout] ${pendingStdout}`);
+        if (pendingStderr && !shouldHideCliRawLine(pendingStderr)) onRawOutput(`[Codex stderr] ${pendingStderr}`);
       }
       const output = stdoutBuffer.trim() || stderrBuffer.trim();
       console.log(`[Codex] Process exited with code ${code}`);
@@ -292,4 +355,12 @@ function warmupCodex({ projectPath, spawnImpl = spawn, timeoutMs = WARMUP_TIMEOU
   });
 }
 
-module.exports = { delegateCodexTask, warmupCodex, buildCodexExecArgs, extractSessionId, redactHtmlDiffs, createHtmlDiffRedactor };
+module.exports = {
+  delegateCodexTask,
+  warmupCodex,
+  buildCodexExecArgs,
+  extractSessionId,
+  redactHtmlDiffs,
+  createHtmlDiffRedactor,
+  shouldHideCliRawLine,
+};

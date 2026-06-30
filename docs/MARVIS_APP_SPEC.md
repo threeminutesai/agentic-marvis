@@ -29,6 +29,7 @@ Validation notes:
 Expected runtime behavior:
 
 - When Codex or Claude emits diffs or file output involving `.html` files, the right-side terminal or CLI activity panel must not show the raw HTML body; HTML diff content must be redacted to a compact placeholder such as `[content omitted]`.
+- The right-side terminal or CLI activity panel should also hide low-value helper chatter such as bare `exec`, raw shell command invocations, and timing boilerplate like `succeeded in 560ms:` when those lines would only repeat backend implementation details.
 - If the user is viewing an HTML panel and sends a follow-up with attached screenshots, Marvis must keep the current right-side panel visible while the analysis runs.
 - Screenshot attachments must still be included in the delegated CLI task even when the right-side panel stays open.
 - When a voice transcript is sent together with attached screenshots, the user-visible message should make it clear that images were attached, rather than looking like a voice-only send.
@@ -36,6 +37,7 @@ Expected runtime behavior:
 Validation notes:
 
 - A deleted or modified `.html` diff from Codex must not spill full markup into the backend CLI panel, even when stderr arrives in multiple chunks.
+- A raw shell line that only says `exec`, prints a full PowerShell command, or only reports that a command succeeded in a short duration should be hidden when a concise higher-level summary is already shown.
 - Sending an image-assisted voice request against the current HTML panel should preserve the panel while still analyzing the screenshot and current panel path together.
 
 ## Release Packaging Contract

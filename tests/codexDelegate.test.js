@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const {
   redactHtmlDiffs,
   createHtmlDiffRedactor,
+  shouldHideCliRawLine,
 } = require('../src/main/codex/delegate');
 
 test('redactHtmlDiffs collapses full html diffs in one block', () => {
@@ -38,4 +39,29 @@ test('createHtmlDiffRedactor keeps html diff content hidden across chunk boundar
   assert.match(combined, /\[\d+ lines omitted\]/);
   assert.ok(!combined.includes('<!doctype html>'));
   assert.ok(combined.includes('next visible line'));
+});
+
+test('createHtmlDiffRedactor collapses html file reads and their body output', () => {
+  const redactor = createHtmlDiffRedactor();
+  const first = redactor.push('exec\n');
+  const second = redactor.push('"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe" -Command "Get-Content data\\\\html-panels\\\\20260630-report-5.html -TotalCount 260" in C:\\\\L_Center\\\\AI_devp\\\\jarvis succeeded in 560ms:\n');
+  const third = redactor.push('<!doctype html>\n<html lang="zh-CN">\n<head>\n  <meta charset="utf-8">\n  <style>\n');
+  const fourth = redactor.push('    :root {\n      --paper: #f4efe7;\n    }\nDone.\n');
+  const combined = [first, second, third, fourth, redactor.flush()].filter(Boolean).join('\n');
+
+  assert.ok(combined.includes('exec'));
+  assert.match(combined, /HTML file content omitted: .*20260630-report-5\.html/);
+  assert.match(combined, /\[\d+ lines omitted\]/);
+  assert.ok(!combined.includes('<!doctype html>'));
+  assert.ok(!combined.includes('--paper: #f4efe7;'));
+  assert.ok(combined.includes('Done.'));
+});
+
+test('shouldHideCliRawLine filters helper chatter but keeps meaningful summaries', () => {
+  assert.equal(shouldHideCliRawLine('exec'), true);
+  assert.equal(shouldHideCliRawLine('"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content data\\html-panels\\_template.html -TotalCount 260"'), true);
+  assert.equal(shouldHideCliRawLine('"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content data\\html-panels\\20260630-report-5.html -TotalCount 260" in C:\\L_Center\\AI_devp\\jarvis succeeded in 560ms:'), true);
+  assert.equal(shouldHideCliRawLine('HTML file content omitted: data\\html-panels\\20260630-report-5.html'), false);
+  assert.equal(shouldHideCliRawLine('  ... [8 lines omitted]'), false);
+  assert.equal(shouldHideCliRawLine('Done.'), false);
 });
