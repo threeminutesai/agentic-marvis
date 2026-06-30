@@ -467,6 +467,55 @@ button:active { transform: scale(0.97); }
   margin: 4px 0 8px;
   padding: 0 14px;
 }
+#wakeword-training-toggle-btn {
+  min-height: 34px;
+  margin: 4px 0 8px;
+  padding: 0 14px;
+}
+#wakeword-training-panel {
+  margin: 8px 0 14px;
+  padding: 12px;
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  background: rgba(5, 7, 20, 0.28);
+}
+.settings-inline-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 4px 0 8px;
+}
+#wakeword-training-run-btn {
+  min-height: 34px;
+  padding: 0 14px;
+  margin: 2px 0 0;
+}
+#wakeword-training-clear-btn {
+  min-height: 34px;
+  padding: 0 14px;
+  margin: 2px 0 0;
+}
+#wakeword-training-run-btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+.settings-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.settings-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(120, 211, 255, 0.24);
+  background: rgba(120, 211, 255, 0.1);
+  color: var(--text);
+  font-size: 12px;
+}
 #voice-words-panel {
   margin: 8px 0 14px;
   padding: 12px;

@@ -6,32 +6,63 @@ const WARMUP_TIMEOUT_MS = 15 * 1000;
 const MAX_BUFFER_LENGTH = 5 * 1024 * 1024;
 
 function redactHtmlDiffs(text) {
-  const lines = text.split(/\r?\n/);
-  const result = [];
-  const diffLineRe = /^(index [0-9a-f]+\.\.[0-9a-f]+|--- |\+\+\+ |@@ |[+\- ])/;
+  const redactor = createHtmlDiffRedactor();
+  return [redactor.push(text), redactor.flush()].filter(Boolean).join('\n');
+}
+
+function createHtmlDiffRedactor() {
+  const diffLineRe = /^(index [0-9a-f]+\.\.[0-9a-f]+|new file mode \d+|deleted file mode \d+|similarity index \d+%|rename from |rename to |--- |\+\+\+ |@@ |[+\- ])/;
   let inHtmlDiff = false;
   let suppressedCount = 0;
-  for (const line of lines) {
-    const diffStart = /^diff --git a\/(\S+\.html) b\/\1/.exec(line);
-    if (diffStart) {
-      if (inHtmlDiff) result.push(`  ... [${suppressedCount} lines omitted]`);
-      inHtmlDiff = true;
+  let pendingLine = '';
+
+  const flushSuppressed = (result) => {
+    if (suppressedCount) {
+      result.push(`  ... [${suppressedCount} lines omitted]`);
       suppressedCount = 0;
-      result.push(`diff --git a/${diffStart[1]} b/${diffStart[1]} [content omitted]`);
-      continue;
     }
-    if (inHtmlDiff) {
-      if (diffLineRe.test(line)) {
-        suppressedCount++;
-        continue;
+  };
+
+  return {
+    push(text) {
+      const combined = pendingLine + String(text || '');
+      const lines = combined.split(/\r?\n/);
+      pendingLine = lines.pop() || '';
+      const result = [];
+      for (const line of lines) {
+        const diffStart = /^diff --git a\/(\S+\.html) b\/(?:\S+\.html|dev\/null)$/.exec(line);
+        if (diffStart) {
+          flushSuppressed(result);
+          inHtmlDiff = true;
+          result.push(`diff --git a/${diffStart[1]} b/${diffStart[1]} [content omitted]`);
+          continue;
+        }
+        if (inHtmlDiff) {
+          if (diffLineRe.test(line)) {
+            suppressedCount += 1;
+            continue;
+          }
+          inHtmlDiff = false;
+          flushSuppressed(result);
+        }
+        result.push(line);
       }
-      inHtmlDiff = false;
-      if (suppressedCount) result.push(`  ... [${suppressedCount} lines omitted]`);
-    }
-    result.push(line);
-  }
-  if (inHtmlDiff && suppressedCount) result.push(`  ... [${suppressedCount} lines omitted]`);
-  return result.join('\n');
+      return result.join('\n');
+    },
+    flush() {
+      const result = [];
+      if (pendingLine) {
+        const trailing = pendingLine;
+        pendingLine = '';
+        result.push(this.push(`${trailing}\n`));
+      }
+      if (inHtmlDiff) {
+        inHtmlDiff = false;
+        flushSuppressed(result);
+      }
+      return result.filter(Boolean).join('\n');
+    },
+  };
 }
 
 function lastMeaningfulLine(text) {
@@ -80,6 +111,8 @@ function delegateCodexTask({ task, projectPath, resumeSessionId, spawnImpl = spa
     let stderrBuffer = '';
     let stdoutLineBuffer = '';
     let stderrLineBuffer = '';
+    const stdoutRedactor = createHtmlDiffRedactor();
+    const stderrRedactor = createHtmlDiffRedactor();
     let settled = false;
 
     const emitRawLines = (streamName, chunkText, carryBuffer) => {
@@ -139,9 +172,10 @@ function delegateCodexTask({ task, projectPath, resumeSessionId, spawnImpl = spa
 
     proc.stdout.on('data', (chunk) => {
       const data = chunk.toString();
-      console.log(`[Codex stdout] ${redactHtmlDiffs(data)}`);
-      stdoutBuffer += data;
-      stdoutLineBuffer = emitRawLines('stdout', redactHtmlDiffs(data), stdoutLineBuffer);
+      const redacted = stdoutRedactor.push(data);
+      console.log(`[Codex stdout] ${redacted}`);
+      stdoutBuffer += redacted;
+      stdoutLineBuffer = emitRawLines('stdout', redacted, stdoutLineBuffer);
       hasOutput = true;
       if (stdoutBuffer.length > MAX_BUFFER_LENGTH) stdoutBuffer = stdoutBuffer.slice(-MAX_BUFFER_LENGTH);
       if (onProgress) {
@@ -156,9 +190,10 @@ function delegateCodexTask({ task, projectPath, resumeSessionId, spawnImpl = spa
 
     proc.stderr.on('data', (chunk) => {
       const data = chunk.toString();
-      console.log(`[Codex stderr] ${redactHtmlDiffs(data)}`);
-      stderrBuffer += data;
-      stderrLineBuffer = emitRawLines('stderr', redactHtmlDiffs(data), stderrLineBuffer);
+      const redacted = stderrRedactor.push(data);
+      console.log(`[Codex stderr] ${redacted}`);
+      stderrBuffer += redacted;
+      stderrLineBuffer = emitRawLines('stderr', redacted, stderrLineBuffer);
       hasOutput = true;
       if (stderrBuffer.length > MAX_BUFFER_LENGTH) stderrBuffer = stderrBuffer.slice(-MAX_BUFFER_LENGTH);
       if (data.includes('tokens used')) {
@@ -168,6 +203,16 @@ function delegateCodexTask({ task, projectPath, resumeSessionId, spawnImpl = spa
     });
 
     proc.on('close', (code) => {
+      const trailingStdout = stdoutRedactor.flush();
+      const trailingStderr = stderrRedactor.flush();
+      if (trailingStdout) {
+        stdoutBuffer += trailingStdout;
+        stdoutLineBuffer = emitRawLines('stdout', trailingStdout, stdoutLineBuffer);
+      }
+      if (trailingStderr) {
+        stderrBuffer += trailingStderr;
+        stderrLineBuffer = emitRawLines('stderr', trailingStderr, stderrLineBuffer);
+      }
       if (onRawOutput) {
         const pendingStdout = stdoutLineBuffer.trim();
         const pendingStderr = stderrLineBuffer.trim();
@@ -247,4 +292,4 @@ function warmupCodex({ projectPath, spawnImpl = spawn, timeoutMs = WARMUP_TIMEOU
   });
 }
 
-module.exports = { delegateCodexTask, warmupCodex, buildCodexExecArgs, extractSessionId };
+module.exports = { delegateCodexTask, warmupCodex, buildCodexExecArgs, extractSessionId, redactHtmlDiffs, createHtmlDiffRedactor };

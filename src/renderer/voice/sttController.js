@@ -8,7 +8,7 @@ function createSttController() {
     }
 
     const recognition = new SpeechRecognitionImpl();
-    recognition.lang = 'en-US';
+    recognition.lang = window.__marvisLanguage === 'zh' ? 'zh-CN' : 'en-US';
     recognition.continuous = false;
     recognition.interimResults = false;
 

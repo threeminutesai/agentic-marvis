@@ -1,135 +1,298 @@
 // src/renderer/voice/wakeWordController.js
-// Primary: ElevenLabs STT via MediaRecorder chunks
-// Fallback: Web Speech API (requires Google connectivity)
-const CHUNK_MS = 4000;
+// Passive wake listening:
+// 1. monitor mic volume locally
+// 2. collect a short utterance only after speech starts
+// 3. send that utterance to ElevenLabs STT
+// 4. fuzzy-match the transcript to the configured wake word
+const PASSIVE_TIMESLICE_MS = 250;
+const PASSIVE_MIN_SPEECH_THRESHOLD = 0.02;
+const PASSIVE_NOISE_MULTIPLIER = 2.2;
+const PASSIVE_PREROLL_MS = 350;
+const PASSIVE_SILENCE_MS = 1000;
+const PASSIVE_MAX_UTTERANCE_MS = 7000;
+const WAKE_WORD_THRESHOLD = 0.8;
+const WAKE_WORD_COOLDOWN_MS = 5000;
+
+const wakeWordMatcher = window.MarvisWakeWordMatcher;
 
 function createWakeWordController() {
   let shouldListen = false;
-  let mediaRecorder = null;
   let stream = null;
+  let audioCtx = null;
+  let analyser = null;
+  let levelData = null;
+  let levelRafId = null;
+  let scriptProcessor = null;
   let onWakeCb = null;
+  let onTranscriptCb = null;
+  let onErrorCb = null;
   let wakeWord = 'marvis';
+  let lastWakeAt = 0;
+  let utteranceActive = false;
+  let utteranceBlocks = [];
+  let preRollBlocks = [];
+  let preRollSamples = 0;
+  let utteranceStartedAt = 0;
+  let lastSpeechAt = 0;
+  let noiseFloor = PASSIVE_MIN_SPEECH_THRESHOLD;
 
-  async function processChunk(blob) {
-    if (!shouldListen) return;
+  function stopLevelLoop() {
+    if (levelRafId !== null) cancelAnimationFrame(levelRafId);
+    levelRafId = null;
+  }
+
+  function cleanupAudioNodes() {
+    stopLevelLoop();
+    if (audioCtx) {
+      audioCtx.close().catch(() => {});
+      audioCtx = null;
+    }
+    analyser = null;
+    levelData = null;
+    scriptProcessor = null;
+  }
+
+  function resetUtteranceState() {
+    utteranceActive = false;
+    utteranceBlocks = [];
+    utteranceStartedAt = 0;
+    lastSpeechAt = 0;
+  }
+
+  function getSpeechThreshold() {
+    return Math.max(PASSIVE_MIN_SPEECH_THRESHOLD, noiseFloor * PASSIVE_NOISE_MULTIPLIER);
+  }
+
+  function encodeWavFromFloat32(blocks, sampleRate) {
+    const samples = blocks.reduce((sum, block) => sum + block.length, 0);
+    const bytesPerSample = 2;
+    const dataSize = samples * bytesPerSample;
+    const buffer = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(buffer);
+
+    function writeAscii(offset, text) {
+      for (let index = 0; index < text.length; index += 1) {
+        view.setUint8(offset + index, text.charCodeAt(index));
+      }
+    }
+
+    writeAscii(0, 'RIFF');
+    view.setUint32(4, 36 + dataSize, true);
+    writeAscii(8, 'WAVE');
+    writeAscii(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * bytesPerSample, true);
+    view.setUint16(32, bytesPerSample, true);
+    view.setUint16(34, 16, true);
+    writeAscii(36, 'data');
+    view.setUint32(40, dataSize, true);
+
+    let offset = 44;
+    for (const block of blocks) {
+      for (let index = 0; index < block.length; index += 1) {
+        const sample = Math.max(-1, Math.min(1, block[index]));
+        view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
+        offset += 2;
+      }
+    }
+
+    return new Blob([buffer], { type: 'audio/wav' });
+  }
+
+  function pushPreRollBlock(block) {
+    preRollBlocks.push(block);
+    preRollSamples += block.length;
+    const maxPreRollSamples = Math.round((audioCtx?.sampleRate || 44100) * (PASSIVE_PREROLL_MS / 1000));
+    while (preRollSamples > maxPreRollSamples && preRollBlocks.length) {
+      const removed = preRollBlocks.shift();
+      preRollSamples -= removed.length;
+    }
+  }
+
+  function appendAudioBlock(float32Block) {
+    const copy = new Float32Array(float32Block.length);
+    copy.set(float32Block);
+    if (utteranceActive) {
+      utteranceBlocks.push(copy);
+      return;
+    }
+    pushPreRollBlock(copy);
+  }
+
+  async function processUtterance(blob) {
+    if (!shouldListen || !blob?.size) return;
     try {
       const reader = new FileReader();
-      const base64 = await new Promise((res, rej) => {
-        reader.onloadend = () => { const r = String(reader.result || ''); res(r.includes(',') ? r.split(',')[1] : r); };
-        reader.onerror = () => rej(reader.error);
+      const base64 = await new Promise((resolve, reject) => {
+        reader.onloadend = () => {
+          const result = String(reader.result || '');
+          resolve(result.includes(',') ? result.split(',')[1] : result);
+        };
+        reader.onerror = () => reject(reader.error);
         reader.readAsDataURL(blob);
       });
-      const result = await window.marvis.transcribeSpeech({ audioBase64: base64, mimeType: blob.type || 'audio/webm' });
+
+      const result = await window.marvis.transcribeSpeech({
+        audioBase64: base64,
+        mimeType: blob.type || 'audio/webm',
+      });
       if (!shouldListen) return;
-      const text = (result.ok ? result.text : '').toLowerCase().trim();
-      const prefix = wakeWord.slice(0, 4);
-      if (text && (text.includes(wakeWord) || text.includes(prefix))) {
-        console.log('[WakeWord] detected:', text);
-        stopMediaRecorder();
-        onWakeCb();
+      if (!result?.ok) {
+        console.error('[WakeWord] STT failed:', result?.error || 'Unknown error');
+        if (typeof onErrorCb === 'function') {
+          onErrorCb(`Wake word STT failed: ${result?.error || 'Unknown error'}`);
+        }
+        return;
+      }
+
+      const transcript = String(result.text || '').trim();
+      const match = wakeWordMatcher
+        ? wakeWordMatcher.bestWakeWordMatch(transcript, wakeWord, WAKE_WORD_THRESHOLD)
+        : {
+            detected: transcript.toLowerCase().includes(wakeWord),
+            score: transcript ? 1 : 0,
+            alias: wakeWord,
+            transcriptToken: transcript,
+          };
+
+      if (transcript && typeof onTranscriptCb === 'function') {
+        onTranscriptCb(transcript, match);
+      }
+
+      if (match.detected && Date.now() - lastWakeAt >= WAKE_WORD_COOLDOWN_MS) {
+        lastWakeAt = Date.now();
+        if (typeof onWakeCb === 'function') onWakeCb(transcript, match);
       }
     } catch (err) {
-      console.error('[WakeWord] chunk error:', err.message);
+      console.error('[WakeWord] utterance error:', err.message);
     }
   }
 
-  function startMediaRecorder(onWake, onError) {
-    navigator.mediaDevices.getUserMedia({ audio: true })
-      .then((s) => {
-        if (!shouldListen) { s.getTracks().forEach((t) => t.stop()); return; }
-        stream = s;
-        function recordChunk() {
-          if (!shouldListen) return;
-          const recorder = new MediaRecorder(stream);
-          const chunks = [];
-          recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
-          recorder.onstop = () => {
-            processChunk(new Blob(chunks, { type: recorder.mimeType || 'audio/webm' }));
-            if (shouldListen) recordChunk();
-          };
-          mediaRecorder = recorder;
-          recorder.start();
-          setTimeout(() => { if (recorder.state === 'recording') recorder.stop(); }, CHUNK_MS);
-        }
-        recordChunk();
-      })
-      .catch((err) => {
-        console.error('[WakeWord] mic error:', err.message);
-        if (onError) onError(`Microphone access denied: ${err.message}`);
-      });
-  }
-
-  function stopMediaRecorder() {
-    shouldListen = false;
-    if (mediaRecorder && mediaRecorder.state === 'recording') {
-      mediaRecorder.onstop = null;
-      mediaRecorder.stop();
+  function flushUtterance() {
+    if (!utteranceActive) {
+      resetUtteranceState();
+      return;
     }
-    mediaRecorder = null;
-    if (stream) { stream.getTracks().forEach((t) => t.stop()); stream = null; }
+    if (!utteranceBlocks.length) {
+      resetUtteranceState();
+      return;
+    }
+    const blocks = utteranceBlocks.slice();
+    const blob = encodeWavFromFloat32(blocks, audioCtx?.sampleRate || 44100);
+    resetUtteranceState();
+    processUtterance(blob);
   }
 
-  let recognition = null;
+  function startUtteranceIfNeeded() {
+    if (utteranceActive) return;
+    utteranceActive = true;
+    utteranceStartedAt = Date.now();
+    utteranceBlocks = preRollBlocks.map((block) => {
+      const copy = new Float32Array(block.length);
+      copy.set(block);
+      return copy;
+    });
+  }
 
-  function startWebSpeech(onWake, word, onError) {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { if (onError) onError('Speech recognition not supported.'); return; }
-    let retryDelay = 1000;
-    function listen() {
-      recognition = new SR();
-      recognition.lang = 'en-US';
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.onresult = (event) => {
-        retryDelay = 1000;
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          if (event.results[i][0].transcript.toLowerCase().includes(word)) {
-            stopWebSpeech(); onWake(); return;
-          }
-        }
-      };
-      recognition.onerror = (event) => {
-        if (event.error === 'no-speech' || event.error === 'aborted') return;
-        if (event.error === 'network') {
-          shouldListen = false; recognition = null;
-          if (onError) onError('Wake word unavailable: Google Speech API unreachable. Use the mic button instead.');
-          return;
-        }
-        console.error('[WakeWord] error:', event.error);
-      };
-      recognition.onend = () => {
+  function monitorVoiceLevel() {
+    if (!shouldListen || !analyser || !levelData) return;
+    analyser.getByteTimeDomainData(levelData);
+    let sumSquares = 0;
+    for (let i = 0; i < levelData.length; i += 1) {
+      const sample = (levelData[i] - 128) / 128;
+      sumSquares += sample * sample;
+    }
+    const rms = Math.sqrt(sumSquares / levelData.length);
+    const now = Date.now();
+    const threshold = getSpeechThreshold();
+
+    if (!utteranceActive) {
+      noiseFloor = (noiseFloor * 0.92) + (Math.min(rms, threshold) * 0.08);
+    }
+
+    if (rms >= threshold) {
+      lastSpeechAt = now;
+      startUtteranceIfNeeded();
+    }
+
+    if (utteranceActive) {
+      const silenceExpired = lastSpeechAt && now - lastSpeechAt >= PASSIVE_SILENCE_MS;
+      const tooLong = utteranceStartedAt && now - utteranceStartedAt >= PASSIVE_MAX_UTTERANCE_MS;
+      if (silenceExpired || tooLong) {
+        flushUtterance();
+      }
+    }
+
+    levelRafId = requestAnimationFrame(monitorVoiceLevel);
+  }
+
+  function startPassiveRecorder(onError) {
+    navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        channelCount: 1,
+      },
+    }).then((mediaStream) => {
+      if (!shouldListen) {
+        mediaStream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+
+      stream = mediaStream;
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume().catch(() => {});
+      }
+      const source = audioCtx.createMediaStreamSource(stream);
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 2048;
+      levelData = new Uint8Array(analyser.fftSize);
+      source.connect(analyser);
+      scriptProcessor = audioCtx.createScriptProcessor(2048, 1, 1);
+      source.connect(scriptProcessor);
+      scriptProcessor.connect(audioCtx.destination);
+      scriptProcessor.onaudioprocess = (event) => {
         if (!shouldListen) return;
-        setTimeout(() => { if (shouldListen) listen(); }, retryDelay);
-        retryDelay = Math.min(retryDelay * 2, 30000);
+        appendAudioBlock(event.inputBuffer.getChannelData(0));
       };
-      recognition.start();
+
+      monitorVoiceLevel();
+    }).catch((err) => {
+      console.error('[WakeWord] mic error:', err.message);
+      if (onError) onError(`Microphone access denied: ${err.message}`);
+    });
+  }
+
+  function stopPassiveRecorder() {
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop());
+      stream = null;
     }
-    listen();
+    cleanupAudioNodes();
+    resetUtteranceState();
   }
 
-  function stopWebSpeech() {
-    shouldListen = false;
-    if (recognition) { recognition.onend = null; recognition.stop(); recognition = null; }
-  }
-
-  function start(onWake, word = 'marvis', onError) {
+  function start(onWake, word = 'marvis', onError, onTranscript) {
     if (shouldListen) return false;
     shouldListen = true;
     onWakeCb = onWake;
+    onTranscriptCb = onTranscript;
+    onErrorCb = onError;
     wakeWord = word.toLowerCase();
-    if (window.marvis?.transcribeSpeech) {
-      console.log('[WakeWord] Using ElevenLabs STT, listening for:', wakeWord);
-      startMediaRecorder(onWake, onError);
-    } else {
-      startWebSpeech(onWake, wakeWord, onError);
-    }
+    lastWakeAt = 0;
+    noiseFloor = PASSIVE_MIN_SPEECH_THRESHOLD;
+    startPassiveRecorder(onError);
     return true;
   }
 
   function stop() {
-    stopMediaRecorder();
-    stopWebSpeech();
     shouldListen = false;
+    stopPassiveRecorder();
   }
 
   return { start, stop };

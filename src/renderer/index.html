@@ -192,6 +192,16 @@
       <label class="settings-checkbox-label">
         <input id="wakeword-enabled-input" type="checkbox"> <span id="settings-wakeword-label">Enable wake word (always listens for "<span id="wake-word-label">MARVIS</span>")</span>
       </label>
+      <button id="wakeword-training-toggle-btn" type="button">&#9654; Wake Word Training</button>
+      <div id="wakeword-training-panel" class="hidden">
+        <p id="wakeword-training-hint" class="settings-hint">Run three short trials. Say "MARVIS" each time, and Marvis will save the STT spellings it hears as extra wake-word matches.</p>
+        <div class="settings-inline-actions">
+          <button id="wakeword-training-run-btn" type="button">Run 3 Trials</button>
+          <button id="wakeword-training-clear-btn" type="button">Clear Learned Words</button>
+        </div>
+        <p id="wakeword-training-status" class="settings-hint">No wake-word training saved yet.</p>
+        <div id="wakeword-training-results" class="settings-chip-list"></div>
+      </div>
       <label><span id="settings-personality-label">Personality</span>
         <textarea id="personality-input"></textarea>
       </label>
@@ -207,7 +217,7 @@
         <label id="voice-phrase-editor-label">Morning phrases
           <textarea id="voice-phrase-editor" placeholder="Good morning [user]&#10;Hi, [user]"></textarea>
         </label>
-        <p class="settings-hint">One phrase per line. <code>[user]</code> is replaced with the user name when spoken.</p>
+        <p id="voice-phrase-editor-hint" class="settings-hint">One phrase per line. <code>[user]</code> is replaced with the user name when spoken.</p>
       </div>
     </div>
 
@@ -306,6 +316,7 @@
   <script src="avatar/ringsAvatar.js"></script>
   <script src="avatar/brainAvatar.js"></script>
   <script src="avatar/avatarController.js"></script>
+  <script src="../shared/wakeWordMatcher.js"></script>
   <script src="voice/wakeWordController.js"></script>
   <script src="voice/sttController.js"></script>
   <script src="voice/ttsController.js"></script>

@@ -22,6 +22,7 @@ let processingCueAudio = null;
 let cachedVoiceAudio = null;
 let voicePhraseTab = 'morning';
 let voicePhraseDraft = null;
+let wakeWordPatternDraft = [];
 let nowPlayingWidgetTimer = null;
 let appClockTimer = null;
 let cliWarmupNonce = 0;
@@ -49,11 +50,26 @@ const PROCESSING_CUES = [
   'Understood. Running the request.',
 ];
 
+const WAKE_ACKNOWLEDGEMENTS = [
+  'Yes sir.',
+  'How may I serve, sir?',
+  'At your service, sir.',
+  'Listening, sir.',
+];
+const VOICE_PHRASE_CATEGORIES = ['morning', 'afternoon', 'evening', 'processing'];
 const DEFAULT_VOICE_PHRASES = {
-  morning: ['Good morning [user]', 'Hi [user]', 'Morning [user]'],
-  afternoon: ['Good afternoon [user]', 'Hi [user]', 'Ready for the afternoon run [user]'],
-  evening: ['Good evening [user]', 'Hi [user]', 'Welcome back [user]'],
-  processing: ['Working on it', 'Processing', 'Got it. Checking now', 'On it [user]', 'Give me a moment'],
+  en: {
+    morning: ['Good morning [user]', 'Hi [user]', 'Morning [user]'],
+    afternoon: ['Good afternoon [user]', 'Hi [user]', 'Ready for the afternoon run [user]'],
+    evening: ['Good evening [user]', 'Hi [user]', 'Welcome back [user]'],
+    processing: ['Working on it', 'Processing', 'Got it. Checking now', 'On it [user]', 'Give me a moment'],
+  },
+  zh: {
+    morning: ['早安 [user]', '你好 [user]', '早上好 [user]'],
+    afternoon: ['午安 [user]', '你好 [user]', '下午好 [user]'],
+    evening: ['晚上好 [user]', '欢迎回来 [user]', '很高兴见到你 [user]'],
+    processing: ['处理中', '正在查看', '收到，马上处理', '这就为你处理', '请稍等一下'],
+  },
 };
 
 const I18N = {
@@ -125,6 +141,12 @@ const I18N = {
     updateCheckFailed: "I couldn't check for updates, sir: {error}",
     openUpdatePrompt: 'A newer version is available. Open the download page now?',
     voiceWords: 'Voice Words',
+    voicePhraseMorning: 'Morning',
+    voicePhraseAfternoon: 'Afternoon',
+    voicePhraseEvening: 'Evening',
+    voicePhraseProcessing: 'Processing',
+    voicePhraseLabel: '{category} phrases',
+    voicePhraseHint: 'One phrase per line. [user] is replaced with the user name when spoken.',
     musicLibrary: 'Music Library',
     importFiles: 'Import Files',
     createPlaylist: 'Create Playlist',
@@ -205,6 +227,12 @@ const I18N = {
     updateCheckFailed: '无法检查更新：{error}',
     openUpdatePrompt: '已有新版本。现在打开下载页面吗？',
     voiceWords: '语音短语',
+    voicePhraseMorning: '早晨',
+    voicePhraseAfternoon: '下午',
+    voicePhraseEvening: '晚上',
+    voicePhraseProcessing: '处理中',
+    voicePhraseLabel: '{category}短语',
+    voicePhraseHint: '每行一句。说出时会把 [user] 替换成用户名。',
     musicLibrary: '音乐库',
     importFiles: '导入文件',
     createPlaylist: '创建播放列表',
@@ -324,6 +352,14 @@ function applyLanguageToUi() {
   if (musicToggleBtn) musicToggleBtn.textContent = `▶ ${t('musicLibrary')}`;
   const voiceWordsBtn = document.getElementById('voice-words-toggle-btn');
   if (voiceWordsBtn) voiceWordsBtn.textContent = `▶ ${t('voiceWords')}`;
+  document.querySelectorAll('.voice-phrase-tab').forEach((btn) => {
+    if (btn.dataset.phraseTab === 'morning') btn.textContent = t('voicePhraseMorning');
+    if (btn.dataset.phraseTab === 'afternoon') btn.textContent = t('voicePhraseAfternoon');
+    if (btn.dataset.phraseTab === 'evening') btn.textContent = t('voicePhraseEvening');
+    if (btn.dataset.phraseTab === 'processing') btn.textContent = t('voicePhraseProcessing');
+  });
+  const voicePhraseHint = document.getElementById('voice-phrase-editor-hint');
+  if (voicePhraseHint) voicePhraseHint.innerHTML = t('voicePhraseHint').replace('[user]', '<code>[user]</code>');
   const newsDetailLink = document.getElementById('news-detail-link');
   if (newsDetailLink) newsDetailLink.textContent = t('readFullArticle');
   const welcomeGeo = document.getElementById('welcome-geolocation-input');
@@ -353,6 +389,7 @@ function applyLanguageToUi() {
   updateAudioInputButton();
   updateSendButton();
   setVoiceMuted(isMuted);
+  renderVoicePhraseEditor(voicePhraseTab);
 }
 
 function showStartupProblem(message) {
@@ -463,16 +500,13 @@ function blobToBase64(blob) {
 }
 
 async function submitTranscribedAudio(blob) {
-  const audioBase64 = await blobToBase64(blob);
-  const result = await window.marvis.transcribeSpeech({
-    audioBase64,
-    mimeType: blob.type || 'audio/webm',
-  });
-  if (!result.ok) {
-    appendChatLine('Marvis', `I couldn't transcribe that, sir: ${result.error}`);
+  let transcript = '';
+  try {
+    transcript = await transcribeAudioBlob(blob);
+  } catch (err) {
+    appendChatLine('Marvis', `I couldn't transcribe that, sir: ${err.message}`);
     return;
   }
-  const transcript = (result.text || '').trim();
   if (!transcript) {
     appendChatLine('Marvis', "I couldn't hear clear speech in that recording, sir.");
     return;
@@ -480,6 +514,141 @@ async function submitTranscribedAudio(blob) {
   document.getElementById('chat-input').value = transcript;
   isBusy = false;
   await sendTextFromInput();
+}
+
+async function transcribeAudioBlob(blob) {
+  const audioBase64 = await blobToBase64(blob);
+  const result = await window.marvis.transcribeSpeech({
+    audioBase64,
+    mimeType: blob.type || 'audio/webm',
+  });
+  if (!result.ok) {
+    throw new Error(result.error || 'Unknown STT error');
+  }
+  return (result.text || '').trim();
+}
+
+function selectWakeAcknowledgement() {
+  return WAKE_ACKNOWLEDGEMENTS[Math.floor(Math.random() * WAKE_ACKNOWLEDGEMENTS.length)];
+}
+
+async function speakWakeAcknowledgement() {
+  if (isMuted) return;
+  const text = selectWakeAcknowledgement();
+  isSpeaking = true;
+  updateSendButton();
+  setAvatarState('speaking');
+  musicController.duck();
+  try {
+    await ttsController.speak(text);
+  } finally {
+    musicController.unduck();
+    isSpeaking = false;
+    updateSendButton();
+  }
+}
+
+async function captureSpeechUntilSilence({
+  silenceMs = 1000,
+  speechThreshold = 0.055,
+  maxMs = 15000,
+  idleTimeoutMs = 6000,
+} = {}) {
+  if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+    throw new Error('Audio recording is not supported in this browser.');
+  }
+
+  const stream = await navigator.mediaDevices.getUserMedia({
+    audio: {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+      channelCount: 1,
+    },
+  });
+
+  const recorderOptions = {};
+  if (MediaRecorder.isTypeSupported?.('audio/webm;codecs=opus')) {
+    recorderOptions.mimeType = 'audio/webm;codecs=opus';
+  }
+
+  const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  const source = audioContext.createMediaStreamSource(stream);
+  const analyser = audioContext.createAnalyser();
+  analyser.fftSize = 2048;
+  source.connect(analyser);
+  const levelData = new Uint8Array(analyser.fftSize);
+  const chunks = [];
+  const recorder = new MediaRecorder(stream, recorderOptions);
+  let rafId = null;
+  let settled = false;
+  let speechDetected = false;
+  let lastSpeechAt = 0;
+  const startedAt = Date.now();
+
+  function cleanup() {
+    if (rafId !== null) cancelAnimationFrame(rafId);
+    stream.getTracks().forEach((track) => track.stop());
+    audioContext.close().catch(() => {});
+  }
+
+  return await new Promise((resolve, reject) => {
+    recorder.ondataavailable = (event) => {
+      if (event.data.size > 0) chunks.push(event.data);
+    };
+    recorder.onerror = () => {
+      cleanup();
+      reject(new Error('Microphone recording failed.'));
+    };
+    recorder.onstop = () => {
+      cleanup();
+      if (!speechDetected || !chunks.length) {
+        resolve(null);
+        return;
+      }
+      resolve(new Blob(chunks, { type: recorder.mimeType || 'audio/webm' }));
+    };
+
+    function finish() {
+      if (settled) return;
+      settled = true;
+      if (recorder.state !== 'inactive') recorder.stop();
+    }
+
+    function watchLevel() {
+      analyser.getByteTimeDomainData(levelData);
+      let sumSquares = 0;
+      for (let i = 0; i < levelData.length; i += 1) {
+        const sample = (levelData[i] - 128) / 128;
+        sumSquares += sample * sample;
+      }
+      const rms = Math.sqrt(sumSquares / levelData.length);
+      const now = Date.now();
+
+      if (rms >= speechThreshold) {
+        speechDetected = true;
+        lastSpeechAt = now;
+      }
+
+      if (speechDetected && now - lastSpeechAt >= silenceMs) {
+        finish();
+        return;
+      }
+      if (!speechDetected && idleTimeoutMs != null && now - startedAt >= idleTimeoutMs) {
+        finish();
+        return;
+      }
+      if (now - startedAt >= maxMs) {
+        finish();
+        return;
+      }
+
+      rafId = requestAnimationFrame(watchLevel);
+    }
+
+    recorder.start(250);
+    rafId = requestAnimationFrame(watchLevel);
+  });
 }
 
 async function toggleAudioInput() {
@@ -567,16 +736,53 @@ function isPhase3() {
 }
 
 function normalizeVoicePhrases(settings = currentSettings) {
+  const raw = settings?.voicePhrases || {};
+  const hasHanText = (value) => /[\u3400-\u9fff]/.test(String(value || ''));
+  const normalizePhraseList = (value, fallback) => {
+    const normalized = Array.isArray(value)
+      ? value.map((item) => String(item || '').trim()).filter(Boolean)
+      : [];
+    return normalized.length ? normalized : fallback.slice();
+  };
+  const normalizePhraseSet = (value, fallbackSet) => {
+    const next = {};
+    for (const category of VOICE_PHRASE_CATEGORIES) {
+      next[category] = normalizePhraseList(value?.[category], fallbackSet[category] || []);
+    }
+    return next;
+  };
+
+  if (raw?.en || raw?.zh) {
+    const normalizedEn = normalizePhraseSet(raw.en, DEFAULT_VOICE_PHRASES.en);
+    const normalizedZh = normalizePhraseSet(raw.zh, DEFAULT_VOICE_PHRASES.zh);
+    const migratedZh = {};
+    for (const category of VOICE_PHRASE_CATEGORIES) {
+      const zhValues = normalizedZh[category] || [];
+      const enValues = normalizedEn[category] || [];
+      const looksCopiedFromEnglish = zhValues.length
+        && zhValues.join('\n') === enValues.join('\n')
+        && zhValues.every((item) => !hasHanText(item));
+      migratedZh[category] = looksCopiedFromEnglish
+        ? DEFAULT_VOICE_PHRASES.zh[category].slice()
+        : zhValues;
+    }
+    return {
+      en: normalizedEn,
+      zh: migratedZh,
+    };
+  }
+
   return {
-    ...DEFAULT_VOICE_PHRASES,
-    ...(settings?.voicePhrases || {}),
+    en: normalizePhraseSet(raw, DEFAULT_VOICE_PHRASES.en),
+    zh: normalizePhraseSet({}, DEFAULT_VOICE_PHRASES.zh),
   };
 }
 
 function selectRandomPhrase(category) {
-  const phrases = normalizeVoicePhrases()[category] || [];
+  const language = getCurrentLanguage();
+  const phrases = normalizeVoicePhrases()[language]?.[category] || [];
   const available = phrases.map((phrase) => phrase.trim()).filter(Boolean);
-  const pool = available.length ? available : (DEFAULT_VOICE_PHRASES[category] || PROCESSING_CUES);
+  const pool = available.length ? available : ((DEFAULT_VOICE_PHRASES[language] && DEFAULT_VOICE_PHRASES[language][category]) || PROCESSING_CUES);
   const text = pool[Math.floor(Math.random() * pool.length)];
   return applyVoiceTemplate(text);
 }
@@ -589,6 +795,14 @@ function applyVoiceTemplate(text) {
     .replace(/\[box\]/gi, botName)
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function buildAttachmentMessageSuffix(count) {
+  if (!count) return '';
+  if (getCurrentLanguage() === 'zh') {
+    return `\n[已附上 ${count} 张图片]`;
+  }
+  return `\n[Attached ${count} image${count === 1 ? '' : 's'}]`;
 }
 
 function stopProcessingCue() {
@@ -1658,7 +1872,7 @@ function rememberConversationMemory({ source, userText, assistantText, hadHtml =
   });
 }
 
-async function sendToCli(text, channel, task, { forceReport = false, voiceAllowed = true, sessionState = null, quietMode = false } = {}) {
+async function sendToCli(text, channel, task, { forceReport = false, voiceAllowed = true, sessionState = null, quietMode = false, preservePanel = false } = {}) {
   appendChatLine('You', text);
   if (!task) {
     const prompt = t('askChannelTask', { channel: channel.label });
@@ -1674,11 +1888,11 @@ async function sendToCli(text, channel, task, { forceReport = false, voiceAllowe
   // Placeholder bubble updated in place (no speech) as progress events stream
   // in from the CLI, then overwritten with the real reply once it resolves.
   appendChatLine('Marvis', t('thinking'));
-  const useBackendCliPanel = !quietMode && getChannelKey(channel) === '/codex';
+  const useBackendCliPanel = !quietMode && !preservePanel && getChannelKey(channel) === '/codex';
   const unsubscribeProgress = window.marvis.onCliProgress(({ operationId: progressOperationId, text: progressText }) => {
     if (progressOperationId !== operationId) return;
     setAvatarHeadline(progressText);
-    if (!quietMode && !useBackendCliPanel) appendCliActivityLine(progressText);
+    if (!quietMode && !preservePanel && !useBackendCliPanel) appendCliActivityLine(progressText);
   });
   const unsubscribeOutput = useBackendCliPanel
     ? window.marvis.onCliOutput(({ operationId: outputOperationId, text: outputText }) => {
@@ -1688,7 +1902,7 @@ async function sendToCli(text, channel, task, { forceReport = false, voiceAllowe
     : () => {};
   let htmlPanel = null;
   try {
-    if (!quietMode) {
+    if (!quietMode && !preservePanel) {
       htmlPanel = await window.marvis.prepareHtmlPanel({ task });
       currentHtmlPath = null;
       showCliActivityPanel(channel.label, task, {
@@ -1709,7 +1923,7 @@ async function sendToCli(text, channel, task, { forceReport = false, voiceAllowe
     console.log(`[CLI] Result status: ${result?.status}, summary length: ${result?.summary?.length}`);
     unsubscribeProgress();
     unsubscribeOutput();
-    if (!quietMode) {
+    if (!quietMode && !preservePanel) {
       if (result?.status !== 'success' && htmlPanel?.filePath) {
         window.marvis.discardHtmlPanel(htmlPanel.filePath).catch(() => {});
       } else if (result?.status === 'success' && htmlPanel?.filePath) {
@@ -1720,15 +1934,15 @@ async function sendToCli(text, channel, task, { forceReport = false, voiceAllowe
     activeOperationId = null;
     setProcessingResponse(false);
     if (shouldAbortResponse || result?.status === 'cancelled') {
-      if (!quietMode) showCliStandbyPanel(channel, 'Paused. Ready for the next request.');
+      if (!quietMode && !preservePanel) showCliStandbyPanel(channel, 'Paused. Ready for the next request.');
       return;
     }
     const summary = result.summary || `${channel.label} finished, sir.`;
-    const formatted = await formatAssistantResponse(summary, { allowHtml: !quietMode });
-    if (formatted.html) {
+    const formatted = await formatAssistantResponse(summary, { allowHtml: !quietMode && !preservePanel });
+    if (formatted.html && !preservePanel) {
       currentHtmlPath = formatted.htmlPath || null;
       showHTML(formatted.html);
-    } else if (!quietMode) {
+    } else if (!quietMode && !preservePanel) {
       showCliStandbyPanel(channel, 'Ready for the next request.');
     }
     const reply = formatted.reply;
@@ -1772,38 +1986,89 @@ async function sendToCli(text, channel, task, { forceReport = false, voiceAllowe
 async function startWakeWordIfConfigured() {
   console.log('[WakeWord] startWakeWordIfConfigured — enabled:', currentSettings.wakeWordEnabled);
   if (!currentSettings.wakeWordEnabled) return;
-  const wakeWord = (currentSettings.botName || 'MARVIS').toLowerCase();
+  const wakeWord = getConfiguredWakeWord();
   console.log('[WakeWord] starting, word:', wakeWord, 'hasLocal:', !!window.marvis?.transcribeWhisperLocal);
-  wakeWordController.start(onWakeWordDetected, wakeWord, () => {
-    showTemporaryNotice('Wake word unavailable: Google Speech API unreachable. Use the mic button instead.');
-  });
+  wakeWordController.start(
+    onWakeWordDetected,
+    wakeWord,
+    (message) => {
+      showTemporaryNotice(message || 'Wake word unavailable. Use the mic button instead.');
+    },
+    (transcript, match) => {
+      const percent = Math.round((match?.score || 0) * 100);
+      const suffix = match?.detected ? ` (${percent}%)` : '';
+      showTemporaryNotice(`Wake STT: ${transcript}${suffix}`, 3500);
+    },
+  );
 }
 
-function onWakeWordDetected() {
+function getConfiguredWakeWord() {
+  const baseWord = getConfiguredWakeWordBase();
+  const patterns = getActiveWakeWordPatterns()
+    .map((item) => String(item || '').trim())
+    .filter(Boolean);
+  return [baseWord, ...patterns].join(' | ').toLowerCase();
+}
+
+function getConfiguredWakeWordBase() {
+  const botNameInput = document.getElementById('bot-name-input')?.value?.trim();
+  const currentBotName = currentSettings?.botName?.trim();
+  return (botNameInput || currentBotName || 'MARVIS').trim();
+}
+
+function getWakeWordTrainingBase() {
+  return String(currentSettings?.wakeWordTrainingBase || '').trim().toLowerCase();
+}
+
+function getActiveWakeWordPatterns() {
+  const baseWord = getConfiguredWakeWordBase().toLowerCase();
+  const trainedFor = getWakeWordTrainingBase();
+  if (trainedFor && trainedFor !== baseWord) {
+    return [];
+  }
+  return wakeWordPatternDraft.length ? wakeWordPatternDraft : (currentSettings?.wakeWordPatterns || []);
+}
+
+async function syncWakeWordListener({ restart = false } = {}) {
+  if (!currentSettings?.wakeWordEnabled) {
+    await wakeWordController.stop();
+    return;
+  }
+  if (restart) {
+    await wakeWordController.stop();
+  }
+  await startWakeWordIfConfigured();
+}
+
+async function onWakeWordDetected() {
   if (isBusy) return;
   isBusy = true;
-  isRecordingAudio = true;
-  setAvatarState('listening');
-  updateAudioInputButton();
-  setTimeout(() => {
-    sttController.listenOnce(
-      async (transcript) => {
-        isRecordingAudio = false;
-        updateAudioInputButton();
-        await sendToMarvis(transcript, { voiceAllowed: shouldSpeakReturnedMessage(transcript) });
-        isBusy = false;
-        startWakeWordIfConfigured();
-      },
-      (err) => {
-        isRecordingAudio = false;
-        updateAudioInputButton();
-        appendChatLine('Marvis', `I couldn't catch that, sir: ${err.message}`);
-        setAvatarState('idle');
-        isBusy = false;
-        startWakeWordIfConfigured();
-      }
-    );
-  }, 300);
+  await wakeWordController.stop();
+  try {
+    await speakWakeAcknowledgement();
+    isRecordingAudio = true;
+    updateAudioInputButton();
+    setAvatarState('listening');
+    const blob = await captureSpeechUntilSilence({ silenceMs: 1000 });
+    isRecordingAudio = false;
+    updateAudioInputButton();
+    if (!blob) {
+      appendChatLine('Marvis', "I couldn't hear a follow-up request, sir.");
+      setAvatarState('idle');
+      return;
+    }
+    setAvatarState('processing');
+    await submitTranscribedAudio(blob);
+  } catch (err) {
+    isRecordingAudio = false;
+    updateAudioInputButton();
+    appendChatLine('Marvis', `I couldn't capture your voice request, sir: ${err.message}`);
+    setAvatarState('idle');
+  } finally {
+    isBusy = false;
+    if (!isSpeaking && !isProcessingResponse) setAvatarState('idle');
+    await syncWakeWordListener({ restart: true });
+  }
 }
 
 async function sendToMarvis(text, { voiceAllowed = true } = {}) {
@@ -1914,8 +2179,9 @@ function populateSettingsForm(settings) {
   document.getElementById('user-name-input').value = settings.userName || '';
   const botNameVal = settings.botName || 'MARVIS';
   document.getElementById('bot-name-input').value = botNameVal;
-  const wakeWordLabelEl = document.getElementById('wake-word-label');
-  if (wakeWordLabelEl) wakeWordLabelEl.textContent = botNameVal;
+  updateWakeWordUi(botNameVal);
+  wakeWordPatternDraft = normalizeWakeWordPatterns(settings.wakeWordPatterns || []);
+  renderWakeWordTrainingResults(wakeWordPatternDraft);
   voicePhraseDraft = normalizeVoicePhrases(settings);
   renderVoicePhraseEditor('morning');
   document.getElementById('preferred-cli-select').value = settings.preferredCliChannel || '';
@@ -1941,20 +2207,159 @@ function renderVoiceOptions(voices, selectedId) {
 function renderVoicePhraseEditor(tab) {
   voicePhraseTab = tab;
   if (!voicePhraseDraft) voicePhraseDraft = normalizeVoicePhrases();
+  const language = getCurrentLanguage();
   document.querySelectorAll('.voice-phrase-tab').forEach((button) => {
     button.classList.toggle('active', button.dataset.phraseTab === tab);
   });
   const label = document.getElementById('voice-phrase-editor-label');
   const editor = document.getElementById('voice-phrase-editor');
-  if (label) label.firstChild.textContent = `${tab[0].toUpperCase()}${tab.slice(1)} phrases: `;
-  if (editor) editor.value = (voicePhraseDraft[tab] || []).join('\n');
+  const categoryKey = `voicePhrase${tab[0].toUpperCase()}${tab.slice(1)}`;
+  if (label) label.firstChild.textContent = `${t('voicePhraseLabel', { category: t(categoryKey) })}: `;
+  if (editor) {
+    editor.value = (voicePhraseDraft[language]?.[tab] || []).join('\n');
+    editor.placeholder = ((DEFAULT_VOICE_PHRASES[language] && DEFAULT_VOICE_PHRASES[language][tab]) || []).join('\n');
+  }
+}
+
+function normalizeWakeWordPatterns(patterns = []) {
+  return [...new Set(
+    (Array.isArray(patterns) ? patterns : [])
+      .map((item) => String(item || '').trim())
+      .filter(Boolean),
+  )];
+}
+
+function filterWakeWordPatternsForBase(baseWakeWord, patterns = [], trainedBase = getWakeWordTrainingBase()) {
+  const normalizedBase = String(baseWakeWord || '').trim().toLowerCase();
+  const normalizedTrainedBase = String(trainedBase || '').trim().toLowerCase();
+  if (normalizedTrainedBase && normalizedBase && normalizedTrainedBase !== normalizedBase) {
+    return [];
+  }
+  return normalizeWakeWordPatterns(patterns);
+}
+
+function extractWakeTrainingPatterns(baseWakeWord, transcript) {
+  const matcher = window.MarvisWakeWordMatcher;
+  if (!matcher?.tokenizeTranscript) {
+    return normalizeWakeWordPatterns([transcript]);
+  }
+  const normalizedBase = String(baseWakeWord || '').trim().toLowerCase();
+  const baseTokens = new Set(matcher.tokenizeTranscript(normalizedBase));
+  const stopWords = new Set(['hi', 'hello', 'hey', 'yo', 'okay', 'ok', 'the', 'a', 'an']);
+  const tokens = matcher.tokenizeTranscript(transcript)
+    .map((token) => String(token || '').trim().toLowerCase())
+    .filter((token) => token && token.length >= 3 && token.length <= 20)
+    .filter((token) => !stopWords.has(token))
+    .filter((token) => !/\s/.test(token))
+    .filter((token) => !baseTokens.has(token));
+  return normalizeWakeWordPatterns(tokens.length ? tokens : [transcript]);
+}
+
+function updateWakeWordUi(botName) {
+  const safeBotName = String(botName || '').trim() || 'MARVIS';
+  const wakeWordLabelEl = document.getElementById('wake-word-label');
+  if (wakeWordLabelEl) wakeWordLabelEl.textContent = safeBotName;
+  const hintEl = document.getElementById('wakeword-training-hint');
+  if (hintEl) {
+    hintEl.textContent = `Run three short trials. Say "${safeBotName}" each time, and Marvis will save the STT spellings it hears as extra wake-word matches.`;
+  }
+}
+
+function escapeHtml(text) {
+  return String(text || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function renderWakeWordTrainingResults(patterns = wakeWordPatternDraft, { commitDraft = true } = {}) {
+  const status = document.getElementById('wakeword-training-status');
+  const results = document.getElementById('wakeword-training-results');
+  if (!status || !results) return;
+  const normalized = normalizeWakeWordPatterns(patterns);
+  if (commitDraft) {
+    wakeWordPatternDraft = normalized;
+  }
+  if (!normalized.length) {
+    status.textContent = 'No wake-word training saved yet.';
+    results.innerHTML = '';
+    return;
+  }
+  status.textContent = `Saved wake-word STT patterns: ${normalized.length}`;
+  results.innerHTML = normalized
+    .map((pattern) => `<span class="settings-chip">${escapeHtml(pattern)}</span>`)
+    .join('');
+}
+
+async function runWakeWordTraining() {
+  const runButton = document.getElementById('wakeword-training-run-btn');
+  const status = document.getElementById('wakeword-training-status');
+  if (!runButton || !status) return;
+
+  const baseWakeWord = getConfiguredWakeWordBase();
+  const collected = [];
+  runButton.disabled = true;
+  await wakeWordController.stop();
+
+  try {
+    for (let index = 0; index < 3; index += 1) {
+      const trialNumber = index + 1;
+      status.textContent = `Trial ${trialNumber} of 3: say "${baseWakeWord}" now.`;
+      showTemporaryNotice(`Wake training ${trialNumber}/3: say "${baseWakeWord}" now.`, 2200);
+      await new Promise((resolve) => setTimeout(resolve, 350));
+      const blob = await captureSpeechUntilSilence({
+        silenceMs: 1000,
+        idleTimeoutMs: null,
+        maxMs: 30000,
+      });
+      if (!blob) {
+        status.textContent = `Trial ${trialNumber} did not catch speech.`;
+        continue;
+      }
+      const transcript = await transcribeAudioBlob(blob);
+      if (!transcript) {
+        status.textContent = `Trial ${trialNumber} came back empty.`;
+        continue;
+      }
+      const extracted = extractWakeTrainingPatterns(baseWakeWord, transcript);
+      collected.push(...extracted);
+      status.textContent = extracted.length
+        ? `Trial ${trialNumber} heard: ${transcript}`
+        : `Trial ${trialNumber} heard: ${transcript} (nothing usable to save)`;
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    }
+
+    const merged = normalizeWakeWordPatterns([
+      ...filterWakeWordPatternsForBase(baseWakeWord, currentSettings?.wakeWordPatterns || [], currentSettings?.wakeWordTrainingBase),
+      ...filterWakeWordPatternsForBase(baseWakeWord, wakeWordPatternDraft),
+      ...collected,
+    ]);
+    wakeWordPatternDraft = merged;
+    if (currentSettings) {
+      currentSettings.wakeWordPatterns = merged;
+      currentSettings.wakeWordTrainingBase = baseWakeWord;
+    }
+    renderWakeWordTrainingResults(merged);
+    status.textContent = collected.length
+      ? `Wake training saved ${collected.length} trial result${collected.length === 1 ? '' : 's'}.`
+      : 'Wake training finished, but no new STT patterns were captured.';
+  } catch (err) {
+    status.textContent = `Wake training failed: ${err.message}`;
+  } finally {
+    runButton.disabled = false;
+    await syncWakeWordListener({ restart: true });
+  }
 }
 
 function saveCurrentVoicePhraseEditor() {
   if (!voicePhraseDraft) voicePhraseDraft = normalizeVoicePhrases();
   const editor = document.getElementById('voice-phrase-editor');
   if (!editor) return;
-  voicePhraseDraft[voicePhraseTab] = editor.value
+  const language = getCurrentLanguage();
+  if (!voicePhraseDraft[language]) {
+    voicePhraseDraft[language] = normalizeVoicePhrases()[language];
+  }
+  voicePhraseDraft[language][voicePhraseTab] = editor.value
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean);
@@ -2013,10 +2418,35 @@ document.getElementById('voice-words-toggle-btn').addEventListener('click', () =
   document.getElementById('voice-words-panel').classList.toggle('hidden');
 });
 
+document.getElementById('wakeword-training-toggle-btn').addEventListener('click', () => {
+  document.getElementById('wakeword-training-panel').classList.toggle('hidden');
+});
+
+document.getElementById('wakeword-training-run-btn').addEventListener('click', async () => {
+  await runWakeWordTraining();
+});
+
+document.getElementById('wakeword-training-clear-btn').addEventListener('click', () => {
+  wakeWordPatternDraft = [];
+  if (currentSettings) {
+    currentSettings.wakeWordPatterns = [];
+    currentSettings.wakeWordTrainingBase = getConfiguredWakeWordBase();
+  }
+  renderWakeWordTrainingResults([]);
+  const status = document.getElementById('wakeword-training-status');
+  if (status) status.textContent = 'Cleared learned wake-word patterns. Save Settings to keep the reset.';
+});
+
 document.getElementById('bot-name-input').addEventListener('input', (e) => {
   const val = e.target.value.trim() || 'MARVIS';
-  const wakeWordLabelEl = document.getElementById('wake-word-label');
-  if (wakeWordLabelEl) wakeWordLabelEl.textContent = val;
+  updateWakeWordUi(val);
+  renderWakeWordTrainingResults(filterWakeWordPatternsForBase(val, wakeWordPatternDraft), { commitDraft: false });
+});
+
+document.getElementById('wakeword-enabled-input').addEventListener('change', async (e) => {
+  if (!currentSettings) return;
+  currentSettings.wakeWordEnabled = e.target.checked;
+  await syncWakeWordListener({ restart: true });
 });
 
 document.querySelectorAll('.voice-phrase-tab').forEach((button) => {
@@ -2100,10 +2530,12 @@ async function routeUserMessage(text) {
       lines.push(`[screenshot] ${att.filePath}`);
     }
     const fullTask = lines.join('\n');
-    await sendToCli(text, channel, fullTask, {
+    const displayText = `${taskText}${buildAttachmentMessageSuffix(pendingAttachments.length)}`;
+    await sendToCli(displayText, channel, fullTask, {
       forceReport: isReportRequest(taskText),
       voiceAllowed,
       sessionState: getActiveCliTaskSessionSnapshot(),
+      preservePanel: true,
     });
     clearAttachments();
     return;
@@ -2475,11 +2907,15 @@ document.getElementById('mute-toggle-btn').addEventListener('click', () => {
 });
 
 document.getElementById('language-select')?.addEventListener('change', (e) => {
+  saveCurrentVoicePhraseEditor();
   setCurrentLanguage(e.target.value);
 });
 
 document.getElementById('settings-save-btn').addEventListener('click', async () => {
   saveCurrentVoicePhraseEditor();
+  const baseWakeWord = document.getElementById('bot-name-input').value.trim() || 'MARVIS';
+  const normalizedWakeWordPatterns = filterWakeWordPatternsForBase(baseWakeWord, wakeWordPatternDraft);
+  wakeWordPatternDraft = normalizedWakeWordPatterns;
   const settings = {
     provider: document.getElementById('provider-select').value,
     apiKeys: {
@@ -2497,6 +2933,8 @@ document.getElementById('settings-save-btn').addEventListener('click', async () 
       .slice(1)
       .map((o) => ({ id: o.value, name: o.textContent })),
     wakeWordEnabled: document.getElementById('wakeword-enabled-input').checked,
+    wakeWordPatterns: normalizedWakeWordPatterns,
+    wakeWordTrainingBase: normalizedWakeWordPatterns.length ? baseWakeWord : '',
     voiceVolume: parseFloat(document.getElementById('voice-volume-input').value),
     musicVolume: parseFloat(document.getElementById('music-volume-input').value),
     personality: document.getElementById('personality-input').value,
@@ -2552,8 +2990,7 @@ document.getElementById('settings-save-btn').addEventListener('click', async () 
   updateHud(settings);
   document.getElementById('settings-modal').classList.add('hidden');
   document.getElementById('avatar-mount').classList.remove('avatar-paused');
-  await wakeWordController.stop();
-  startWakeWordIfConfigured();
+  await syncWakeWordListener({ restart: true });
   warmPreferredCli(settings).catch(() => {});
 });
 
