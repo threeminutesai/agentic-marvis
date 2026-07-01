@@ -32,7 +32,9 @@ Expected runtime behavior:
 - The right-side terminal or CLI activity panel should also hide low-value helper chatter such as bare `exec`, raw shell command invocations, and timing boilerplate like `succeeded in 560ms:` when those lines would only repeat backend implementation details.
 - Generated HTML reports should use a title-derived filename under `data/html-panels/` whenever a specific report title is available.
 - HTML panel discovery and reopen behavior must use the HTML files themselves plus remembered conversation context; it must not depend on a sidecar `data/html-panels/index.json`.
-- For new generated reports, the delegated CLI response should return an explicit `[title]` block, and that same title should be used for the HTML document `<title>` and first main `<h1>`.
+- For new generated reports, the delegated CLI response should return an explicit `[html]` path to the finished file. The app may reserve the path before delegation, but the CLI should write the HTML directly to that final path and the app should open it from the returned path.
+- The report path should not require a placeholder file or a separate post-write finalize/rename step in the common flow.
+- The delegated CLI may still include a `[title]` block, but the returned HTML path is the authoritative handoff for opening the panel.
 - If the user is viewing an HTML panel and sends a follow-up with attached screenshots, Marvis must keep the current right-side panel visible while the analysis runs.
 - Screenshot attachments must still be included in the delegated CLI task even when the right-side panel stays open.
 - When a voice transcript is sent together with attached screenshots, the user-visible message should make it clear that images were attached, rather than looking like a voice-only send.
@@ -42,6 +44,7 @@ Validation notes:
 - A deleted or modified `.html` diff from Codex must not spill full markup into the backend CLI panel, even when stderr arrives in multiple chunks.
 - A raw shell line that only says `exec`, prints a full PowerShell command, or only reports that a command succeeded in a short duration should be hidden when a concise higher-level summary is already shown.
 - A report saved with a weak temporary or date-like title should be upgraded to a stronger title when the app has a better explicit report title or HTML heading available.
+- A report generated through the faster Codex flow should still open correctly when Codex returns only the final `[html]` path and no separate finalize metadata.
 - Sending an image-assisted voice request against the current HTML panel should preserve the panel while still analyzing the screenshot and current panel path together.
 
 ## Release Packaging Contract
@@ -77,7 +80,7 @@ Before publishing source or release assets, verify the active GitHub account and
 gh auth status
 gh api user --jq '{login: .login, name: .name, email: .email}'
 git remote -v
-gh release view v1.0.0 --json tagName,name,isDraft,isPrerelease,assets --jq '{tag: .tagName, name: .name, draft: .isDraft, prerelease: .isPrerelease, assets: [.assets[].name]}'
+gh release view v<version> --json tagName,name,isDraft,isPrerelease,assets --jq '{tag: .tagName, name: .name, draft: .isDraft, prerelease: .isPrerelease, assets: [.assets[].name]}'
 ```
 
 The expected project repository is `threeminutesai/agentic-marvis`.

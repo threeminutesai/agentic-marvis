@@ -28,6 +28,7 @@ Read `docs/MARVIS_APP_SPEC.md` before making validation judgments. When the task
    - For screenshot validation, confirm sending a request with attached screenshots does not replace or close the currently visible right-side HTML panel during analysis.
    - For voice-plus-image validation, confirm a voice transcript sent with pending screenshots still includes the screenshot attachments in the delegated CLI task and the UI makes that combined send obvious to the user.
    - For HTML panel storage validation, confirm generated reports end up with title-based filenames under `data/html-panels/` rather than generic `date-report.html` names when a more specific report title is available.
+   - For the faster Codex report flow, confirm the app can reserve a final path, let Codex write the HTML directly there, and open the returned `[html]` path without requiring a placeholder file or a separate finalize/rename pass in the common case.
    - For HTML panel metadata validation, confirm Marvis no longer depends on `data/html-panels/index.json` for panel discovery or reopening.
    - For reopen-history validation, confirm asking to open previous reports works by matching the user request against remembered conversation context plus actual HTML filenames/titles on disk.
 4. Run targeted syntax checks for changed JavaScript files and `npm test`.
@@ -124,6 +125,7 @@ macOS workflow output should include a `.dmg` and a zip containing `Marvis.app`,
 - Never stream raw HTML diff bodies or full HTML file contents into the backend CLI panel; redact them before display.
 - Hide raw CLI helper chatter such as `exec`, full shell command lines, and plain timing boilerplate when a shorter summary already represents the same action.
 - Store generated HTML reports with a title-derived filename when possible, and treat the HTML file itself as the source of truth instead of a sidecar `index.json`.
+- When validating the newer Codex report path, treat the returned `[html]` file path as authoritative; the app may reserve that path up front but should not require the CLI to emit a separate finalize metadata step to be considered correct.
 - Speak returned chat replies fully unless muted.
 
 ## Release Safety

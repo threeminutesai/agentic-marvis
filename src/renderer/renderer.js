@@ -896,8 +896,8 @@ function buildCliTaskWithHtmlContract(task, htmlPanel, { forceReport = false } =
     ? 'All user-facing output must be in Simplified Chinese. This includes the [voice] text and any HTML content written for the user.'
     : 'All user-facing output must be in English. This includes the [voice] text and any HTML content written for the user.';
   const templateSection = htmlPanel.templatePath
-    ? `a style/structure reference template at ${htmlPanel.templatePath} (read it only now, inside this branch) - you don't need to follow it strictly, just keep a similar look and feel (no inline styles or extra <style>/<script> tags beyond what's needed)`
-    : `a standalone HTML fragment (no <script> or <style> tags) with the full display content - title, body, source links, image/placeholder area`;
+    ? `Read the reference template at ${htmlPanel.templatePath} first, then reuse its structure and visual tone.`
+    : 'Write a clean standalone HTML report.';
 
   // forceReport: the user's own phrasing already signaled report intent
   // (see isReportRequest) - skip the self-classification step entirely so
@@ -906,19 +906,16 @@ function buildCliTaskWithHtmlContract(task, htmlPanel, { forceReport = false } =
   if (forceReport) {
     return `Task: ${task}
 
-The user explicitly asked for this as a report - skip any classification step, this IS a genuine on-screen document. Do not just give a short spoken answer.
-
 ${outputLanguageRule}
 
-[title]
-A specific human-readable report title for the HTML file, 3-10 words, not a date, not a filename, no extension.
+${templateSection}
+Write the finished HTML report to this exact path: ${htmlPanel.filePath}
+
+Reply only in this format:
 [voice]
 A short spoken summary, 1-2 sentences, no source URLs, no markdown.
-[html] ${htmlPanel.filePath}
-
-Before replying, write ${templateSection} to this exact file path: ${htmlPanel.filePath} (keep the file name exactly as given: ${htmlPanel.fileName}).
-Inside the HTML, use the exact same report title from [title] for the document <title> and the main first <h1>.
-Do not send the HTML/content inline to the app. The app will open the file from the [html] path.`;
+[html]
+${htmlPanel.filePath}`;
   }
 
   return `Task: ${task}
@@ -1907,7 +1904,6 @@ async function sendToCli(text, channel, task, { forceReport = false, voiceAllowe
     })
     : () => {};
   let htmlPanel = null;
-  let finalizedHtmlPanel = null;
   try {
     if (!quietMode && !preservePanel) {
       htmlPanel = await window.marvis.prepareHtmlPanel({ task });
@@ -1933,10 +1929,6 @@ async function sendToCli(text, channel, task, { forceReport = false, voiceAllowe
     if (!quietMode && !preservePanel) {
       if (result?.status !== 'success' && htmlPanel?.filePath) {
         window.marvis.discardHtmlPanel(htmlPanel.filePath).catch(() => {});
-      } else if (result?.status === 'success' && htmlPanel?.filePath) {
-        const responseBlocks = extractVoiceContentBlock(result?.summary || '');
-        const fallbackTitle = responseBlocks?.titleText || htmlPanel.title;
-        finalizedHtmlPanel = await window.marvis.finalizeHtmlPanel(htmlPanel.filePath, fallbackTitle).catch(() => null);
       }
     }
     if (activeOperationId !== operationId && shouldAbortResponse) return;
@@ -1947,10 +1939,6 @@ async function sendToCli(text, channel, task, { forceReport = false, voiceAllowe
       return;
     }
     let summary = result.summary || `${channel.label} finished, sir.`;
-    if (finalizedHtmlPanel?.ok && htmlPanel?.filePath && finalizedHtmlPanel.filePath && finalizedHtmlPanel.filePath !== htmlPanel.filePath) {
-      const escapedOriginal = htmlPanel.filePath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      summary = summary.replace(new RegExp(escapedOriginal, 'g'), finalizedHtmlPanel.filePath);
-    }
     const formatted = await formatAssistantResponse(summary, { allowHtml: !quietMode && !preservePanel });
     if (formatted.html && !preservePanel) {
       currentHtmlPath = formatted.htmlPath || null;

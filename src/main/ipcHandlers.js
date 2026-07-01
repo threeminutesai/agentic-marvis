@@ -1285,7 +1285,6 @@ function registerIpcHandlers() {
     const sourceTask = typeof payload === 'string' ? payload : payload.task;
     const title = deriveHtmlPanelTitle(typeof payload === 'string' ? payload : (payload.title || payload.task));
     const filePath = getNextHtmlPanelPath(title);
-    fs.writeFileSync(filePath, '', { flag: 'wx' });
     pruneHtmlPanels(settingsStore.load().maxHtmlPanels);
     return {
       filePath,
