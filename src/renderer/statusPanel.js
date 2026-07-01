@@ -315,7 +315,9 @@ function extractVoiceContentBlock(text) {
   const voiceText = extractTaggedSection(text, ['voice', 'voice content']);
   if (voiceText !== null) {
     const htmlPath = extractTaggedSection(text, ['html', 'html file']) || '';
+    const titleText = extractTaggedSection(text, ['title', 'report title']) || '';
     return {
+      titleText: titleText.trim(),
       voiceText: voiceText.trim(),
       displayText: extractTaggedSection(text, ['content', 'display content']) || '',
       htmlPath: normalizeHtmlPath(htmlPath),
@@ -328,6 +330,7 @@ function extractVoiceContentBlock(text) {
   if (!body) return null;
   const parts = body.split(/\r?\n\s*\r?\n/);
   return {
+    titleText: '',
     voiceText: parts.shift().trim(),
     displayText: parts.join('\n\n').trim(),
     htmlPath: '',
@@ -347,7 +350,7 @@ function extractTaggedSection(text, tags) {
   const marker = new RegExp(`\\[(?:${tagPattern})\\]`, 'i').exec(text);
   if (!marker) return null;
   const after = text.slice(marker.index + marker[0].length);
-  const next = /\r?\n\s*\[(?:voice|voice content|content|display content|html|html file)\]/i.exec(after);
+  const next = /\r?\n\s*\[(?:title|report title|voice|voice content|content|display content|html|html file)\]/i.exec(after);
   return (next ? after.slice(0, next.index) : after).trim();
 }
 

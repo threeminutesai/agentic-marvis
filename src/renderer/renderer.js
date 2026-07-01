@@ -910,11 +910,14 @@ The user explicitly asked for this as a report - skip any classification step, t
 
 ${outputLanguageRule}
 
+[title]
+A specific human-readable report title for the HTML file, 3-10 words, not a date, not a filename, no extension.
 [voice]
 A short spoken summary, 1-2 sentences, no source URLs, no markdown.
 [html] ${htmlPanel.filePath}
 
 Before replying, write ${templateSection} to this exact file path: ${htmlPanel.filePath} (keep the file name exactly as given: ${htmlPanel.fileName}).
+Inside the HTML, use the exact same report title from [title] for the document <title> and the main first <h1>.
 Do not send the HTML/content inline to the app. The app will open the file from the [html] path.`;
   }
 
@@ -934,11 +937,14 @@ Output ONLY this, then stop. Do not write any file, do not add an [html] line, d
 A short spoken summary, 1-2 sentences, no source URLs, no markdown.
 
 IF AND ONLY IF YES:
+[title]
+A specific human-readable report title for the HTML file, 3-10 words, not a date, not a filename, no extension.
 [voice]
 A short spoken summary, 1-2 sentences, no source URLs, no markdown.
 [html] ${htmlPanel.filePath}
 
 Before replying, write ${templateSection} to this exact file path: ${htmlPanel.filePath} (keep the file name exactly as given: ${htmlPanel.fileName}).
+Inside the HTML, use the exact same report title from [title] for the document <title> and the main first <h1>.
 Do not send the HTML/content inline to the app. The app will open the file from the [html] path.`;
 }
 
@@ -1901,6 +1907,7 @@ async function sendToCli(text, channel, task, { forceReport = false, voiceAllowe
     })
     : () => {};
   let htmlPanel = null;
+  let finalizedHtmlPanel = null;
   try {
     if (!quietMode && !preservePanel) {
       htmlPanel = await window.marvis.prepareHtmlPanel({ task });
@@ -1927,7 +1934,9 @@ async function sendToCli(text, channel, task, { forceReport = false, voiceAllowe
       if (result?.status !== 'success' && htmlPanel?.filePath) {
         window.marvis.discardHtmlPanel(htmlPanel.filePath).catch(() => {});
       } else if (result?.status === 'success' && htmlPanel?.filePath) {
-        window.marvis.finalizeHtmlPanel(htmlPanel.filePath, htmlPanel.title).catch(() => {});
+        const responseBlocks = extractVoiceContentBlock(result?.summary || '');
+        const fallbackTitle = responseBlocks?.titleText || htmlPanel.title;
+        finalizedHtmlPanel = await window.marvis.finalizeHtmlPanel(htmlPanel.filePath, fallbackTitle).catch(() => null);
       }
     }
     if (activeOperationId !== operationId && shouldAbortResponse) return;
@@ -1937,7 +1946,11 @@ async function sendToCli(text, channel, task, { forceReport = false, voiceAllowe
       if (!quietMode && !preservePanel) showCliStandbyPanel(channel, 'Paused. Ready for the next request.');
       return;
     }
-    const summary = result.summary || `${channel.label} finished, sir.`;
+    let summary = result.summary || `${channel.label} finished, sir.`;
+    if (finalizedHtmlPanel?.ok && htmlPanel?.filePath && finalizedHtmlPanel.filePath && finalizedHtmlPanel.filePath !== htmlPanel.filePath) {
+      const escapedOriginal = htmlPanel.filePath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      summary = summary.replace(new RegExp(escapedOriginal, 'g'), finalizedHtmlPanel.filePath);
+    }
     const formatted = await formatAssistantResponse(summary, { allowHtml: !quietMode && !preservePanel });
     if (formatted.html && !preservePanel) {
       currentHtmlPath = formatted.htmlPath || null;

@@ -467,10 +467,6 @@ function ensureHtmlPanelDir() {
   return dir;
 }
 
-function getHtmlPanelIndexPath() {
-  return path.join(ensureHtmlPanelDir(), 'index.json');
-}
-
 function normalizePanelText(value) {
   return String(value || '')
     .replace(/\s+/g, ' ')
@@ -488,6 +484,25 @@ function titleCaseFallback(value) {
   const text = normalizePanelText(value);
   if (!text) return 'Marvis Report';
   return text[0].toUpperCase() + text.slice(1);
+}
+
+function isWeakPanelTitle(value) {
+  const text = normalizePanelText(value)
+    .replace(/\.html$/i, '')
+    .toLowerCase();
+  if (!text) return true;
+  if (/^(?:marvis\s+)?report(?:\s+\d+)?$/.test(text)) return true;
+  if (/^(?:untitled|new document|document|panel|html panel)$/.test(text)) return true;
+
+  const compact = text
+    .replace(/[^\w-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  if (/^\d{8}(?:-\d{4}-\d{2}-\d{2})?(?:-\d+)?$/.test(compact)) return true;
+  if (/^\d{4}-\d{2}-\d{2}(?:-\d+)?$/.test(compact)) return true;
+  if (/^(?:\d{8}-)?report(?:-\d+)?$/.test(compact)) return true;
+  return false;
 }
 
 function deriveHtmlPanelTitle(input) {
@@ -515,25 +530,6 @@ function slugifyPanelTitle(title) {
     .replace(/^-+|-+$/g, '')
     .slice(0, 56);
   return slug || 'marvis-report';
-}
-
-function readHtmlPanelIndex() {
-  const indexPath = getHtmlPanelIndexPath();
-  if (!fs.existsSync(indexPath)) return { version: 1, panels: [] };
-  try {
-    const parsed = JSON.parse(fs.readFileSync(indexPath, 'utf8'));
-    const panels = Array.isArray(parsed.panels) ? parsed.panels : [];
-    return { version: 1, panels };
-  } catch {
-    return { version: 1, panels: [] };
-  }
-}
-
-function writeHtmlPanelIndex(index) {
-  fs.writeFileSync(getHtmlPanelIndexPath(), JSON.stringify({
-    version: 1,
-    panels: Array.isArray(index.panels) ? index.panels : [],
-  }, null, 2));
 }
 
 function getHtmlPanelFiles() {
@@ -565,66 +561,91 @@ function getUniqueHtmlPanelPath(title) {
   return candidate;
 }
 
+function renameHtmlPanelToMatchTitle(filePath, title) {
+  const dir = ensureHtmlPanelDir();
+  const resolved = path.resolve(filePath || '');
+  const resolvedDir = path.resolve(dir);
+  if (!resolved.startsWith(`${resolvedDir}${path.sep}`)) {
+    throw new Error('HTML panel file must be inside the Marvis html-panels folder.');
+  }
+  if (!fs.existsSync(resolved)) {
+    throw new Error('HTML panel file does not exist.');
+  }
+  const currentName = path.basename(resolved);
+  const desiredPath = getUniqueHtmlPanelPath(title);
+  const desiredName = path.basename(desiredPath);
+  const currentSlug = currentName.replace(/^\d{8}-/, '').replace(/-\d+(?=\.html$)/, '');
+  const desiredSlug = desiredName.replace(/^\d{8}-/, '').replace(/-\d+(?=\.html$)/, '');
+  if (currentSlug === desiredSlug) {
+    return {
+      filePath: resolved,
+      fileName: currentName,
+    };
+  }
+  fs.renameSync(resolved, desiredPath);
+  return {
+    filePath: desiredPath,
+    fileName: path.basename(desiredPath),
+  };
+}
+
 function extractHtmlPanelTitle(html) {
   const source = String(html || '');
   const titleMatch = source.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-  if (titleMatch?.[1]) return normalizePanelText(stripHtmlTags(titleMatch[1]));
+  const titleText = titleMatch?.[1] ? normalizePanelText(stripHtmlTags(titleMatch[1])) : '';
   const headingMatch = source.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)
     || source.match(/<h2[^>]*>([\s\S]*?)<\/h2>/i);
-  if (headingMatch?.[1]) return normalizePanelText(stripHtmlTags(headingMatch[1]));
-  return '';
+  const headingText = headingMatch?.[1] ? normalizePanelText(stripHtmlTags(headingMatch[1])) : '';
+  if (titleText && !isWeakPanelTitle(titleText)) return titleText;
+  if (headingText && !isWeakPanelTitle(headingText)) return headingText;
+  return titleText || headingText || '';
+}
+
+function upsertHtmlTitleTag(html, title) {
+  const escapedTitle = String(title || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  let nextHtml = String(html || '');
+  if (/<title[^>]*>[\s\S]*?<\/title>/i.test(nextHtml)) {
+    return nextHtml.replace(/<title[^>]*>[\s\S]*?<\/title>/i, `<title>${escapedTitle}</title>`);
+  }
+  if (/<head[\s>]/i.test(nextHtml)) {
+    return nextHtml.replace(/<head([^>]*)>/i, `<head$1>\n  <title>${escapedTitle}</title>`);
+  }
+  if (/<html[\s>]/i.test(nextHtml)) {
+    return nextHtml.replace(/<html([^>]*)>/i, `<html$1>\n<head>\n  <title>${escapedTitle}</title>\n</head>`);
+  }
+  return `<!DOCTYPE html>\n<html>\n<head>\n  <meta charset="UTF-8">\n  <title>${escapedTitle}</title>\n</head>\n<body>\n${nextHtml}\n</body>\n</html>`;
 }
 
 function ensureHtmlPanelTitle(filePath, fallbackTitle) {
   if (!fs.existsSync(filePath) || fs.statSync(filePath).size === 0) return fallbackTitle;
   const html = fs.readFileSync(filePath, 'utf8');
   const existingTitle = extractHtmlPanelTitle(html);
-  const title = existingTitle || deriveHtmlPanelTitle(fallbackTitle);
-  if (existingTitle) return title;
+  const derivedTitle = deriveHtmlPanelTitle(fallbackTitle);
+  const shouldReplaceExisting = isWeakPanelTitle(existingTitle) && !isWeakPanelTitle(derivedTitle);
+  const title = existingTitle && !shouldReplaceExisting
+    ? existingTitle
+    : derivedTitle;
+  if (existingTitle && !shouldReplaceExisting) return title;
 
-  const escapedTitle = title
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-  let nextHtml = html;
-  if (/<head[\s>]/i.test(nextHtml)) {
-    nextHtml = nextHtml.replace(/<head([^>]*)>/i, `<head$1>\n  <title>${escapedTitle}</title>`);
-  } else if (/<html[\s>]/i.test(nextHtml)) {
-    nextHtml = nextHtml.replace(/<html([^>]*)>/i, `<html$1>\n<head>\n  <title>${escapedTitle}</title>\n</head>`);
-  } else {
-    nextHtml = `<!DOCTYPE html>\n<html>\n<head>\n  <meta charset="UTF-8">\n  <title>${escapedTitle}</title>\n</head>\n<body>\n${nextHtml}\n</body>\n</html>`;
+  const nextHtml = upsertHtmlTitleTag(html, title);
+  if (nextHtml !== html) {
+    fs.writeFileSync(filePath, nextHtml);
   }
-  fs.writeFileSync(filePath, nextHtml);
   return title;
-}
-
-function upsertHtmlPanelMetadata({ filePath, title, sourceTask }) {
-  const dir = ensureHtmlPanelDir();
-  const resolved = path.resolve(filePath || '');
-  if (!resolved.startsWith(path.resolve(dir) + path.sep)) return null;
-  const file = path.basename(resolved);
-  const now = new Date().toISOString();
-  const index = readHtmlPanelIndex();
-  const existing = index.panels.find((panel) => panel.file === file);
-  const stat = fs.existsSync(resolved) ? fs.statSync(resolved) : null;
-  const entry = {
-    file,
-    title: deriveHtmlPanelTitle(title || sourceTask || file.replace(/\.html$/i, '')),
-    sourceTask: normalizePanelText(sourceTask || existing?.sourceTask || ''),
-    createdAt: existing?.createdAt || (stat ? new Date(stat.birthtimeMs || stat.ctimeMs || Date.now()).toISOString() : now),
-    updatedAt: now,
-  };
-  const panels = [
-    ...index.panels.filter((panel) => panel.file !== file && fs.existsSync(path.join(dir, panel.file))),
-    entry,
-  ];
-  writeHtmlPanelIndex({ version: 1, panels });
-  return entry;
 }
 
 function finalizeHtmlPanelMetadata(filePath, fallbackTitle) {
   const title = ensureHtmlPanelTitle(filePath, fallbackTitle);
-  return upsertHtmlPanelMetadata({ filePath, title, sourceTask: fallbackTitle });
+  const renamed = renameHtmlPanelToMatchTitle(filePath, title);
+  return {
+    title,
+    filePath: renamed.filePath,
+    fileName: renamed.fileName,
+    sourceTask: normalizePanelText(fallbackTitle || ''),
+  };
 }
 
 // Calculate string similarity score (0-1) using normalized Levenshtein distance
@@ -671,20 +692,20 @@ function scorePanelMatch(query, candidate) {
 // Search HTML files in the html-panels folder by title, source task, content,
 // and filename. The filename is now just storage; the report title is the
 // primary handle users can ask for later ("open AI news report").
-function searchHtmlPanels(keyword, minSimilarity = 0.4) {
-  const dir = ensureHtmlPanelDir();
+function searchHtmlPanels(keyword, { minSimilarity = 0.4, memoryResults = [] } = {}) {
+  const rememberedText = (Array.isArray(memoryResults) ? memoryResults : [])
+    .map((entry) => normalizePanelText(entry.summary || ''))
+    .filter(Boolean)
+    .join('\n');
   if (!keyword || !String(keyword).trim()) {
     return [];
   }
 
   const query = String(keyword).toLowerCase().trim();
-  const index = readHtmlPanelIndex();
-  const metadataByFile = new Map(index.panels.map((panel) => [panel.file, panel]));
 
   const results = getHtmlPanelFiles()
     .map(({ file, filePath, createdMs, modifiedMs }) => {
       const baseName = file.replace(/\.html$/, '');
-      const meta = metadataByFile.get(file) || {};
       let html = '';
       try {
         html = fs.readFileSync(filePath, 'utf8');
@@ -693,21 +714,21 @@ function searchHtmlPanels(keyword, minSimilarity = 0.4) {
       }
       const htmlTitle = extractHtmlPanelTitle(html);
       const contentText = stripHtmlTags(html).slice(0, 2000);
-      const title = normalizePanelText(htmlTitle || meta.title || baseName);
+      const title = normalizePanelText(htmlTitle || titleCaseFallback(baseName.replace(/^\d{8}-/, '').replace(/-/g, ' ')));
       const titleScore = scorePanelMatch(query, title);
-      const taskScore = scorePanelMatch(query, meta.sourceTask || '');
       const fileScore = scorePanelMatch(query, baseName) * 0.7;
       const contentScore = scorePanelMatch(query, contentText) * 0.5;
-      const score = Math.max(titleScore, taskScore, fileScore, contentScore);
+      const memoryScore = rememberedText ? scorePanelMatch(title.toLowerCase(), rememberedText.toLowerCase()) * 0.35 : 0;
+      const score = Math.max(titleScore, fileScore, contentScore, memoryScore);
 
       return {
         file,
         baseName,
         title,
-        sourceTask: meta.sourceTask || '',
+        sourceTask: '',
         score,
         filePath,
-        createdAt: meta.createdAt || new Date(createdMs).toISOString(),
+        createdAt: new Date(createdMs).toISOString(),
         modifiedMs,
       };
     })
@@ -741,27 +762,28 @@ function getNextHtmlPanelPath(title) {
 }
 
 function pruneHtmlPanels(maxCount) {
-  const dir = ensureHtmlPanelDir();
   const limit = Number(maxCount) > 0 ? Number(maxCount) : 50;
   const files = getHtmlPanelFiles()
     .sort((a, b) => a.createdMs - b.createdMs || a.modifiedMs - b.modifiedMs);
   const excess = files.length - limit;
   if (excess <= 0) return;
-  const removedFiles = new Set();
   for (const panel of files.slice(0, excess)) {
     try {
       fs.unlinkSync(panel.filePath);
-      removedFiles.add(panel.file);
     } catch (err) {
       console.log(`[HtmlPanel] Failed to prune ${panel.file}: ${err.message}`);
     }
   }
-  if (removedFiles.size) {
-    const index = readHtmlPanelIndex();
-    writeHtmlPanelIndex({
-      version: 1,
-      panels: index.panels.filter((panel) => !removedFiles.has(panel.file)),
-    });
+}
+
+function removeLegacyHtmlPanelIndex() {
+  const legacyIndexPath = path.join(ensureHtmlPanelDir(), 'index.json');
+  if (fs.existsSync(legacyIndexPath)) {
+    try {
+      fs.unlinkSync(legacyIndexPath);
+    } catch (err) {
+      console.log(`[HtmlPanel] Failed to remove legacy index.json: ${err.message}`);
+    }
   }
 }
 
@@ -820,6 +842,7 @@ function registerIpcHandlers() {
   copyLegacyStatusFileIfNeeded(statusFilePath);
   ensureStatusFile(statusFilePath);
   getHtmlPanelTemplatePath();
+  removeLegacyHtmlPanelIndex();
 
   const musicDir = getMusicDir();
   const musicLibraryFilePath = getMusicLibraryFilePath();
@@ -1263,7 +1286,6 @@ function registerIpcHandlers() {
     const title = deriveHtmlPanelTitle(typeof payload === 'string' ? payload : (payload.title || payload.task));
     const filePath = getNextHtmlPanelPath(title);
     fs.writeFileSync(filePath, '', { flag: 'wx' });
-    upsertHtmlPanelMetadata({ filePath, title, sourceTask });
     pruneHtmlPanels(settingsStore.load().maxHtmlPanels);
     return {
       filePath,
@@ -1280,7 +1302,12 @@ function registerIpcHandlers() {
         filePath,
         fallbackTitle || path.basename(filePath || '').replace(/\.html$/i, ''),
       );
-      return { ok: true, title: meta?.title || '' };
+      return {
+        ok: true,
+        title: meta?.title || '',
+        filePath: meta?.filePath || filePath,
+        fileName: meta?.fileName || path.basename(filePath || ''),
+      };
     } catch (err) {
       return { ok: false, error: err.message };
     }
@@ -1289,7 +1316,13 @@ function registerIpcHandlers() {
   ipcMain.handle('html-panel:read', (_event, filePath) => {
     try {
       const meta = finalizeHtmlPanelMetadata(filePath, path.basename(filePath || '').replace(/\.html$/i, ''));
-      return { ok: true, html: readHtmlPanelFile(filePath), filePath, title: meta?.title || '' };
+      return {
+        ok: true,
+        html: readHtmlPanelFile(meta?.filePath || filePath),
+        filePath: meta?.filePath || filePath,
+        title: meta?.title || '',
+        fileName: meta?.fileName || path.basename(filePath || ''),
+      };
     } catch (err) {
       return { ok: false, error: err.message };
     }
@@ -1297,7 +1330,9 @@ function registerIpcHandlers() {
 
   ipcMain.handle('html-panel:search', (_event, keyword) => {
     try {
-      const results = searchHtmlPanels(keyword);
+      const results = searchHtmlPanels(keyword, {
+        memoryResults: memoryStore.search(keyword || '', 5),
+      });
       return { ok: true, results };
     } catch (err) {
       return { ok: false, error: err.message, results: [] };
@@ -1306,18 +1341,20 @@ function registerIpcHandlers() {
 
   ipcMain.handle('html-panel:openByKeyword', (_event, keyword) => {
     try {
-      const results = searchHtmlPanels(keyword);
+      const results = searchHtmlPanels(keyword, {
+        memoryResults: memoryStore.search(keyword || '', 5),
+      });
       if (!results.length) {
         return { ok: false, error: `No HTML panel found matching "${keyword}".` };
       }
       const topMatch = results[0];
       const meta = finalizeHtmlPanelMetadata(topMatch.filePath, topMatch.title || topMatch.sourceTask || topMatch.file);
-      const html = readHtmlPanelFile(topMatch.filePath);
+      const html = readHtmlPanelFile(meta?.filePath || topMatch.filePath);
       return {
         ok: true,
         html,
-        filePath: topMatch.filePath,
-        fileName: topMatch.file,
+        filePath: meta?.filePath || topMatch.filePath,
+        fileName: meta?.fileName || topMatch.file,
         title: meta?.title || topMatch.title || topMatch.file,
       };
     } catch (err) {
@@ -1465,4 +1502,12 @@ function registerIpcHandlers() {
   });
 }
 
-module.exports = { registerIpcHandlers };
+module.exports = {
+  registerIpcHandlers,
+  deriveHtmlPanelTitle,
+  extractHtmlPanelTitle,
+  ensureHtmlPanelTitle,
+  finalizeHtmlPanelMetadata,
+  slugifyPanelTitle,
+  isWeakPanelTitle,
+};

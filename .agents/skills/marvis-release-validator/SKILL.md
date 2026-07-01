@@ -11,7 +11,7 @@ Use this skill to validate Marvis changes against the project contract, then opt
 
 ## Required Context
 
-Read `docs/MARVIS_APP_SPEC.md` before making validation judgments. Read `references/validation-checklist.md` when the task involves release preparation, GitHub pushing, package validation, or broad regression checks.
+Read `docs/MARVIS_APP_SPEC.md` before making validation judgments. When the task involves release preparation, GitHub pushing, package validation, or broad regression checks, use the release checklist embedded in this skill file.
 
 ## Workflow
 
@@ -27,6 +27,9 @@ Read `docs/MARVIS_APP_SPEC.md` before making validation judgments. Read `referen
    - For CLI helper-line validation, confirm the right-side terminal or CLI activity panel hides raw helper chatter such as bare `exec`, full shell command invocations, and timing boilerplate like `succeeded in 560ms:` when those lines do not add user value.
    - For screenshot validation, confirm sending a request with attached screenshots does not replace or close the currently visible right-side HTML panel during analysis.
    - For voice-plus-image validation, confirm a voice transcript sent with pending screenshots still includes the screenshot attachments in the delegated CLI task and the UI makes that combined send obvious to the user.
+   - For HTML panel storage validation, confirm generated reports end up with title-based filenames under `data/html-panels/` rather than generic `date-report.html` names when a more specific report title is available.
+   - For HTML panel metadata validation, confirm Marvis no longer depends on `data/html-panels/index.json` for panel discovery or reopening.
+   - For reopen-history validation, confirm asking to open previous reports works by matching the user request against remembered conversation context plus actual HTML filenames/titles on disk.
 4. Run targeted syntax checks for changed JavaScript files and `npm test`.
 5. Report failures before publishing. Fix failures when they are in scope.
 6. Commit only relevant files when the user asks to update GitHub or publish.
@@ -120,6 +123,7 @@ macOS workflow output should include a `.dmg` and a zip containing `Marvis.app`,
 - Never convert long bot replies, Markdown, inline HTML, or `[content]` blocks into report panels.
 - Never stream raw HTML diff bodies or full HTML file contents into the backend CLI panel; redact them before display.
 - Hide raw CLI helper chatter such as `exec`, full shell command lines, and plain timing boilerplate when a shorter summary already represents the same action.
+- Store generated HTML reports with a title-derived filename when possible, and treat the HTML file itself as the source of truth instead of a sidecar `index.json`.
 - Speak returned chat replies fully unless muted.
 
 ## Release Safety
