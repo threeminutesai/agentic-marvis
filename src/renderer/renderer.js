@@ -34,6 +34,9 @@ let recentConversationTurns = [];
 // 2026-06-23-panel-screenshot-capture-design.md.
 let pendingAttachments = [];
 let currentHtmlPath = null; // Track HTML file currently displayed for joint analysis with screenshots
+let lastReportHtmlPath = null; // Most recent saved report opened/generated in this session
+let lastReportHtmlAt = 0;
+let lastReportRequestAt = 0;
 
 // Capture drag-to-select state.
 let captureSelectMode = false;
@@ -90,6 +93,9 @@ const I18N = {
     welcomeNeedProfile: 'Please select a profile.',
     testingConnection: 'Testing connection, sir...',
     displayFile: 'Displaying {name}',
+    noRecentReport: 'I do not have a recent report from this conversation to open, sir.',
+    recentReports: 'Reports',
+    noSavedReports: 'No saved reports yet.',
     readFileError: "I couldn't read that file, sir: {error}",
     openPanelError: "I couldn't open that panel, sir: {error}",
     noPanelMatch: 'I could not find an HTML panel matching "{keyword}", sir.',
@@ -176,6 +182,9 @@ const I18N = {
     welcomeNeedProfile: '请选择一个档案。',
     testingConnection: '正在测试连接...',
     displayFile: '正在显示 {name}',
+    noRecentReport: '我这次对话里还没有可打开的最近报告。',
+    recentReports: '报告',
+    noSavedReports: '还没有已保存的报告。',
     readFileError: '无法读取该文件：{error}',
     openPanelError: '无法打开该面板：{error}',
     noPanelMatch: '找不到匹配 “{keyword}” 的 HTML 面板。',
@@ -317,6 +326,8 @@ function applyLanguageToUi() {
   if (chatInput) chatInput.placeholder = t('chatPlaceholder');
   const settingsBtn = document.getElementById('settings-btn');
   if (settingsBtn) settingsBtn.textContent = t('settings');
+  const recentReportsBtn = document.getElementById('recent-reports-btn');
+  if (recentReportsBtn) recentReportsBtn.textContent = t('recentReports');
   setText('settings-page-title', t('settingsTitle'));
   setText('settings-ai-header', t('settingsAiHeader'));
   setText('settings-provider-label', t('settingsProviderLabel'));
@@ -910,8 +921,11 @@ ${outputLanguageRule}
 
 ${templateSection}
 Write the finished HTML report to this exact path: ${htmlPanel.filePath}
+Use a strong human-readable report title and use that same title for the document <title> and the main first <h1>.
 
 Reply only in this format:
+[title]
+A specific human-readable report title for the HTML file, 3-10 words, not a date, not a filename, no extension.
 [voice]
 A short spoken summary, 1-2 sentences, no source URLs, no markdown.
 [html]
@@ -969,15 +983,19 @@ async function formatAssistantResponse(text, { allowHtml = true } = {}) {
     // The right panel only opens from an explicit HTML file path returned by
     // Claude Code/Codex. Inline content is chat text, not panel content.
     let html = null;
+    let resolvedHtmlPath = voiceBlock.htmlPath || '';
     if (allowHtml && voiceBlock.htmlPath) {
       const result = await window.marvis.readHtmlPanel(voiceBlock.htmlPath);
-      if (result.ok) html = result.html;
+      if (result.ok) {
+        html = result.html;
+        resolvedHtmlPath = result.filePath || resolvedHtmlPath;
+      }
     }
     return {
       reply: voiceBlock.voiceText || extractPlainVoiceSummary(voiceBlock.displayText),
       displayReply: voiceBlock.voiceText,
       html,
-      htmlPath: voiceBlock.htmlPath || '',
+      htmlPath: resolvedHtmlPath,
     };
   }
 
@@ -1709,7 +1727,7 @@ const MAX_RECENT_CHAT_TURNS = 10;
 // report, which the chat AI providers can't do. Deliberately narrow (the
 // word "report" alone isn't enough) to avoid misfiring on unrelated uses
 // like "I need to report a bug" or "did you see that report from yesterday".
-const REPORT_REQUEST_RE = /^(?:in|as)\s+(?:a\s+)?report\b|\b(?:make|generate|create|write|produce|compile|prepare)\s+(?:me\s+)?(?:a|the)\s+report\b|\breport\s+(?:on|about|for)\b/i;
+const REPORT_REQUEST_RE = /^(?:in|as)\s+(?:a\s+)?report\b|\b(?:make|generate|create|write|produce|compile|prepare)\s+(?:me\s+)?(?:a|the)\s+report\b|\breport\s+(?:on|about|for)\b|(?:做成|整理成|写成|生成|放在|放进|放到).{0,20}(?:report|报告|報告)|(?:report|报告|報告).{0,20}(?:里面|裡面|里|裏|中|形式|格式)/i;
 function isReportRequest(text) {
   return REPORT_REQUEST_RE.test(text.trim());
 }
@@ -1730,6 +1748,12 @@ function deriveHtmlPanelTitle(task) {
   return /\breport\b/i.test(base) ? base : `${base} Report`;
 }
 
+function getReportOpenIntent(text) {
+  return window.MarvisReportOpenIntent?.getReportOpenIntent
+    ? window.MarvisReportOpenIntent.getReportOpenIntent(text)
+    : null;
+}
+
 function rememberVisibleTurn(role, content) {
   const normalized = normalizeTitleText(content);
   if (!normalized) return;
@@ -1745,6 +1769,75 @@ function getRecentConversationSnapshot() {
 
 function shouldSpeakReturnedMessage(text) {
   return Boolean(text.trim() || pendingAttachments.length > 0);
+}
+
+function markReportRequestIfNeeded(text, { resetRecent = false } = {}) {
+  if (!isReportRequest(text)) return;
+  lastReportRequestAt = Date.now();
+  if (resetRecent) {
+    lastReportHtmlPath = null;
+    lastReportHtmlAt = 0;
+  }
+}
+
+function formatRecentReportTime(value) {
+  const date = new Date(Number(value) || Date.now());
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleString([], {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+function hideRecentReportsMenu() {
+  const menu = document.getElementById('recent-reports-menu');
+  const button = document.getElementById('recent-reports-btn');
+  if (menu) menu.classList.add('hidden');
+  if (button) button.setAttribute('aria-expanded', 'false');
+}
+
+async function openRecentReportFile(filePath) {
+  const result = await window.marvis.readHtmlPanel(filePath);
+  if (!result?.ok) {
+    appendChatLine('Marvis', result?.error || t('openPanelError', { error: 'unknown error' }));
+    return false;
+  }
+  showHTMLSafe(result.html);
+  currentHtmlPath = result.filePath || filePath;
+  lastReportHtmlPath = result.filePath || filePath;
+  lastReportHtmlAt = Date.now();
+  appendChatLine('Marvis', t('displayFile', { name: result.fileName || filePath }));
+  hideRecentReportsMenu();
+  return true;
+}
+
+async function refreshRecentReportsMenu() {
+  const menu = document.getElementById('recent-reports-menu');
+  if (!menu) return;
+  menu.innerHTML = '';
+  const result = await window.marvis.listRecentHtmlPanels(8).catch((err) => ({ ok: false, error: err.message, reports: [] }));
+  const reports = result?.ok ? (result.reports || []) : [];
+  if (!reports.length) {
+    menu.innerHTML = `<div class="recent-reports-empty">${escapeHtml(t('noSavedReports'))}</div>`;
+    return;
+  }
+
+  for (const report of reports) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'recent-report-item';
+    button.innerHTML = `
+      <span class="recent-report-title">${escapeHtml(report.title || report.fileName || 'Report')}</span>
+      <span class="recent-report-file">${escapeHtml(report.fileName || '')}</span>
+      <span class="recent-report-time">${escapeHtml(formatRecentReportTime(report.modifiedMs || report.createdMs))}</span>
+    `;
+    button.addEventListener('click', async () => {
+      await openRecentReportFile(report.filePath);
+    });
+    menu.appendChild(button);
+  }
 }
 
 function parseCliCommand(text) {
@@ -1877,6 +1970,7 @@ function rememberConversationMemory({ source, userText, assistantText, hadHtml =
 
 async function sendToCli(text, channel, task, { forceReport = false, voiceAllowed = true, sessionState = null, quietMode = false, preservePanel = false } = {}) {
   appendChatLine('You', text);
+  if (forceReport) markReportRequestIfNeeded(text, { resetRecent: true });
   if (!task) {
     const prompt = t('askChannelTask', { channel: channel.label });
     appendChatLine('Marvis', prompt);
@@ -1904,6 +1998,7 @@ async function sendToCli(text, channel, task, { forceReport = false, voiceAllowe
     })
     : () => {};
   let htmlPanel = null;
+  let finalizedHtmlPanel = null;
   try {
     if (!quietMode && !preservePanel) {
       htmlPanel = await window.marvis.prepareHtmlPanel({ task });
@@ -1929,6 +2024,11 @@ async function sendToCli(text, channel, task, { forceReport = false, voiceAllowe
     if (!quietMode && !preservePanel) {
       if (result?.status !== 'success' && htmlPanel?.filePath) {
         window.marvis.discardHtmlPanel(htmlPanel.filePath).catch(() => {});
+      } else if (result?.status === 'success' && htmlPanel?.filePath) {
+        const responseBlocks = extractVoiceContentBlock(result?.summary || '');
+        const targetHtmlPath = responseBlocks?.htmlPath || htmlPanel.filePath;
+        const fallbackTitle = responseBlocks?.titleText || htmlPanel.title;
+        finalizedHtmlPanel = await window.marvis.finalizeHtmlPanel(targetHtmlPath, fallbackTitle).catch(() => null);
       }
     }
     if (activeOperationId !== operationId && shouldAbortResponse) return;
@@ -1939,9 +2039,18 @@ async function sendToCli(text, channel, task, { forceReport = false, voiceAllowe
       return;
     }
     let summary = result.summary || `${channel.label} finished, sir.`;
+    if (finalizedHtmlPanel?.ok && finalizedHtmlPanel.filePath) {
+      const originalPath = extractVoiceContentBlock(summary)?.htmlPath || htmlPanel?.filePath || '';
+      if (originalPath && finalizedHtmlPanel.filePath !== originalPath) {
+        const escapedOriginal = originalPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        summary = summary.replace(new RegExp(escapedOriginal, 'g'), finalizedHtmlPanel.filePath);
+      }
+    }
     const formatted = await formatAssistantResponse(summary, { allowHtml: !quietMode && !preservePanel });
     if (formatted.html && !preservePanel) {
       currentHtmlPath = formatted.htmlPath || null;
+      lastReportHtmlPath = formatted.htmlPath || lastReportHtmlPath;
+      lastReportHtmlAt = formatted.htmlPath ? Date.now() : lastReportHtmlAt;
       showHTML(formatted.html);
     } else if (!quietMode && !preservePanel) {
       showCliStandbyPanel(channel, 'Ready for the next request.');
@@ -2074,6 +2183,7 @@ async function onWakeWordDetected() {
 
 async function sendToMarvis(text, { voiceAllowed = true } = {}) {
   appendChatLine('You', text);
+  markReportRequestIfNeeded(text, { resetRecent: true });
   const operationId = createOperationId();
   activeOperationId = operationId;
   setProcessingResponse(true);
@@ -2481,6 +2591,8 @@ async function routeUserMessage(text) {
       if (result?.ok) {
         showHTMLSafe(result.html);
         currentHtmlPath = filePath; // Track for joint analysis with screenshots
+        lastReportHtmlPath = filePath;
+        lastReportHtmlAt = Date.now();
         appendChatLine('Marvis', t('displayFile', { name: filePath }));
       } else {
         appendChatLine('Marvis', t('readFileError', { error: result?.error || 'unknown error' }));
@@ -2491,18 +2603,53 @@ async function routeUserMessage(text) {
     return;
   }
 
-  // /open <keyword>, open <keyword>, or show <keyword> - search and open HTML panel by keyword
-  const openCmdMatch = text.match(/^\/open\s+(.+)/i)
-    || text.match(/^(?:open|show)\s+(.+)/i)
-    || text.match(/^\/?(?:打开|打開|显示|顯示)\s+(.+)/i);
-  if (openCmdMatch) {
-    const keyword = openCmdMatch[1].trim();
+  // Smart local report open: only /open is a hard command.
+  // Natural-language "open/show/打开/显示 ..." requests go through Gemini so
+  // it decides whether the user means reopen-recent, open-latest, fuzzy
+  // keyword search, or just ordinary chat.
+  const openCmdMatch = text.match(/^\/open\s+(.+)/i);
+  const heuristicOpenIntent = getReportOpenIntent(text);
+  const resolvedOpenIntent = openCmdMatch
+    ? { domain: 'saved_report', action: 'keyword', keyword: openCmdMatch[1]?.trim() || '' }
+    : await window.marvis.resolveReportOpenIntent(text)
+      .then((result) => {
+        const decision = result?.decision || { domain: 'none', action: 'none', keyword: '' };
+        if (decision?.domain === 'saved_report' && decision?.action && decision.action !== 'none') {
+          return decision;
+        }
+        if (heuristicOpenIntent?.kind === 'recent') {
+          return { domain: 'saved_report', action: 'recent', keyword: '' };
+        }
+        if (heuristicOpenIntent?.kind === 'latest') {
+          return { domain: 'saved_report', action: 'latest', keyword: '' };
+        }
+        return decision;
+      })
+      .catch(() => {
+        if (heuristicOpenIntent?.kind === 'recent') {
+          return { domain: 'saved_report', action: 'recent', keyword: '' };
+        }
+        if (heuristicOpenIntent?.kind === 'latest') {
+          return { domain: 'saved_report', action: 'latest', keyword: '' };
+        }
+        return { domain: 'none', action: 'none', keyword: '' };
+      });
+  if (resolvedOpenIntent?.domain === 'saved_report' && resolvedOpenIntent?.action && resolvedOpenIntent.action !== 'none') {
+    const keyword = resolvedOpenIntent.keyword || '';
     appendChatLine('You', text);
     try {
-        const result = await window.marvis.openHtmlPanelByKeyword(keyword);
+      const result = resolvedOpenIntent.action === 'recent'
+        ? (lastReportHtmlPath && lastReportHtmlAt >= lastReportRequestAt
+          ? await window.marvis.readHtmlPanel(lastReportHtmlPath)
+          : { ok: false, error: t('noRecentReport') })
+        : resolvedOpenIntent.action === 'latest'
+          ? await window.marvis.openLatestHtmlPanel()
+          : await window.marvis.openHtmlPanelByKeyword(keyword);
       if (result?.ok) {
         showHTMLSafe(result.html);
         currentHtmlPath = result.filePath; // Track for joint analysis with screenshots
+        lastReportHtmlPath = result.filePath || lastReportHtmlPath;
+        lastReportHtmlAt = result.filePath ? Date.now() : lastReportHtmlAt;
         appendChatLine('Marvis', t('displayFile', { name: result.fileName }));
       } else {
         appendChatLine('Marvis', result?.error || t('noPanelMatch', { keyword }));
@@ -2690,6 +2837,24 @@ document.getElementById('continue-btn').addEventListener('click', () => {
   if (continueSection) {
     continueSection.style.display = 'none';
   }
+});
+
+document.getElementById('recent-reports-btn').addEventListener('click', async (event) => {
+  event.stopPropagation();
+  const menu = document.getElementById('recent-reports-menu');
+  const isHidden = menu.classList.contains('hidden');
+  if (!isHidden) {
+    hideRecentReportsMenu();
+    return;
+  }
+  await refreshRecentReportsMenu();
+  menu.classList.remove('hidden');
+  event.currentTarget.setAttribute('aria-expanded', 'true');
+});
+
+document.addEventListener('click', (event) => {
+  if (event.target.closest('#recent-reports-wrap')) return;
+  hideRecentReportsMenu();
 });
 
 document.getElementById('status-panel-dismiss-btn').addEventListener('click', () => {

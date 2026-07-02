@@ -4,6 +4,7 @@
 const TIMEOUT_MS = 10 * 60 * 1000;
 const WARMUP_TIMEOUT_MS = 15 * 1000;
 const MAX_BUFFER_LENGTH = 5 * 1024 * 1024;
+const COMPLETION_IDLE_MS = 900;
 
 function redactHtmlDiffs(text) {
   const redactor = createHtmlDiffRedactor();
@@ -125,6 +126,11 @@ function shouldHideCliRawLine(line) {
   if (!trimmed) return true;
   if (/^exec$/i.test(trimmed)) return true;
   if (/^resume$/i.test(trimmed)) return true;
+  if (/^openai codex v[\d.]+$/i.test(trimmed)) return true;
+  if (/^-{3,}$/.test(trimmed)) return true;
+  if (/^workdir:\s+/i.test(trimmed)) return true;
+  if (/^tokens used\b/i.test(trimmed)) return true;
+  if (/^\[(?:voice|html|title)\]$/i.test(trimmed)) return true;
   if (/^".*powershell\.exe"\s+-Command\s+/i.test(trimmed)) return true;
   if (/^".*cmd\.exe"\s+\/c\s+/i.test(trimmed)) return true;
   if (/^".*bash(?:\.exe)?"\s+-lc\s+/i.test(trimmed)) return true;
@@ -176,6 +182,24 @@ function delegateCodexTask({ task, projectPath, resumeSessionId, spawnImpl = spa
     const stdoutRedactor = createHtmlDiffRedactor();
     const stderrRedactor = createHtmlDiffRedactor();
     let settled = false;
+    let completionIdleTimer = null;
+    let sawCompletionHint = false;
+
+    const clearCompletionIdleTimer = () => {
+      if (!completionIdleTimer) return;
+      clearTimeout(completionIdleTimer);
+      completionIdleTimer = null;
+    };
+
+    const scheduleCompletionAfterIdle = () => {
+      if (!sawCompletionHint || settled) return;
+      clearCompletionIdleTimer();
+      completionIdleTimer = setTimeout(() => {
+        if (settled) return;
+        console.log('[Codex] Completion hint seen and output went idle; stopping process...');
+        proc.kill();
+      }, COMPLETION_IDLE_MS);
+    };
 
     const emitRawLines = (streamName, chunkText, carryBuffer) => {
       if (!onRawOutput) return carryBuffer + chunkText;
@@ -195,6 +219,7 @@ function delegateCodexTask({ task, projectPath, resumeSessionId, spawnImpl = spa
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      clearCompletionIdleTimer();
       signal?.removeEventListener('abort', cancel);
       resolve(result);
     };
@@ -224,14 +249,6 @@ function delegateCodexTask({ task, projectPath, resumeSessionId, spawnImpl = spa
     });
 
     let hasOutput = false;
-    const onDataComplete = () => {
-      if (settled || !hasOutput) return;
-      proc.kill();
-      const output = stdoutBuffer.trim() || stderrBuffer.trim();
-      const sessionId = extractSessionId(`${stdoutBuffer}\n${stderrBuffer}`) || resumeSessionId || null;
-      console.log('[Codex] Data complete with output (killed process)');
-      settle({ status: 'success', summary: output, sessionId });
-    };
 
     proc.stdout.on('data', (chunk) => {
       const data = chunk.toString();
@@ -241,13 +258,11 @@ function delegateCodexTask({ task, projectPath, resumeSessionId, spawnImpl = spa
       stdoutLineBuffer = emitRawLines('stdout', redacted, stdoutLineBuffer);
       hasOutput = true;
       if (stdoutBuffer.length > MAX_BUFFER_LENGTH) stdoutBuffer = stdoutBuffer.slice(-MAX_BUFFER_LENGTH);
+      if (data.includes('tokens used')) sawCompletionHint = true;
+      scheduleCompletionAfterIdle();
       if (onProgress) {
         const line = lastMeaningfulLine(data);
         if (line) onProgress(line);
-      }
-      if (data.includes('tokens used')) {
-        console.log('[Codex] Detected "tokens used" in stdout, waiting for output completion...');
-        setTimeout(onDataComplete, 150);
       }
     });
 
@@ -259,10 +274,8 @@ function delegateCodexTask({ task, projectPath, resumeSessionId, spawnImpl = spa
       stderrLineBuffer = emitRawLines('stderr', redacted, stderrLineBuffer);
       hasOutput = true;
       if (stderrBuffer.length > MAX_BUFFER_LENGTH) stderrBuffer = stderrBuffer.slice(-MAX_BUFFER_LENGTH);
-      if (data.includes('tokens used')) {
-        console.log('[Codex] Detected "tokens used" in stderr, waiting for output completion...');
-        setTimeout(onDataComplete, 150);
-      }
+      if (data.includes('tokens used')) sawCompletionHint = true;
+      scheduleCompletionAfterIdle();
     });
 
     proc.on('close', (code) => {

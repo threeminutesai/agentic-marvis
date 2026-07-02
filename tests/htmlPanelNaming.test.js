@@ -8,6 +8,8 @@ const {
   extractHtmlPanelTitle,
   ensureHtmlPanelTitle,
   isWeakPanelTitle,
+  resolveHtmlPanelPath,
+  slugifyPanelTitle,
 } = require('../src/main/ipcHandlers');
 
 test('extractHtmlPanelTitle prefers a meaningful heading over a weak date title', () => {
@@ -49,4 +51,23 @@ test('isWeakPanelTitle flags storage-like date titles', () => {
   assert.equal(isWeakPanelTitle('20260630-2026-06-30-2'), true);
   assert.equal(isWeakPanelTitle('Marvis Report'), true);
   assert.equal(isWeakPanelTitle('Asia Robotics Funding Snapshot'), false);
+});
+
+test('slugifyPanelTitle preserves meaningful Chinese titles', () => {
+  assert.equal(slugifyPanelTitle('美国新闻报告'), '美国新闻报告');
+  assert.equal(slugifyPanelTitle('美国新闻 Report'), '美国新闻-report');
+});
+
+test('resolveHtmlPanelPath accepts a bare file name from the html-panels folder', () => {
+  const resolved = resolveHtmlPanelPath('unit-test-report.html', { mustExist: false });
+  const dir = path.dirname(resolved);
+
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(resolved, '<!doctype html><title>Unit Test Report</title>');
+
+  try {
+    assert.equal(resolveHtmlPanelPath('unit-test-report.html'), resolved);
+  } finally {
+    fs.rmSync(resolved, { force: true });
+  }
 });

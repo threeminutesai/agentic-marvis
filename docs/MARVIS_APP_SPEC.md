@@ -2,6 +2,14 @@
 
 This file captures local product and release rules that the Marvis release validator must enforce.
 
+## Message Flow Reference
+
+For the authoritative message-processing flow, intent-routing sequence, and saved-report reopen behavior, refer to:
+
+- `docs/validation/marvis-message-flow.html`
+
+Use that HTML reference as the primary flow document when validating whether Marvis handled a user message internally, opened a saved report locally, or delegated to Codex / Claude Code.
+
 ## Wake Word Contract
 
 Wake word mode is opt-in and must only listen when `wakeWordEnabled` is true in saved settings.

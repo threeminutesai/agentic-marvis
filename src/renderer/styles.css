@@ -1143,6 +1143,98 @@ button:active { transform: scale(0.97); }
   auto-rows: max-content;
 }
 
+#recent-reports-wrap {
+  position: absolute;
+  top: 16px;
+  right: 104px;
+  z-index: 1000;
+  display: none;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  pointer-events: auto;
+}
+
+#recent-reports-btn {
+  min-width: 84px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: rgba(9, 18, 34, 0.78);
+  border: 1px solid rgba(165, 239, 255, 0.45);
+  color: #e8edf5;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(8, 217, 255, 0.12);
+}
+
+#recent-reports-btn:hover {
+  background: rgba(13, 35, 57, 0.92);
+  border-color: rgba(165, 239, 255, 0.8);
+}
+
+#recent-reports-menu {
+  width: min(320px, calc(100vw - 48px));
+  max-height: min(360px, 60vh);
+  overflow: auto;
+  padding: 10px;
+  border-radius: 16px;
+  background: rgba(8, 18, 34, 0.94);
+  border: 1px solid rgba(79, 214, 255, 0.22);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(12px);
+}
+
+.recent-reports-empty {
+  padding: 12px 14px;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+
+.recent-report-item {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid rgba(79, 214, 255, 0.12);
+  border-radius: 12px;
+  background: rgba(12, 28, 48, 0.76);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.recent-report-item + .recent-report-item {
+  margin-top: 8px;
+}
+
+.recent-report-item:hover {
+  border-color: rgba(79, 214, 255, 0.42);
+  background: rgba(16, 38, 62, 0.88);
+}
+
+.recent-report-title {
+  color: var(--ion-bright);
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.recent-report-file {
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  word-break: break-word;
+}
+
+.recent-report-time {
+  color: var(--ion-soft);
+  font-size: 0.74rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 #status-panel-capture-btn {
   position: absolute;
   top: 16px;
@@ -1220,7 +1312,8 @@ button:active { transform: scale(0.97); }
 }
 
 #app-body.panel-active #status-panel-capture-btn,
-#app-body.panel-active #status-panel-dismiss-btn {
+#app-body.panel-active #status-panel-dismiss-btn,
+#recent-reports-wrap {
   z-index: 1000;
 }
 
@@ -1484,6 +1577,10 @@ button:active { transform: scale(0.97); }
 
 #app-body.phase-3 #status-panel-wrap {
   display: none;
+}
+
+#app-body.phase-3 #recent-reports-wrap {
+  display: flex;
 }
 
 #app-body.phase-3.panel-active #chat-column {

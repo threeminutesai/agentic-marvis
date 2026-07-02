@@ -1,7 +1,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const { EventEmitter } = require('node:events');
 
 const {
+  delegateCodexTask,
   redactHtmlDiffs,
   createHtmlDiffRedactor,
   shouldHideCliRawLine,
@@ -59,9 +61,48 @@ test('createHtmlDiffRedactor collapses html file reads and their body output', (
 
 test('shouldHideCliRawLine filters helper chatter but keeps meaningful summaries', () => {
   assert.equal(shouldHideCliRawLine('exec'), true);
+  assert.equal(shouldHideCliRawLine('OpenAI Codex v0.141.0'), true);
+  assert.equal(shouldHideCliRawLine('--------'), true);
+  assert.equal(shouldHideCliRawLine('workdir: C:\\L_Center\\AI_devp\\jarvis'), true);
+  assert.equal(shouldHideCliRawLine('tokens used'), true);
+  assert.equal(shouldHideCliRawLine('[voice]'), true);
   assert.equal(shouldHideCliRawLine('"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content data\\html-panels\\_template.html -TotalCount 260"'), true);
   assert.equal(shouldHideCliRawLine('"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content data\\html-panels\\20260630-report-5.html -TotalCount 260" in C:\\L_Center\\AI_devp\\jarvis succeeded in 560ms:'), true);
   assert.equal(shouldHideCliRawLine('HTML file content omitted: data\\html-panels\\20260630-report-5.html'), false);
   assert.equal(shouldHideCliRawLine('  ... [8 lines omitted]'), false);
   assert.equal(shouldHideCliRawLine('Done.'), false);
+});
+
+test('delegateCodexTask waits for late stdout after a tokens-used hint before settling', async () => {
+  function spawnImpl() {
+    const proc = new EventEmitter();
+    proc.stdout = new EventEmitter();
+    proc.stderr = new EventEmitter();
+    proc.stdin = {
+      write() {},
+      end() {},
+    };
+    proc.kill = () => {
+      setTimeout(() => proc.emit('close', 0), 0);
+    };
+
+    setTimeout(() => proc.stderr.emit('data', Buffer.from('tokens used\n')), 10);
+    setTimeout(() => proc.stdout.emit('data', Buffer.from('[voice]\nThe report is ready, sir.\n')), 250);
+    setTimeout(() => proc.stdout.emit('data', Buffer.from('[html]\nC:\\reports\\malaysia-election-report.html\n')), 500);
+    setTimeout(() => proc.emit('close', 0), 520);
+    return proc;
+  }
+
+  const result = await delegateCodexTask({
+    task: 'Generate a report.',
+    projectPath: 'C:\\L_Center\\AI_devp\\jarvis',
+    spawnImpl,
+    timeoutMs: 5000,
+  });
+
+  assert.equal(result.status, 'success');
+  assert.match(result.summary, /\[voice\]/);
+  assert.match(result.summary, /The report is ready, sir\./);
+  assert.match(result.summary, /\[html\]/);
+  assert.match(result.summary, /malaysia-election-report\.html/);
 });

@@ -18,6 +18,13 @@ Read `docs/MARVIS_APP_SPEC.md` before making validation judgments. When the task
 1. Inspect `git status --short` and identify only task-relevant changes.
 2. Read the app spec and the files touched by the task.
 3. Validate behavior against the spec, especially chat routing, TTS, HTML panel isolation, briefing, settings, and release packaging.
+   - For message-flow validation, treat `docs/validation/marvis-message-flow.html` as the authoritative routing diagram and confirm implementation still matches its top-down contract: user message -> decision layer -> action layer.
+   - For saved-report routing validation, confirm explicit `/html <path>` and `html <path>` requests open the HTML panel locally without delegating to Codex or Claude Code.
+   - For report-open command validation, confirm `/open <keyword>` remains a hard local command that fuzzy-searches saved reports and opens the best match locally.
+   - For natural-language report-open validation, confirm phrases like `open previous report`, `open latest report`, `打开之前的报告`, and similar reopen wording are resolved before heavy-agent delegation and can open locally.
+   - For intent-fallback validation, confirm natural-language recent/latest report-open requests still open locally when the internal intent resolver is unavailable, returns non-JSON, or returns `none`, by using the built-in lightweight heuristic fallback instead of spilling into Codex.
+   - For non-hijack validation, confirm phrases like `open browser`, opening a website/app/folder, or generating a new report are not misclassified as saved-report reopening.
+   - For action-domain validation, confirm saved-report decisions map only to local actions such as `recent`, `latest`, and `keyword`, while non-report decisions continue through ordinary chat or external-agent routing as appropriate.
    - For briefing validation, confirm Marvis hashes normalized status content and only auto-voices a briefing when a new status hash arrives with real news items.
    - Confirm fallback/avatar-only speech does not mark the current status hash as already briefed when real news items are missing.
    - For provider validation, confirm Ollama can be selected in onboarding and Settings without requiring an API key, and that its base URL and model persist correctly.
@@ -119,7 +126,12 @@ macOS workflow output should include a `.dmg` and a zip containing `Marvis.app`,
 
 - Use Gemini, DeepSeek, or Ollama for ordinary chat based on the selected provider.
 - Use Claude Code/Codex for project work, local files, screenshots, code edits, and report generation.
-- Open the HTML panel only from `[html] <path>`, `/html <path>`, `html <path>`, `open <keyword>`, `show <keyword>`, or `/open <keyword>`.
+- Validate message handling against the reference flow in `docs/validation/marvis-message-flow.html`.
+- The routing contract is top-down: user message -> decision layer -> action layer.
+- Open the HTML panel only from `[html] <path>`, `/html <path>`, `html <path>`, `/open <keyword>`, or a saved-report local-open decision that came from the internal intent resolver or its local fallback.
+- Treat `/open <keyword>` as a hard local command for saved-report fuzzy search.
+- Natural-language reopen requests such as `open previous report` or `打开之前的报告` should be intercepted locally only when classified as saved-report intent, or when the recent/latest heuristic fallback matches after resolver failure.
+- If the user means browser/site/app/folder opening or new report generation, do not hijack the request into saved-report local open.
 - When screenshots are attached for a follow-up on the current panel, preserve the visible right-side HTML panel instead of swapping it to a CLI activity view.
 - Never convert long bot replies, Markdown, inline HTML, or `[content]` blocks into report panels.
 - Never stream raw HTML diff bodies or full HTML file contents into the backend CLI panel; redact them before display.
@@ -131,3 +143,91 @@ macOS workflow output should include a `.dmg` and a zip containing `Marvis.app`,
 ## Release Safety
 
 Preserve unrelated local changes. Never package `release/win-unpacked/Marvis.exe` as the standalone Windows release executable; use the portable build `release/Marvis 0.5.0.exe` renamed to `Marvis.exe`.
+
+## Manual Test Script
+
+Use this script when validating message flow and saved-report opening before release.
+
+### Setup
+
+1. Launch Marvis with an existing `data/html-panels/` folder.
+2. Confirm there is at least:
+   - one recently generated report
+   - one older report with a recognizable topic in the filename or HTML title
+3. Open one saved report in the right-side HTML panel before starting the routing checks.
+
+### Step-By-Step Checks
+
+1. **Direct path open**
+   - Send: `/html C:\full\path\to\report.html`
+   - Expect:
+     - the requested HTML opens locally
+     - the right-side panel shows the report
+     - no Codex or Claude delegation is triggered
+
+2. **Hard keyword open**
+   - Send: `/open malaysia`
+   - Expect:
+     - Marvis fuzzy-searches saved reports locally
+     - the best match opens
+     - no heavy-agent reply appears
+
+3. **Natural-language recent reopen**
+   - Send: `open previous report`
+   - Expect:
+     - Marvis resolves this as saved-report reopening
+     - it opens locally from recent history
+     - it does not fall through to Codex or Claude Code text output
+
+4. **Natural-language latest reopen**
+   - Send: `open latest report`
+   - Expect:
+     - Marvis opens the newest saved report locally
+     - no heavy-agent delegation is used unless the local open actually fails
+
+5. **Chinese recent reopen**
+   - Send: `打开之前的报告`
+   - Expect:
+     - same behavior as the English recent reopen
+     - local panel open, not heavy-agent delegation
+
+6. **Specific-topic natural-language reopen**
+   - Send: `打开马来西亚那份报告` or `open the Malaysia report`
+   - Expect:
+     - Marvis treats this as saved-report intent
+     - it opens the best topic match locally
+     - if no good match exists, the app shows a local no-match style failure instead of pretending the report opened
+
+7. **Non-report open should not hijack**
+   - Send: `open browser`
+   - Expect:
+     - Marvis does not classify this as a saved-report open
+     - it does not open an unrelated report
+     - it stays in the normal browser/external/chat path
+
+8. **New report request should not hijack**
+   - Send: `近日新闻 生成报告`
+   - Expect:
+     - Marvis routes to Codex or Claude Code for generation
+     - it does not reopen an old local report by mistake
+
+9. **Current panel plus screenshots**
+   - Keep an HTML report open on the right
+   - Attach a screenshot and ask a follow-up question about the current report
+   - Expect:
+     - the current right-side HTML panel stays visible
+     - the delegated task still includes the screenshot attachment and current HTML context
+
+10. **CLI output cleanliness during report work**
+    - Trigger a report-generation or report-editing task through Codex or Claude
+    - Expect:
+      - raw HTML bodies are not dumped into the CLI activity panel
+      - helper chatter like bare `exec`, full shell commands, and low-value timing boilerplate stays hidden or redacted
+
+### Pass Criteria
+
+- Direct and natural-language report reopen requests open locally when they should.
+- Browser or new-generation requests are not misclassified as report reopen actions.
+- Failed intent resolution does not cause simple recent/latest reopen requests to spill into Codex when a local heuristic fallback should handle them.
+- The visible HTML panel remains stable during screenshot-assisted follow-up analysis.
+- CLI activity stays readable and does not leak raw HTML content.

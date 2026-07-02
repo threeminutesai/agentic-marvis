@@ -33,6 +33,9 @@ contextBridge.exposeInMainWorld('marvis', {
   finalizeHtmlPanel: (filePath, fallbackTitle) => ipcRenderer.invoke('html-panel:finalize', { filePath, fallbackTitle }),
   searchHtmlPanels: (keyword) => ipcRenderer.invoke('html-panel:search', keyword),
   openHtmlPanelByKeyword: (keyword) => ipcRenderer.invoke('html-panel:openByKeyword', keyword),
+  openLatestHtmlPanel: () => ipcRenderer.invoke('html-panel:openLatest'),
+  resolveReportOpenIntent: (text) => ipcRenderer.invoke('html-panel:resolveOpenIntent', text),
+  listRecentHtmlPanels: (limit = 8) => ipcRenderer.invoke('html-panel:listRecent', limit),
   captureRegion: (rect) => ipcRenderer.invoke('panel:captureRegion', rect),
   readCapture: (filePath) => ipcRenderer.invoke('capture:read', filePath),
   onCliProgress: (callback) => {

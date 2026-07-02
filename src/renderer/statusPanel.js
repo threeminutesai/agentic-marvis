@@ -313,14 +313,36 @@ function extractHtmlBlock(text) {
 
 function extractVoiceContentBlock(text) {
   const voiceText = extractTaggedSection(text, ['voice', 'voice content']);
+  const htmlPath = extractTaggedSection(text, ['html', 'html file']) || '';
+  const titleText = extractTaggedSection(text, ['title', 'report title']) || '';
+  const displayText = extractTaggedSection(text, ['content', 'display content']) || '';
   if (voiceText !== null) {
-    const htmlPath = extractTaggedSection(text, ['html', 'html file']) || '';
-    const titleText = extractTaggedSection(text, ['title', 'report title']) || '';
     return {
       titleText: titleText.trim(),
       voiceText: voiceText.trim(),
-      displayText: extractTaggedSection(text, ['content', 'display content']) || '',
+      displayText,
       htmlPath: normalizeHtmlPath(htmlPath),
+    };
+  }
+
+  if (htmlPath) {
+    const fallbackVoiceText = extractFallbackTaggedReplyText(text);
+    return {
+      titleText: titleText.trim(),
+      voiceText: fallbackVoiceText,
+      displayText: displayText || fallbackVoiceText,
+      htmlPath: normalizeHtmlPath(htmlPath),
+    };
+  }
+
+  const embeddedHtmlPath = extractEmbeddedHtmlPath(text);
+  if (embeddedHtmlPath) {
+    const fallbackVoiceText = extractFallbackReplyText(text, embeddedHtmlPath);
+    return {
+      titleText: '',
+      voiceText: fallbackVoiceText,
+      displayText: fallbackVoiceText,
+      htmlPath: normalizeHtmlPath(embeddedHtmlPath),
     };
   }
 
@@ -345,6 +367,52 @@ function normalizeHtmlPath(value) {
   return firstLine.replace(/^["']|["']$/g, '');
 }
 
+function extractEmbeddedHtmlPath(text) {
+  const source = String(text || '');
+  const patterns = [
+    /`([^`\r\n]*?\.html)`/ig,
+    /["']([^"'\r\n]*?\.html)["']/ig,
+    /\b([a-z]:\\[^\r\n]*?\.html)\b/ig,
+    /\b([^<>\s"'`]+?\.html)\b/ig,
+  ];
+
+  for (const pattern of patterns) {
+    let match = null;
+    while ((match = pattern.exec(source))) {
+      const candidate = normalizeHtmlPath(match[1] || match[0]);
+      if (looksLikeLocalHtmlReference(candidate)) return candidate;
+    }
+  }
+
+  return '';
+}
+
+function looksLikeLocalHtmlReference(value) {
+  const candidate = normalizeHtmlPath(value);
+  if (!candidate || !/\.html$/i.test(candidate)) return false;
+  if (/^https?:\/\//i.test(candidate)) return false;
+  if (/[\\\/]/.test(candidate)) return true;
+  return /^[^<>:"|?*\r\n]+\.html$/i.test(candidate);
+}
+
+function extractFallbackTaggedReplyText(text) {
+  const knownTags = ['title', 'report title', 'voice', 'voice content', 'content', 'display content'];
+  const cleaned = knownTags.reduce((currentText, tag) => removeTaggedSection(currentText, [tag]), stripHtmlPathSection(String(text || '')));
+  return cleaned.replace(/\s+/g, ' ').trim();
+}
+
+function extractFallbackReplyText(text, htmlPath) {
+  const source = String(text || '');
+  const escapedPath = escapeRegExp(String(htmlPath || ''));
+  const cleaned = source
+    .replace(new RegExp(`\`${escapedPath}\``, 'ig'), ' ')
+    .replace(new RegExp(`["']${escapedPath}["']`, 'ig'), ' ')
+    .replace(new RegExp(escapedPath, 'ig'), ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return cleaned || 'The report is ready, sir.';
+}
+
 function extractTaggedSection(text, tags) {
   const tagPattern = tags.map((tag) => tag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
   const marker = new RegExp(`\\[(?:${tagPattern})\\]`, 'i').exec(text);
@@ -352,6 +420,38 @@ function extractTaggedSection(text, tags) {
   const after = text.slice(marker.index + marker[0].length);
   const next = /\r?\n\s*\[(?:title|report title|voice|voice content|content|display content|html|html file)\]/i.exec(after);
   return (next ? after.slice(0, next.index) : after).trim();
+}
+
+function removeTaggedSection(text, tags) {
+  const tagPattern = tags.map((tag) => tag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+  return String(text || '').replace(
+    new RegExp(`\\[(?:${tagPattern})\\][\\s\\S]*?(?=(?:\\r?\\n\\s*\\[(?:title|report title|voice|voice content|content|display content|html|html file)\\])|$)`, 'ig'),
+    ' '
+  );
+}
+
+function stripHtmlPathSection(text) {
+  const source = String(text || '');
+  const marker = /\[(?:html|html file)\]/i.exec(source);
+  if (!marker) return source;
+
+  const before = source.slice(0, marker.index);
+  const after = source.slice(marker.index + marker[0].length);
+  const lines = after.split(/\r?\n/);
+  const kept = [];
+  let skippedPath = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!skippedPath) {
+      if (!trimmed) continue;
+      skippedPath = true;
+      continue;
+    }
+    kept.push(line);
+  }
+
+  return `${before}\n${kept.join('\n')}`;
 }
 
 function renderResearchSummary(markdown) {
@@ -437,6 +537,10 @@ function escapeHtml(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+function escapeRegExp(value) {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 if (typeof module !== 'undefined') {

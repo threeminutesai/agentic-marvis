@@ -15,6 +15,7 @@ const { delegateCodexTask, warmupCodex } = require('./codex/delegate');
 const { readStatusRows, ensureStatusFile, hashStatusRows } = require('./status/statusFile');
 const { ensureCaptureDir, getNextCapturePath, pruneCaptures } = require('./status/captureFile');
 const { DEFAULT_TEMPLATE_HTML } = require('./status/htmlPanelTemplate');
+const { getReportOpenIntent } = require('../shared/reportOpenIntent');
 const { DEFAULT_MUSIC_TRACKS, DEFAULT_MUSIC_SCHEDULE, WEEKDAY_SLOTS, WEEKEND_SLOTS } = require('./music/defaultMusic');
 const { synthesizeGreetingWithCache } = require('./voice/greetingVoiceCache');
 const { createMusicLibraryStore, SUPPORTED_EXTENSIONS } = require('./music');
@@ -78,6 +79,94 @@ function normalizeRouterDecision(raw, { hasSession = false } = {}) {
   };
 }
 
+function normalizeReportOpenDecision(raw) {
+  const domain = ['saved_report', 'browser_or_external', 'none'].includes(raw?.domain)
+    ? raw.domain
+    : 'none';
+  const action = ['none', 'recent', 'latest', 'keyword'].includes(raw?.action)
+    ? raw.action
+    : 'none';
+  const keyword = String(raw?.keyword || '').trim();
+  return {
+    domain,
+    action: domain === 'saved_report' ? action : 'none',
+    keyword: domain === 'saved_report' && action === 'keyword' ? keyword : '',
+    reason: String(raw?.reason || '').trim(),
+  };
+}
+
+function chooseInternalIntentProvider(settings, envKeys) {
+  const preferred = String(settings?.provider || '').trim().toLowerCase();
+  const candidates = [
+    preferred,
+    'gemini',
+    'openrouter',
+    'deepseek',
+    'ollama',
+  ].filter(Boolean);
+
+  const seen = new Set();
+  for (const provider of candidates) {
+    if (seen.has(provider)) continue;
+    seen.add(provider);
+    if (provider === 'ollama') {
+      if (settings?.ollamaBaseUrl && settings?.ollamaModel) {
+        return { provider, apiKey: '' };
+      }
+      continue;
+    }
+    const apiKey = envKeys?.[provider] || settings?.apiKeys?.[provider];
+    if (apiKey) return { provider, apiKey };
+  }
+  return null;
+}
+
+async function resolveReportOpenIntentInternally(text, settings, envKeys) {
+  const selected = chooseInternalIntentProvider(settings, envKeys);
+  if (!selected) return { ok: false, skipped: true, error: 'No internal chat provider is configured for report-open intent.' };
+
+  const client = createProviderFor(selected.provider, selected.apiKey, settings);
+  const recentReports = listRecentHtmlPanels(6).map((report) => ({
+    title: report.title,
+    fileName: report.fileName,
+  }));
+  const systemPrompt = [
+    'You are Marvis internal HTML report open-intent control.',
+    'Decide whether the user is asking to open or reopen a previously saved local HTML report, or is asking to open something else such as a browser/site/app.',
+    'Return JSON only with this shape: {"domain":"saved_report|browser_or_external|none","action":"none|recent|latest|keyword","keyword":"string","reason":"short reason"}.',
+    'Use domain "saved_report" only when the user clearly means a previously saved Marvis HTML report.',
+    'Use domain "browser_or_external" for opening a browser, website, app, link, folder, or anything that is not a saved Marvis report.',
+    'Use domain "none" for ordinary chat, generating a new report, discussing a report, or summarizing content without opening anything.',
+    'Within domain "saved_report": use action "recent" for phrases like open the previous report, just now report, 刚才的报告, 上一份简报.',
+    'Within domain "saved_report": use action "latest" for latest/newest report wording.',
+    'Within domain "saved_report": use action "keyword" when the user wants a specific saved report by topic/title, such as open the Malaysia election report.',
+    'For "recent" and "latest", leave keyword empty.',
+    'For "keyword", keyword should be only the report topic/title phrase with no command words.',
+    'If unsure between a saved report and browser/site open, prefer "browser_or_external" rather than hijacking the request locally.',
+    'No markdown, no extra text.',
+  ].join(' ');
+
+  const reply = await client.chat({
+    systemPrompt,
+    messages: [{
+      role: 'user',
+      content: JSON.stringify({
+        text: String(text || ''),
+        recentSavedReports: recentReports,
+      }),
+    }],
+  });
+  const parsed = extractJsonObject(reply);
+  if (!parsed) {
+    return { ok: false, error: `${selected.provider} returned non-JSON for report open intent.` };
+  }
+  return {
+    ok: true,
+    provider: selected.provider,
+    decision: normalizeReportOpenDecision(parsed),
+  };
+}
+
 function getUserFacingLanguageInstruction(language) {
   return language === 'zh'
     ? 'Reply in Simplified Chinese for all user-facing output unless the user explicitly asks for another language.'
@@ -89,6 +178,9 @@ function getUserFacingLanguageInstruction(language) {
 // Electron portable launcher; fall back to dirname(execPath) if absent.
 // Dev (unpackaged): data lives in the project root's data/ folder (gitignored).
 function getDataDir() {
+  if (!app || typeof app.isPackaged === 'undefined') {
+    return path.join(path.resolve(__dirname, '../..'), 'data');
+  }
   if (!app.isPackaged) return path.join(path.resolve(__dirname, '../..'), 'data');
   let exeDir = process.env.PORTABLE_EXECUTABLE_DIR;
   if (!exeDir && process.execPath) {
@@ -522,11 +614,11 @@ function deriveHtmlPanelTitle(input) {
 
 function slugifyPanelTitle(title) {
   const slug = String(title || '')
-    .normalize('NFKD')
-    .replace(/[^\w\s-]/g, '')
+    .normalize('NFKC')
+    .replace(/[^\p{L}\p{N}\s-]/gu, '')
     .trim()
     .toLowerCase()
-    .replace(/[-\s]+/g, '-')
+    .replace(/[\s-]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 56);
   return slug || 'marvis-report';
@@ -561,16 +653,38 @@ function getUniqueHtmlPanelPath(title) {
   return candidate;
 }
 
-function renameHtmlPanelToMatchTitle(filePath, title) {
-  const dir = ensureHtmlPanelDir();
-  const resolved = path.resolve(filePath || '');
-  const resolvedDir = path.resolve(dir);
-  if (!resolved.startsWith(`${resolvedDir}${path.sep}`)) {
-    throw new Error('HTML panel file must be inside the Marvis html-panels folder.');
+function resolveHtmlPanelPath(filePath, { mustExist = true, allowExternalAbsolute = false } = {}) {
+  const input = String(filePath || '').trim().replace(/^["']|["']$/g, '');
+  if (!input) {
+    throw new Error('HTML panel file path is required.');
   }
-  if (!fs.existsSync(resolved)) {
+
+  let resolved = '';
+  if (path.isAbsolute(input)) {
+    resolved = path.resolve(input);
+    if (!allowExternalAbsolute) {
+      const dir = ensureHtmlPanelDir();
+      const resolvedDir = path.resolve(dir);
+      if (!resolved.startsWith(`${resolvedDir}${path.sep}`)) {
+        throw new Error('HTML panel file must be inside the Marvis html-panels folder.');
+      }
+    }
+  } else {
+    const dir = ensureHtmlPanelDir();
+    resolved = path.resolve(dir, path.basename(input));
+    const resolvedDir = path.resolve(dir);
+    if (!resolved.startsWith(`${resolvedDir}${path.sep}`)) {
+      throw new Error('HTML panel file must be inside the Marvis html-panels folder.');
+    }
+  }
+  if (mustExist && !fs.existsSync(resolved)) {
     throw new Error('HTML panel file does not exist.');
   }
+  return resolved;
+}
+
+function renameHtmlPanelToMatchTitle(filePath, title) {
+  const resolved = resolveHtmlPanelPath(filePath);
   const currentName = path.basename(resolved);
   const desiredPath = getUniqueHtmlPanelPath(title);
   const desiredName = path.basename(desiredPath);
@@ -620,8 +734,9 @@ function upsertHtmlTitleTag(html, title) {
 }
 
 function ensureHtmlPanelTitle(filePath, fallbackTitle) {
-  if (!fs.existsSync(filePath) || fs.statSync(filePath).size === 0) return fallbackTitle;
-  const html = fs.readFileSync(filePath, 'utf8');
+  const resolved = resolveHtmlPanelPath(filePath, { allowExternalAbsolute: true });
+  if (!fs.existsSync(resolved) || fs.statSync(resolved).size === 0) return fallbackTitle;
+  const html = fs.readFileSync(resolved, 'utf8');
   const existingTitle = extractHtmlPanelTitle(html);
   const derivedTitle = deriveHtmlPanelTitle(fallbackTitle);
   const shouldReplaceExisting = isWeakPanelTitle(existingTitle) && !isWeakPanelTitle(derivedTitle);
@@ -632,7 +747,7 @@ function ensureHtmlPanelTitle(filePath, fallbackTitle) {
 
   const nextHtml = upsertHtmlTitleTag(html, title);
   if (nextHtml !== html) {
-    fs.writeFileSync(filePath, nextHtml);
+    fs.writeFileSync(resolved, nextHtml);
   }
   return title;
 }
@@ -788,14 +903,42 @@ function removeLegacyHtmlPanelIndex() {
 }
 
 function readHtmlPanelFile(filePath) {
-  const dir = ensureHtmlPanelDir();
-  const resolved = path.resolve(filePath || '');
-  if (!resolved.startsWith(path.resolve(dir) + path.sep)) {
-    throw new Error('HTML panel file must be inside the Marvis html-panels folder.');
-  }
+  const resolved = resolveHtmlPanelPath(filePath);
   const html = fs.readFileSync(resolved, 'utf8');
   if (!html.trim()) throw new Error('HTML panel file is empty.');
   return html;
+}
+
+function openLatestHtmlPanel() {
+  const latest = getHtmlPanelFiles()
+    .sort((a, b) => b.modifiedMs - a.modifiedMs || b.createdMs - a.createdMs)[0];
+  if (!latest) {
+    throw new Error('No saved HTML reports were found.');
+  }
+  const meta = finalizeHtmlPanelMetadata(latest.filePath, latest.file.replace(/\.html$/i, ''));
+  return {
+    ok: true,
+    html: readHtmlPanelFile(meta?.filePath || latest.filePath),
+    filePath: meta?.filePath || latest.filePath,
+    fileName: meta?.fileName || latest.file,
+    title: meta?.title || latest.file,
+  };
+}
+
+function listRecentHtmlPanels(limit = 8) {
+  return getHtmlPanelFiles()
+    .sort((a, b) => b.modifiedMs - a.modifiedMs || b.createdMs - a.createdMs)
+    .slice(0, Math.max(1, Number(limit) || 8))
+    .map((panel) => {
+      const meta = finalizeHtmlPanelMetadata(panel.filePath, panel.file.replace(/\.html$/i, ''));
+      return {
+        filePath: meta?.filePath || panel.filePath,
+        fileName: meta?.fileName || panel.file,
+        title: meta?.title || titleCaseFallback(panel.file.replace(/\.html$/i, '')),
+        modifiedMs: panel.modifiedMs,
+        createdMs: panel.createdMs,
+      };
+    });
 }
 
 function copyLegacyStatusFileIfNeeded(filePath) {
@@ -1361,6 +1504,65 @@ function registerIpcHandlers() {
     }
   });
 
+  ipcMain.handle('html-panel:openLatest', () => {
+    try {
+      return openLatestHtmlPanel();
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle('html-panel:resolveOpenIntent', async (_event, text) => {
+    const sourceText = String(text || '').trim();
+    if (!sourceText) return { ok: true, decision: { action: 'none', keyword: '', reason: 'Empty input.' } };
+    const heuristicIntent = getReportOpenIntent(sourceText);
+
+    const settings = settingsStore.load();
+    const envKeys = loadEnvFile();
+    try {
+      const aiResult = await resolveReportOpenIntentInternally(sourceText, settings, envKeys);
+      if (aiResult?.ok && aiResult.decision) {
+        const decision = aiResult.decision;
+        if (decision?.domain === 'saved_report' && decision?.action && decision.action !== 'none') {
+          return { ok: true, decision };
+        }
+        if (heuristicIntent?.kind === 'recent') {
+          return { ok: true, decision: { domain: 'saved_report', action: 'recent', keyword: '', reason: 'Local heuristic fallback matched recent report open.' } };
+        }
+        if (heuristicIntent?.kind === 'latest') {
+          return { ok: true, decision: { domain: 'saved_report', action: 'latest', keyword: '', reason: 'Local heuristic fallback matched latest report open.' } };
+        }
+        return { ok: true, decision };
+      }
+      if (heuristicIntent?.kind === 'recent') {
+        return { ok: true, decision: { domain: 'saved_report', action: 'recent', keyword: '', reason: 'Local heuristic fallback matched recent report open.' } };
+      }
+      if (heuristicIntent?.kind === 'latest') {
+        return { ok: true, decision: { domain: 'saved_report', action: 'latest', keyword: '', reason: 'Local heuristic fallback matched latest report open.' } };
+      }
+      return {
+        ok: true,
+        decision: { action: 'none', keyword: '', reason: aiResult?.error || 'Unable to resolve report-open intent.' },
+      };
+    } catch (err) {
+      if (heuristicIntent?.kind === 'recent') {
+        return { ok: true, decision: { domain: 'saved_report', action: 'recent', keyword: '', reason: 'Local heuristic fallback matched recent report open after resolver failure.' } };
+      }
+      if (heuristicIntent?.kind === 'latest') {
+        return { ok: true, decision: { domain: 'saved_report', action: 'latest', keyword: '', reason: 'Local heuristic fallback matched latest report open after resolver failure.' } };
+      }
+      return { ok: true, decision: { action: 'none', keyword: '', reason: `Intent resolution failed: ${err.message}` } };
+    }
+  });
+
+  ipcMain.handle('html-panel:listRecent', (_event, limit = 8) => {
+    try {
+      return { ok: true, reports: listRecentHtmlPanels(limit) };
+    } catch (err) {
+      return { ok: false, error: err.message, reports: [] };
+    }
+  });
+
   // Removes the placeholder file created by html-panel:prepare when a
   // delegated task ends up not writing it (error, cancel, or the CLI
   // decided no HTML panel was needed) - only if it's still empty, so a
@@ -1507,6 +1709,7 @@ module.exports = {
   extractHtmlPanelTitle,
   ensureHtmlPanelTitle,
   finalizeHtmlPanelMetadata,
+  resolveHtmlPanelPath,
   slugifyPanelTitle,
   isWeakPanelTitle,
 };

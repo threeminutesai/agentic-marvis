@@ -50,6 +50,10 @@
       <div id="status-panel-wrap">
         <div id="status-panel"></div>
       </div>
+      <div id="recent-reports-wrap" class="hidden">
+        <button id="recent-reports-btn" type="button" title="Recent reports" aria-haspopup="true" aria-expanded="false">Reports</button>
+        <div id="recent-reports-menu" class="hidden" role="menu" aria-label="Recent reports"></div>
+      </div>
       <button id="status-panel-capture-btn" type="button" title="Capture area as image" aria-label="Capture area as image">&#9986;</button>
       <button id="status-panel-dismiss-btn" type="button" title="Close panel" aria-label="Close panel">&times;</button>
     </div>
@@ -316,6 +320,7 @@
   <script src="avatar/ringsAvatar.js"></script>
   <script src="avatar/brainAvatar.js"></script>
   <script src="avatar/avatarController.js"></script>
+  <script src="../shared/reportOpenIntent.js"></script>
   <script src="../shared/wakeWordMatcher.js"></script>
   <script src="voice/wakeWordController.js"></script>
   <script src="voice/sttController.js"></script>
