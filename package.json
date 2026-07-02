@@ -1,6 +1,6 @@
 {
   "name": "agentic-marvis",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Dashboard-oriented Marvis interface for bridging Codex and Claude Code",
   "author": "ThreeMinutesAI",
   "main": "src/main/main.js",
